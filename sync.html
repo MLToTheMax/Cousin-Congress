@@ -39,25 +39,25 @@
       </label>
 
       <nav class="nav" aria-label="Primary">
-        <a class="nav__link" href="floor.html">The Floor</a>
+        <a class="nav__link" href="floor.html">🪑 The Floor</a>
         <div class="nav__group">
-          <a class="nav__link" href="voting.html">Votes</a>
+          <a class="nav__link" href="voting.html">🙋 Votes</a>
           <ul class="nav__menu">
             <li><a href="voting.html">Voting <small>Cast and call roll calls</small></a></li>
             <li><a href="results.html">Results <small>The roll-call archive</small></a></li>
           </ul>
         </div>
         <div class="nav__group">
-          <a class="nav__link" href="bills.html">Legislation</a>
+          <a class="nav__link" href="bills.html">📜 Bills</a>
           <ul class="nav__menu">
             <li><a href="bills.html">Bill tracker <small>Every measure on file</small></a></li>
             <li><a href="draft.html">Drafting studio <small>Write and introduce a bill</small></a></li>
           </ul>
         </div>
-        <a class="nav__link" href="docket.html">Docket</a>
-        <a class="nav__link" href="news.html">Newsroom</a>
-        <a class="nav__link" href="members.html">Members</a>
-        <a class="nav__link" href="about.html">About</a>
+        <a class="nav__link" href="docket.html">📅 Docket</a>
+        <a class="nav__link" href="news.html">📰 Newsroom</a>
+        <a class="nav__link" href="members.html">👥 Members</a>
+        <a class="nav__link" href="about.html">🧭 About</a>
         <a class="conn nav__link" data-conn="static" href="sync.html" title="Replication status — chamber devices">
           <span data-conn-label>Local</span>
         </a>
@@ -87,12 +87,12 @@
           <ol class="crumbs"><li><a href="index.html">Home</a></li><li>Chamber devices</li></ol>
           <h1 data-enter>Chamber Devices</h1>
           <p class="page-head__lede" data-enter style="--i:1">
-            Every device is a full replica of the record. This console shows how yours is
-            keeping in step — and pairs it directly with another cousin's browser,
-            server or no server.
+            Every phone, tablet, and laptop here carries the whole chamber. Pair two of them
+            with a <strong>picture code</strong> — a string of emoji you can send in any chat —
+            and they trade everything they know, no server needed.
           </p>
           <div class="page-head__meta" data-enter style="--i:2">
-            <span>Guarantee: if any one replica survives, everything survives.</span>
+            <span>The promise: if any one device survives, the whole record survives.</span>
           </div>
         </div>
       </header>
@@ -104,11 +104,11 @@
         <div class="shell">
           <header class="section__head section__head--split">
             <div>
-              <p class="section__eyebrow u-caps" data-reveal>This replica</p>
-              <h2 data-reveal>Replication status</h2>
+              <p class="section__eyebrow u-caps" data-reveal>This device</p>
+              <h2 data-reveal>How yours is keeping up</h2>
             </div>
             <div class="cluster" data-reveal="right">
-              <button class="btn btn--ghost btn--sm" data-action="force-sweep">Sync now</button>
+              <button class="btn btn--ghost btn--sm" data-action="force-sweep">🔄 Sync now</button>
             </div>
           </header>
           <div data-render="syncStatus">
@@ -121,75 +121,91 @@
       <section class="section section--sunken">
         <div class="shell">
           <header class="section__head">
-            <p class="section__eyebrow u-caps" data-reveal>Peer-to-peer</p>
-            <h2 data-reveal>Pair with another cousin</h2>
+            <p class="section__eyebrow u-caps" data-reveal>Picture codes</p>
+            <h2 data-reveal>Pair with a cousin's device</h2>
           </header>
 
           <div class="notice notice--info" data-reveal style="margin-bottom:var(--sp-5)">
             <div>
-              With the Cloudflare relay configured, browsers on this page pair with each other
-              automatically — nothing to do. The invite codes below are the
-              <strong>zero-infrastructure</strong> path: they carry the WebRTC handshake by hand
-              (paste into any chat), and after that the connection is direct between the two
-              browsers. State flows peer to peer either way.
+              With the family relay set up, devices on this page find each other
+              <strong>by themselves</strong> — nothing to do. Picture codes are for pairing with
+              <strong>no server at all</strong>: copy the emoji, send them in any chat, and the
+              two browsers connect directly. Check the little <strong>match badge</strong>
+              (four pictures) together — same pictures on both screens means it's really you two.
             </div>
           </div>
 
           <div class="grid grid--2">
             <!-- Host side -->
             <div class="panel stack" data-reveal="left">
-              <p class="kicker">Side A — invite</p>
-              <h3 style="font-size:var(--fs-lg)">Create an invite</h3>
-              <ol style="padding-left:1.2em;display:grid;gap:var(--sp-2);color:var(--text-muted);font-size:var(--fs-sm)">
-                <li>Create the invite and send the code to your cousin.</li>
-                <li>They paste it on their device and send back an answer code.</li>
-                <li>Paste the answer below — the channel opens and both sides backfill.</li>
+              <p class="kicker">Cousin A — start here</p>
+              <h3 style="font-size:var(--fs-lg)">Make the picture code</h3>
+              <ol class="steps">
+                <li>Tap the button — your device draws a code out of little pictures.</li>
+                <li>Copy it and send it to your cousin (any chat works).</li>
+                <li>They'll send back a reply code — paste it below and you're paired!</li>
               </ol>
-              <button class="btn" data-action="create-invite">Create an invite</button>
+              <button class="btn btn--lg" data-action="create-invite">Make a picture code</button>
 
               <div class="stack" id="invite-out" hidden>
-                <div class="field">
-                  <label class="field__label" for="invite-code">Invite code — send this</label>
-                  <textarea class="textarea" id="invite-code" readonly rows="4"
-                            style="min-height:5rem" aria-describedby="invite-hint"></textarea>
-                  <p class="field__hint" id="invite-hint">Codes are single-use and expire in about
-                    a minute — paste promptly.</p>
+                <div class="cluster">
+                  <span class="u-caps u-muted">Match badge:</span>
+                  <span class="match-badge" id="invite-badge" aria-label="Match badge"></span>
                 </div>
-                <button class="btn btn--ghost btn--sm" data-action="copy" data-copy-from="#invite-code">
-                  Copy invite code
+                <div class="field">
+                  <label class="field__label" for="invite-code">Your picture code — send this</label>
+                  <textarea class="textarea code-box" id="invite-code" readonly rows="4"
+                            aria-describedby="invite-hint"></textarea>
+                  <p class="field__hint" id="invite-hint">Codes are single-use and only fresh for
+                    about a minute — send it right away!</p>
+                </div>
+                <button class="btn btn--gold" data-action="copy" data-copy-from="#invite-code">
+                  📋 Copy the pictures
                 </button>
               </div>
 
               <div class="field">
-                <label class="field__label" for="answer-in">Answer code — paste theirs here</label>
-                <textarea class="textarea" id="answer-in" rows="4" style="min-height:5rem"
-                          placeholder="Paste the answer code your cousin sends back…"></textarea>
+                <label class="field__label" for="answer-in">Their reply code — paste it here</label>
+                <textarea class="textarea code-box" id="answer-in" rows="4"
+                          placeholder="Paste the reply pictures here…"></textarea>
               </div>
-              <button class="btn btn--gold" data-action="complete-invite">Complete the pairing</button>
+              <button class="btn" data-action="complete-invite">🤝 Finish pairing</button>
             </div>
 
             <!-- Guest side -->
             <div class="panel stack" data-reveal="right">
-              <p class="kicker">Side B — answer</p>
-              <h3 style="font-size:var(--fs-lg)">Accept an invite</h3>
-              <p class="u-muted" style="font-size:var(--fs-sm)">Received an invite code?
-                Paste it here, then send the generated answer code back the same way.</p>
+              <p class="kicker">Cousin B — got a code?</p>
+              <h3 style="font-size:var(--fs-lg)">Answer the picture code</h3>
+              <ol class="steps">
+                <li>Paste the pictures your cousin sent you.</li>
+                <li>Tap the button — your device draws a reply code.</li>
+                <li>Send the reply back. The pairing finishes on their side.</li>
+              </ol>
               <div class="field">
-                <label class="field__label" for="join-code">Invite code</label>
-                <textarea class="textarea" id="join-code" rows="4" style="min-height:5rem"
-                          placeholder="Paste the invite code here…"></textarea>
+                <label class="field__label" for="join-code">Their picture code</label>
+                <textarea class="textarea code-box" id="join-code" rows="4"
+                          placeholder="Paste the pictures here…"></textarea>
               </div>
-              <button class="btn" data-action="accept-invite">Generate my answer</button>
+              <div class="cluster">
+                <span class="u-caps u-muted">Match badge:</span>
+                <span class="match-badge" id="join-badge" aria-label="Match badge"></span>
+              </div>
+              <button class="btn btn--lg" data-action="accept-invite">Make my reply code</button>
 
               <div class="stack" id="answer-out" hidden>
-                <div class="field">
-                  <label class="field__label" for="answer-code">Answer code — send this back</label>
-                  <textarea class="textarea" id="answer-code" readonly rows="4" style="min-height:5rem"></textarea>
+                <div class="cluster">
+                  <span class="u-caps u-muted">Reply badge:</span>
+                  <span class="match-badge" id="answer-badge" aria-label="Reply badge"></span>
                 </div>
-                <button class="btn btn--ghost btn--sm" data-action="copy" data-copy-from="#answer-code">
-                  Copy answer code
+                <div class="field">
+                  <label class="field__label" for="answer-code">Your reply code — send this back</label>
+                  <textarea class="textarea code-box" id="answer-code" readonly rows="4"></textarea>
+                </div>
+                <button class="btn btn--gold" data-action="copy" data-copy-from="#answer-code">
+                  📋 Copy the reply
                 </button>
-                <p class="field__hint">Once your cousin pastes this, the channel opens by itself.</p>
+                <p class="field__hint">Once your cousin pastes this, the two chambers connect all
+                  by themselves.</p>
               </div>
             </div>
           </div>
@@ -201,32 +217,32 @@
         <div class="shell">
           <header class="section__head">
             <p class="section__eyebrow u-caps" data-reveal>Custody of the record</p>
-            <h2 data-reveal>Export, import, recover</h2>
+            <h2 data-reveal>Save it, share it, start over</h2>
           </header>
 
           <div class="grid grid--3">
             <div class="card" data-reveal style="--i:0">
-              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body)">Export the log</h3>
-              <p class="u-muted" style="font-size:var(--fs-sm)">A single JSON file containing every
-                operation this replica holds. Archive it, email it, print it and frame it.</p>
+              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body)">💾 Save the record</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">One file holds every vote, bill,
+                and status ever recorded. Tuck it somewhere safe — it can rebuild everything.</p>
               <div class="card__foot">
-                <button class="btn btn--sm" data-action="export-log">Export</button>
+                <button class="btn btn--sm" data-action="export-log">Save a copy</button>
               </div>
             </div>
             <div class="card" data-reveal style="--i:1">
-              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body)">Import a log</h3>
-              <p class="u-muted" style="font-size:var(--fs-sm)">Merge an exported file into this
-                replica. Duplicates are ignored; only genuinely new history lands.</p>
+              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body)">📂 Load a record</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">Merge a saved file into this device.
+                Nothing doubles up — only genuinely new history lands.</p>
               <div class="card__foot">
                 <button class="btn btn--sm btn--ghost" data-action="import-log">Choose a file</button>
                 <input type="file" id="import-file" accept="application/json,.json" class="u-visually-hidden"
-                       aria-label="Import an exported chamber log">
+                       aria-label="Import a saved chamber record">
               </div>
             </div>
             <div class="card" data-reveal style="--i:2">
-              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body)">Erase this device</h3>
-              <p class="u-muted" style="font-size:var(--fs-sm)">Wipes this replica only. Every other
-                device keeps the record, and this one can rejoin and recover it all later.</p>
+              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body)">🧹 Wipe this device</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">Only this device forgets. Every other
+                copy keeps the record, and this one can rejoin and catch up later.</p>
               <div class="card__foot">
                 <button class="btn btn--danger btn--sm" data-action="reset-replica">Erase this device</button>
               </div>
@@ -235,11 +251,11 @@
 
           <div class="notice notice--ok" data-reveal style="margin-top:var(--sp-6)">
             <div>
-              <strong>The recovery guarantee, spelled out.</strong> State lives in an append-only
-              operation log, and every replica holds all of it. A brand-new browser that pairs
-              with <em>any single</em> up-to-date peer — via relay, invite code, or an imported
-              file — receives the complete history and folds it into the identical chamber state.
-              There is no primary copy to lose.
+              <strong>The recovery guarantee, spelled out.</strong> The chamber's history is an
+              append-only log and every device holds all of it. A brand-new browser that pairs
+              with <em>any single</em> up-to-date cousin — by relay, picture code, or a saved
+              file — receives the complete record and rebuilds the identical chamber.
+              There is no main copy to lose.
             </div>
           </div>
         </div>

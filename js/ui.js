@@ -139,6 +139,61 @@ export function toast(message, kind = "ok", ms = 4200) {
 }
 
 /* --------------------------------------------------------------------------
+   Ask dialog — one native <dialog>, reused for every password prompt
+   -------------------------------------------------------------------------- */
+
+let askHost = null;
+
+/**
+ * Big friendly modal question with a single input. Resolves to the entered
+ * string, or null if dismissed. Passwords here are family secrets between
+ * cousins, so the input is visible text by default — young kids need to see
+ * what they typed.
+ */
+export function askDialog({
+  icon = "🔑",
+  title,
+  hint = "",
+  placeholder = "",
+  confirmLabel = "OK",
+  cancelLabel = "Never mind",
+  minLength = 0,
+} = {}) {
+  return new Promise((resolve) => {
+    if (!askHost) {
+      askHost = document.createElement("dialog");
+      askHost.className = "ask";
+      document.body.append(askHost);
+    }
+
+    askHost.innerHTML = h`
+      <form method="dialog" class="ask__form">
+        <div class="ask__icon" aria-hidden="true">${icon}</div>
+        <h2 class="ask__title">${title}</h2>
+        ${raw(hint ? h`<p class="ask__hint">${hint}</p>` : "")}
+        <input class="input ask__input" type="text" autocomplete="off"
+               autocapitalize="none" spellcheck="false" required
+               minlength="${Math.max(1, minLength)}"
+               placeholder="${placeholder}" aria-label="${title}">
+        <div class="ask__actions">
+          <button class="btn btn--ghost" value="cancel" formnovalidate>${cancelLabel}</button>
+          <button class="btn" value="ok">${confirmLabel}</button>
+        </div>
+      </form>`;
+
+    const input = askHost.querySelector("input");
+    askHost.returnValue = "cancel";
+    askHost.addEventListener(
+      "close",
+      () => resolve(askHost.returnValue === "ok" ? input.value : null),
+      { once: true }
+    );
+    askHost.showModal();
+    input.focus();
+  });
+}
+
+/* --------------------------------------------------------------------------
    Scroll reveal fallback
    -------------------------------------------------------------------------- */
 

@@ -41,7 +41,7 @@ function paintIdentity() {
   for (const node of qsa("[data-me='seated']")) {
     node.hidden = !me;
   }
-  for (const node of qsa("[data-render='openVotes']")) {
+  for (const node of qsa("[data-render='openVotes'], [data-render='directory']")) {
     node.dataset.member = store.identity.memberId || "";
   }
   const select = qs("[data-me='member-select']");

@@ -18,19 +18,19 @@
  */
 
 import CONFIG from "./config.js";
+import { emojiDecode, emojiEncode, looksLikeIconCode } from "./icons.js";
 
 const CHANNEL = "cc-ops";
 const ICE_TIMEOUT_MS = 3500;
 
 /* --------------------------------------------------------------------------
-   Invite codes — gzip when the browser has it, plain base64 otherwise
-   -------------------------------------------------------------------------- */
+   Invite codes — written in the emoji alphabet from icons.js.
 
-const bytesToBase64 = (bytes) => {
-  let binary = "";
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-};
+   Wire format is one version byte (1 = gzipped JSON, 2 = plain JSON) followed
+   by the payload, the whole thing emoji-encoded. Older base64 codes ("z." /
+   "p." prefixes) still decode, so a cousin on the previous build can pair
+   with one on this build.
+   -------------------------------------------------------------------------- */
 
 const base64ToBytes = (text) => {
   const padded = text.replace(/-/g, "+").replace(/_/g, "/");
@@ -38,23 +38,45 @@ const base64ToBytes = (text) => {
   return Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
 };
 
+const concatBytes = (head, body) => {
+  const out = new Uint8Array(1 + body.length);
+  out[0] = head;
+  out.set(body, 1);
+  return out;
+};
+
+async function gunzip(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Response(stream).text();
+}
+
 async function encodePayload(obj) {
   const raw = new TextEncoder().encode(JSON.stringify(obj));
-  if (typeof CompressionStream === "undefined") return `p.${bytesToBase64(raw)}`;
+  if (typeof CompressionStream === "undefined") return emojiEncode(concatBytes(2, raw));
   const stream = new Blob([raw]).stream().pipeThrough(new CompressionStream("gzip"));
   const packed = new Uint8Array(await new Response(stream).arrayBuffer());
-  return `z.${bytesToBase64(packed)}`;
+  return emojiEncode(concatBytes(1, packed));
 }
 
 async function decodePayload(code) {
-  const trimmed = String(code).trim().replace(/\s+/g, "");
-  const [tag, body] = trimmed.startsWith("z.") || trimmed.startsWith("p.")
-    ? [trimmed.slice(0, 1), trimmed.slice(2)]
-    : ["p", trimmed];
+  const text = String(code).trim();
+
+  if (looksLikeIconCode(text)) {
+    const bytes = emojiDecode(text);
+    if (bytes.length < 2) throw new Error("That code is too short — copy the whole picture string.");
+    const body = bytes.slice(1);
+    const json = bytes[0] === 1 ? await gunzip(body) : new TextDecoder().decode(body);
+    return JSON.parse(json);
+  }
+
+  // Legacy base64 codes from the previous build.
+  const compact = text.replace(/\s+/g, "");
+  const [tag, body] = compact.startsWith("z.") || compact.startsWith("p.")
+    ? [compact.slice(0, 1), compact.slice(2)]
+    : ["p", compact];
   const bytes = base64ToBytes(body);
   if (tag === "p") return JSON.parse(new TextDecoder().decode(bytes));
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
-  return JSON.parse(await new Response(stream).text());
+  return JSON.parse(await gunzip(bytes));
 }
 
 /* ========================================================================== */

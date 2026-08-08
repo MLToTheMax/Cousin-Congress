@@ -217,6 +217,73 @@ body:has([data-cursor="vote"]:hover) .cursor {
   --cursor-label: "Cast";
 }
 
+/* Each ballot choice takes the pointer to its own shape and colour: the
+   cursor literally becomes the mark you are about to make. */
+body:has(.choice--yea:hover) .cursor__tri {
+  scale: 0;
+  opacity: 0;
+}
+body:has(.choice--yea:hover) .cursor__square {
+  scale: 1;
+  opacity: 1;
+  rotate: 0deg;
+  border-radius: 50%;
+  background: var(--c-green-500);
+}
+body:has(.choice--yea:hover) .cursor {
+  --cursor-label: "Yea!";
+}
+body:has(.choice--yea:hover) .cursor__label {
+  opacity: 1;
+  translate: -50% 150%;
+  color: var(--c-green-600);
+}
+
+body:has(.choice--nay:hover) .cursor__tri {
+  scale: 0;
+  opacity: 0;
+}
+body:has(.choice--nay:hover) .cursor__square {
+  scale: 1;
+  opacity: 1;
+  rotate: 45deg;
+  border-radius: 6px;
+  background: var(--c-red-500);
+}
+body:has(.choice--nay:hover) .cursor {
+  --cursor-label: "Nay!";
+}
+body:has(.choice--nay:hover) .cursor__label {
+  opacity: 1;
+  translate: -50% 150%;
+  color: var(--c-red-600);
+}
+
+body:has(.choice--present:hover) .cursor__tri {
+  scale: 1;
+  opacity: 1;
+  background: var(--c-yellow-500);
+}
+body:has(.choice--present:hover) .cursor__square {
+  scale: 0;
+  opacity: 0;
+}
+body:has(.choice--present:hover) .cursor {
+  --cursor-label: "Here!";
+}
+body:has(.choice--present:hover) .cursor__label {
+  opacity: 1;
+  translate: -50% 150%;
+  color: var(--c-yellow-600);
+}
+
+/* Hovering a live tally: the pointer becomes a little gavel block. */
+body:has(.tally__bar:hover) .cursor__ring {
+  border-radius: 6px;
+  rotate: 12deg;
+  border-color: var(--c-yellow-600);
+}
+
 /* Text entry: an I-bar, so the affordance is never lost. */
 body:has(input:hover, textarea:hover, [contenteditable]:hover) .cursor__ring,
 body:has(input:hover, textarea:hover, [contenteditable]:hover) .cursor__square {
@@ -283,6 +350,26 @@ html[data-cursor-visible="false"] .cursor {
 html[data-cursor-visible="true"] .cursor {
   opacity: 1;
   transition: opacity var(--dur-2) linear;
+}
+
+/* Native <dialog> renders in the top layer, above the drawn cursor — hand
+   control back to the real pointer while any modal is open. */
+@media (pointer: fine) and (hover: hover) {
+  html[data-cursor="on"]:has(dialog[open]),
+  html[data-cursor="on"]:has(dialog[open]) body,
+  html[data-cursor="on"]:has(dialog[open]) a,
+  html[data-cursor="on"]:has(dialog[open]) button,
+  html[data-cursor="on"]:has(dialog[open]) label,
+  html[data-cursor="on"]:has(dialog[open]) summary,
+  html[data-cursor="on"]:has(dialog[open]) input,
+  html[data-cursor="on"]:has(dialog[open]) textarea,
+  html[data-cursor="on"]:has(dialog[open]) select {
+    cursor: auto;
+  }
+
+  html[data-cursor="on"]:has(dialog[open]) .cursor {
+    opacity: 0;
+  }
 }
 
 /* Motion-sensitive visitors get the pointer without the elastic lag. */

@@ -14,16 +14,16 @@
   },
 
   "members": [
-    { "id": "m-june", "name": "June Maxwell", "role": "Speaker", "district": "The Lake House", "presence": "present", "location": "Main chamber (the living room)", "seniority": 1 },
-    { "id": "m-theo", "name": "Theo Maxwell", "role": "Clerk", "district": "Apartment 4B", "presence": "voting", "location": "At the rostrum", "seniority": 2 },
-    { "id": "m-priya", "name": "Priya Nair-Maxwell", "role": "Whip", "district": "College Dorms", "presence": "remote", "location": "Video link — study hall", "seniority": 3 },
-    { "id": "m-sam", "name": "Sam Okafor", "role": "Representative", "district": "The Coast", "presence": "present", "location": "Main chamber (the living room)", "seniority": 4 },
-    { "id": "m-lena", "name": "Lena Okafor", "role": "Representative", "district": "The Coast", "presence": "present", "location": "Snack committee (the kitchen)", "seniority": 5 },
-    { "id": "m-marco", "name": "Marco Reyes", "role": "Sergeant-at-Arms", "district": "Uptown", "presence": "away", "location": "", "seniority": 6, "dnd": true },
-    { "id": "m-ivy", "name": "Ivy Chen-Maxwell", "role": "Representative", "district": "The Garden Flat", "presence": "remote", "location": "Video link — kitchen table", "seniority": 7 },
-    { "id": "m-noah", "name": "Noah Maxwell", "role": "Representative", "district": "The Bunk Room", "presence": "present", "location": "Main chamber (the living room)", "seniority": 8 },
-    { "id": "m-zadie", "name": "Zadie Reyes", "role": "Parliamentarian", "district": "Uptown", "presence": "present", "location": "Rules corner (the window seat)", "seniority": 9 },
-    { "id": "m-felix", "name": "Felix Nair", "role": "Representative", "district": "College Dorms", "presence": "away", "location": "", "seniority": 10 }
+    { "id": "m-june", "name": "June Maxwell", "icon": "🦉", "role": "Speaker", "district": "The Lake House", "presence": "present", "location": "Main chamber (the living room)", "seniority": 1 },
+    { "id": "m-theo", "name": "Theo Maxwell", "icon": "📝", "role": "Clerk", "district": "Apartment 4B", "presence": "voting", "location": "At the rostrum", "seniority": 2 },
+    { "id": "m-priya", "name": "Priya Nair-Maxwell", "icon": "📚", "role": "Whip", "district": "College Dorms", "presence": "remote", "location": "Video link — study hall", "seniority": 3 },
+    { "id": "m-sam", "name": "Sam Okafor", "icon": "🌊", "role": "Representative", "district": "The Coast", "presence": "present", "location": "Main chamber (the living room)", "seniority": 4 },
+    { "id": "m-lena", "name": "Lena Okafor", "icon": "🍿", "role": "Representative", "district": "The Coast", "presence": "present", "location": "Snack committee (the kitchen)", "seniority": 5 },
+    { "id": "m-marco", "name": "Marco Reyes", "icon": "🚨", "role": "Sergeant-at-Arms", "district": "Uptown", "presence": "away", "location": "", "seniority": 6, "dnd": true },
+    { "id": "m-ivy", "name": "Ivy Chen-Maxwell", "icon": "🌱", "role": "Representative", "district": "The Garden Flat", "presence": "remote", "location": "Video link — kitchen table", "seniority": 7 },
+    { "id": "m-noah", "name": "Noah Maxwell", "icon": "🎲", "role": "Representative", "district": "The Bunk Room", "presence": "present", "location": "Main chamber (the living room)", "seniority": 8 },
+    { "id": "m-zadie", "name": "Zadie Reyes", "icon": "📖", "role": "Parliamentarian", "district": "Uptown", "presence": "present", "location": "Rules corner (the window seat)", "seniority": 9 },
+    { "id": "m-felix", "name": "Felix Nair", "icon": "🎧", "role": "Representative", "district": "College Dorms", "presence": "away", "location": "", "seniority": 10 }
   ],
 
   "committees": [

@@ -1035,6 +1035,196 @@
 }
 
 /* --------------------------------------------------------------------------
+   Ask dialog — the password prompt
+   -------------------------------------------------------------------------- */
+
+dialog.ask {
+  margin: auto;
+  width: min(100% - 2 * var(--gutter), 26rem);
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-lg);
+  background: var(--bg-raised);
+  color: var(--text);
+  box-shadow: var(--shadow-3);
+}
+
+dialog.ask::backdrop {
+  background: color-mix(in oklab, var(--c-blue-900) 55%, transparent);
+  backdrop-filter: blur(5px);
+}
+
+dialog.ask[open] {
+  animation: rise-in var(--dur-3) var(--ease-spring) both;
+}
+
+.ask__form {
+  display: grid;
+  gap: var(--sp-4);
+  padding: var(--sp-6);
+  text-align: center;
+  justify-items: center;
+}
+
+.ask__icon {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.ask__title {
+  font-size: var(--fs-lg);
+  font-family: var(--font-body);
+  font-weight: 750;
+}
+
+.ask__hint {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  max-width: 34ch;
+}
+
+.ask__input {
+  text-align: center;
+  font-size: var(--fs-lg);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.ask__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  justify-content: center;
+}
+
+/* --------------------------------------------------------------------------
+   Emoji avatars, icon picker, picture codes
+   -------------------------------------------------------------------------- */
+
+.member__avatar--icon {
+  background: var(--present-soft);
+  font-family: var(--font-body);
+  font-size: 1.5rem;
+}
+
+.profile__avatar.member__avatar--icon {
+  font-size: 2.4rem;
+}
+
+/* Radio grid of avatar choices in the Chair's office. */
+.icon-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.icon-picker label {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  font-size: 1.5rem;
+  border-radius: var(--r-md);
+  border: 2px solid var(--line);
+  background: var(--bg-raised);
+  cursor: pointer;
+  transition: border-color var(--dur-2) var(--ease-out), scale var(--dur-2) var(--ease-spring);
+}
+
+.icon-picker label:hover {
+  scale: 1.12;
+}
+
+.icon-picker input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.icon-picker label:has(:checked) {
+  border-color: var(--c-blue-600);
+  background: var(--accent-soft);
+  scale: 1.12;
+}
+
+.icon-picker label:has(:focus-visible) {
+  outline: 3px solid var(--focus, var(--c-blue-600));
+  outline-offset: 2px;
+}
+
+/* Pairing picture codes: big, wrapped, obviously copyable. */
+.code-box {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  letter-spacing: 0.06em;
+  word-break: break-all;
+  min-height: 7rem;
+  font-family: var(--font-body);
+}
+
+/* The 4-icon match badge both cousins compare. */
+.match-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-pill);
+  background: var(--present-soft);
+  border: 2px dashed var(--c-yellow-600);
+  font-size: 1.6rem;
+  line-height: 1;
+  min-height: 2.4rem;
+}
+
+.match-badge:empty::before {
+  content: "· · · ·";
+  font-size: 1rem;
+  color: var(--text-faint);
+}
+
+.provision-row .row__when {
+  line-height: 1;
+}
+
+.scorecard--me {
+  border-color: var(--c-green-500);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--c-green-500) 30%, transparent);
+}
+
+/* Big numbered steps for the pairing walkthrough. */
+.steps {
+  counter-reset: bigstep;
+  display: grid;
+  gap: var(--sp-3);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.steps li {
+  counter-increment: bigstep;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--sp-3);
+  align-items: start;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.steps li::before {
+  content: counter(bigstep);
+  display: grid;
+  place-items: center;
+  width: 1.9em;
+  height: 1.9em;
+  border-radius: 50%;
+  background: var(--c-blue-600);
+  color: #fff;
+  font-weight: 800;
+  font-size: var(--fs-sm);
+}
+
+/* --------------------------------------------------------------------------
    Definition rows (used for schedules, hearings, key/value listings)
    -------------------------------------------------------------------------- */
 
