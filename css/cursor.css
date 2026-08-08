@@ -1,0 +1,297 @@
+/* ==========================================================================
+   cursor.css — the chamber pointer
+
+   JavaScript contributes exactly two numbers (--cursor-x / --cursor-y) and a
+   couple of boolean flags. Every shape, morph, colour and label below is
+   resolved in CSS from :has() state on the element under the pointer, so the
+   pointer's vocabulary grows by adding a rule — never by adding a listener.
+   ========================================================================== */
+
+.cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-cursor);
+  pointer-events: none;
+  /* Hidden until the runtime confirms a fine pointer and a first move. */
+  display: none;
+  --cursor-label: "";
+}
+
+/* Only ever engaged for precise pointers that can actually hover. */
+@media (pointer: fine) and (hover: hover) {
+  html[data-cursor="on"] .cursor {
+    display: block;
+  }
+
+  html[data-cursor="on"],
+  html[data-cursor="on"] body,
+  html[data-cursor="on"] a,
+  html[data-cursor="on"] button,
+  html[data-cursor="on"] label,
+  html[data-cursor="on"] summary,
+  html[data-cursor="on"] input,
+  html[data-cursor="on"] textarea,
+  html[data-cursor="on"] select,
+  html[data-cursor="on"] [role="button"] {
+    cursor: none;
+  }
+}
+
+/* Two carriers at the same coordinates: one exact, one trailing. The lag is a
+   plain transition, which is why there is no animation loop anywhere. */
+.cursor__lag,
+.cursor__dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  translate: var(--cursor-x, 50vw) var(--cursor-y, 50vh);
+}
+
+.cursor__lag {
+  transition: translate 260ms var(--ease-out);
+}
+
+.cursor__lag > *,
+.cursor__dot::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  translate: -50% -50%;
+  transition: scale var(--dur-3) var(--ease-spring), opacity var(--dur-2) var(--ease-out),
+    background-color var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out),
+    border-radius var(--dur-3) var(--ease-spring), rotate var(--dur-4) var(--ease-spring),
+    width var(--dur-3) var(--ease-spring), height var(--dur-3) var(--ease-spring);
+}
+
+/* --- The precise nib ------------------------------------------------------ */
+
+.cursor__dot::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c-red-500);
+}
+
+/* --- Shapes --------------------------------------------------------------- */
+
+.cursor__ring {
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--c-blue-600);
+  border-radius: 50%;
+  background: transparent;
+}
+
+.cursor__square,
+.cursor__tri,
+.cursor__bar {
+  scale: 0;
+  opacity: 0;
+}
+
+.cursor__square {
+  width: 46px;
+  height: 46px;
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--c-yellow-500) 88%, transparent);
+  rotate: -12deg;
+}
+
+.cursor__tri {
+  width: 46px;
+  height: 40px;
+  background: var(--c-red-500);
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+}
+
+.cursor__bar {
+  width: 3px;
+  height: 30px;
+  border-radius: 2px;
+  background: var(--c-blue-600);
+}
+
+.cursor__label {
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  width: max-content;
+  font-family: var(--font-body);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--c-ink-900);
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+
+.cursor__label::after {
+  content: var(--cursor-label, "");
+}
+
+/* ==========================================================================
+   Morph states — each is one declarative rule keyed off what is hovered.
+   ========================================================================== */
+
+/* Links: the ring opens up and softens. */
+body:has(a:hover, [role="link"]:hover) .cursor__ring {
+  width: 52px;
+  height: 52px;
+  border-color: var(--c-blue-600);
+  background: color-mix(in oklab, var(--c-blue-600) 12%, transparent);
+}
+
+/* Buttons and ballots: ring collapses, a solid primary shape takes over. */
+body:has(.btn:hover, button:hover, [role="button"]:hover) .cursor__ring {
+  scale: 0;
+  opacity: 0;
+}
+
+body:has(.btn:hover, button:hover, [role="button"]:hover) .cursor__square {
+  scale: 1;
+  opacity: 1;
+  rotate: 0deg;
+  border-radius: 50%;
+  background: var(--c-blue-600);
+}
+
+body:has(.btn:hover, button:hover, [role="button"]:hover) .cursor__dot::before {
+  scale: 0;
+}
+
+body:has(.btn:hover, button:hover, [role="button"]:hover) .cursor__label {
+  opacity: 1;
+  color: #fff;
+}
+
+body:has(.btn:hover, button:hover, [role="button"]:hover) .cursor {
+  --cursor-label: "";
+}
+
+/* Cards and tiles: a tilted yellow square, the "pull a file" gesture. */
+body:has([data-cursor="card"]:hover) .cursor__ring {
+  scale: 0;
+  opacity: 0;
+}
+body:has([data-cursor="card"]:hover) .cursor__square {
+  scale: 1;
+  opacity: 1;
+  rotate: -12deg;
+  border-radius: 6px;
+  background: var(--c-yellow-500);
+}
+body:has([data-cursor="card"]:hover) .cursor__dot::before {
+  scale: 0;
+}
+body:has([data-cursor="card"]:hover) .cursor__label {
+  opacity: 1;
+}
+body:has([data-cursor="card"]:hover) .cursor {
+  --cursor-label: "Open";
+}
+
+/* Ballot controls: crimson triangle, aimed like a gavel. */
+body:has([data-cursor="vote"]:hover) .cursor__ring,
+body:has([data-cursor="vote"]:hover) .cursor__square {
+  scale: 0;
+  opacity: 0;
+}
+body:has([data-cursor="vote"]:hover) .cursor__tri {
+  scale: 1;
+  opacity: 1;
+}
+body:has([data-cursor="vote"]:hover) .cursor__dot::before {
+  scale: 0;
+}
+body:has([data-cursor="vote"]:hover) .cursor__label {
+  opacity: 1;
+  translate: -50% 130%;
+  color: var(--text);
+}
+body:has([data-cursor="vote"]:hover) .cursor {
+  --cursor-label: "Cast";
+}
+
+/* Text entry: an I-bar, so the affordance is never lost. */
+body:has(input:hover, textarea:hover, [contenteditable]:hover) .cursor__ring,
+body:has(input:hover, textarea:hover, [contenteditable]:hover) .cursor__square {
+  scale: 0;
+  opacity: 0;
+}
+body:has(input:hover, textarea:hover, [contenteditable]:hover) .cursor__bar {
+  scale: 1;
+  opacity: 1;
+}
+body:has(input:hover, textarea:hover, [contenteditable]:hover) .cursor__dot::before {
+  scale: 0;
+}
+
+/* Checkboxes and radios read as buttons, not text fields. */
+body:has(input[type="radio"]:hover, input[type="checkbox"]:hover) .cursor__bar {
+  scale: 0;
+  opacity: 0;
+}
+
+/* Drag rails and scrollers. */
+body:has([data-cursor="drag"]:hover) .cursor__ring {
+  width: 74px;
+  height: 74px;
+  border-width: 1.5px;
+  border-color: var(--c-red-500);
+  background: color-mix(in oklab, var(--c-red-500) 8%, transparent);
+}
+body:has([data-cursor="drag"]:hover) .cursor__label {
+  opacity: 1;
+  color: var(--c-red-600);
+}
+body:has([data-cursor="drag"]:hover) .cursor {
+  --cursor-label: "Drag";
+}
+
+/* Read-more affordance over long-form copy. */
+body:has([data-cursor="read"]:hover) .cursor__ring {
+  width: 64px;
+  height: 64px;
+  border-style: dashed;
+  border-color: var(--c-yellow-600);
+}
+body:has([data-cursor="read"]:hover) .cursor__label {
+  opacity: 1;
+  color: var(--c-yellow-600);
+}
+body:has([data-cursor="read"]:hover) .cursor {
+  --cursor-label: "Read";
+}
+
+/* Press: everything compresses toward the nib. */
+html[data-cursor-pressed="true"] .cursor__lag {
+  scale: 0.82;
+  transition: translate 260ms var(--ease-out), scale var(--dur-1) var(--ease-out);
+}
+
+/* Pointer left the viewport. */
+html[data-cursor-visible="false"] .cursor {
+  opacity: 0;
+  transition: opacity var(--dur-2) linear;
+}
+
+html[data-cursor-visible="true"] .cursor {
+  opacity: 1;
+  transition: opacity var(--dur-2) linear;
+}
+
+/* Motion-sensitive visitors get the pointer without the elastic lag. */
+@media (prefers-reduced-motion: reduce) {
+  .cursor__lag {
+    transition: none;
+  }
+  .cursor__lag > *,
+  .cursor__dot::before {
+    transition-duration: 1ms;
+  }
+}

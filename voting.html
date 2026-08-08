@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voting · Cousin Congress</title>
+  <meta name="description" content="Cast your ballot on pending motions, watch the tally move live, delegate a proxy, and — if you hold the gavel — call and close roll calls.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0b1c4a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ccircle%20cx='36'%20cy='40'%20r='28'%20fill='%231b3fd8'/%3E%3Crect%20x='46'%20y='38'%20width='40'%20height='40'%20rx='7'%20fill='%23ffc21a'/%3E%3Cpath%20d='M28%2094%2050%2058%2072%2094z'%20fill='%23e0243c'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/features.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/motion.css">
+  <link rel="stylesheet" href="css/cursor.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <a class="u-skip" href="#main">Skip to content</a>
+  <div class="progress-rail" aria-hidden="true"><div class="progress-rail__bar"></div></div>
+
+  <input type="checkbox" class="nav-toggle" id="nav-toggle" aria-label="Open the menu">
+
+  <header class="masthead">
+    <div class="shell shell--wide masthead__inner">
+      <a class="brand" href="index.html" aria-label="Cousin Congress home">
+        <span class="brand__seal" aria-hidden="true">CC</span>
+        <span class="brand__wordmark">
+          <span class="brand__name">Cousin Congress</span>
+          <span class="brand__sub">The People's Living Room</span>
+        </span>
+      </a>
+
+      <label class="nav-burger" for="nav-toggle" aria-hidden="true">
+        <span class="nav-burger__bars"></span>
+      </label>
+
+      <nav class="nav" aria-label="Primary">
+        <a class="nav__link" href="floor.html">The Floor</a>
+        <div class="nav__group">
+          <a class="nav__link" href="voting.html" aria-current="page">Votes</a>
+          <ul class="nav__menu">
+            <li><a href="voting.html">Voting <small>Cast and call roll calls</small></a></li>
+            <li><a href="results.html">Results <small>The roll-call archive</small></a></li>
+          </ul>
+        </div>
+        <div class="nav__group">
+          <a class="nav__link" href="bills.html">Legislation</a>
+          <ul class="nav__menu">
+            <li><a href="bills.html">Bill tracker <small>Every measure on file</small></a></li>
+            <li><a href="draft.html">Drafting studio <small>Write and introduce a bill</small></a></li>
+          </ul>
+        </div>
+        <a class="nav__link" href="docket.html">Docket</a>
+        <a class="nav__link" href="news.html">Newsroom</a>
+        <a class="nav__link" href="members.html">Members</a>
+        <a class="nav__link" href="about.html">About</a>
+        <a class="conn nav__link" data-conn="static" href="sync.html" title="Replication status — chamber devices">
+          <span data-conn-label>Local</span>
+        </a>
+        <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <div class="ticker" aria-label="Chamber ticker">
+      <div class="ticker__track" data-render="ticker">
+        <span class="ticker__item ticker__item--live"><span class="ticker__label">Chamber</span>In session · sitting 14</span>
+        <span class="ticker__item"><span class="ticker__label">On the floor</span>Roll Call 31: the Pizza Friday Establishment Act</span>
+        <span class="ticker__item"><span class="ticker__label">Up next</span>Snack Committee hearing · the kitchen</span>
+        <span aria-hidden="true" style="display:contents">
+          <span class="ticker__item ticker__item--live"><span class="ticker__label">Chamber</span>In session · sitting 14</span>
+          <span class="ticker__item"><span class="ticker__label">On the floor</span>Roll Call 31: the Pizza Friday Establishment Act</span>
+          <span class="ticker__item"><span class="ticker__label">Up next</span>Snack Committee hearing · the kitchen</span>
+        </span>
+      </div>
+    </div>
+
+    <main id="main">
+      <header class="page-head">
+        <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
+        <div class="shell">
+          <ol class="crumbs"><li><a href="index.html">Home</a></li><li>Voting</li></ol>
+          <h1 data-enter>The Question Is on the Motion</h1>
+          <p class="page-head__lede" data-enter style="--i:1">
+            Ballots are recorded on your own device the instant you cast them, then carried to
+            every other member — offline, online, or hiding in the pantry.
+          </p>
+          <div class="page-head__meta" data-enter style="--i:2">
+            <span>Yea · Nay · Present</span>
+            <span>Majority, two-thirds, and unanimous-consent thresholds</span>
+            <span>Proxies honoured under Rule 9</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Open votes -->
+      <section class="section">
+        <div class="shell">
+          <header class="section__head section__head--split">
+            <div>
+              <p class="section__eyebrow u-caps" data-reveal>Now voting</p>
+              <h2 data-reveal>Open roll calls</h2>
+            </div>
+            <p class="u-muted" data-reveal="right" data-me="seat">You haven't claimed a seat on
+              this device — do that on the <a href="members.html">Members page</a> and the ballot
+              buttons unlock.</p>
+            <p class="u-muted" data-reveal="right" data-me="seated" hidden>
+              Voting as <strong data-me="name">—</strong>.</p>
+          </header>
+
+          <div class="stack stack--lg" data-render="openVotes">
+            <div class="skeleton" style="height:22rem"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Whip count -->
+      <section class="section section--sunken">
+        <div class="shell">
+          <header class="section__head section__head--split">
+            <div>
+              <p class="section__eyebrow u-caps" data-reveal>The count</p>
+              <h2 data-reveal>Whip board</h2>
+            </div>
+            <p class="u-muted" data-reveal="right">Live disposition of the chamber on the pending
+              question. The whip makes no promises about anyone's cousinly loyalty.</p>
+          </header>
+          <div class="whip" data-render="whip">
+            <div class="skeleton" style="height:10rem"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Desks -->
+      <section class="section">
+        <div class="shell">
+          <div class="grid grid--2">
+
+            <!-- Chair's desk -->
+            <div class="panel stack" data-reveal="left">
+              <div>
+                <p class="section__eyebrow u-caps">The chair's desk</p>
+                <h2 style="font-size:var(--fs-xl)">Call a vote</h2>
+                <p class="u-muted" style="font-size:var(--fs-sm)">Puts the question before the
+                  chamber on every device at once. Close it from the vote card when the time expires.</p>
+              </div>
+              <form class="stack" data-action="open-vote">
+                <div class="field">
+                  <label class="field__label" for="vote-title">The question</label>
+                  <input class="input" id="vote-title" name="title" required minlength="8" maxlength="140"
+                         placeholder="On the motion to adopt the summer road-trip playlist">
+                  <p class="field__error">State the question in at least eight characters.</p>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="vote-summary">Context for the record</label>
+                  <textarea class="textarea" id="vote-summary" name="summary" maxlength="280"
+                            style="min-height:5rem" placeholder="Optional — what members are deciding."></textarea>
+                </div>
+                <div class="form-grid form-grid--2">
+                  <div class="field">
+                    <label class="field__label" for="vote-threshold">Threshold</label>
+                    <select class="select" id="vote-threshold" name="threshold">
+                      <option value="majority" selected>Simple majority</option>
+                      <option value="twothirds">Two-thirds</option>
+                      <option value="unanimous">Unanimous consent</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label class="field__label" for="vote-minutes">Voting window</label>
+                    <select class="select" id="vote-minutes" name="minutes">
+                      <option value="">No time limit</option>
+                      <option value="10">10 minutes</option>
+                      <option value="60">1 hour</option>
+                      <option value="480">8 hours (remote districts)</option>
+                      <option value="1440">24 hours</option>
+                    </select>
+                  </div>
+                </div>
+                <button class="btn btn--danger" type="submit">Put the question</button>
+              </form>
+            </div>
+
+            <!-- Proxy desk -->
+            <div class="panel stack" data-reveal="right">
+              <div>
+                <p class="section__eyebrow u-caps">Rule 9 — proxies</p>
+                <h2 style="font-size:var(--fs-xl)">Delegate your vote</h2>
+                <p class="u-muted" style="font-size:var(--fs-sm)">Away for exams or a school trip?
+                  Hand your ballot to a trusted cousin. Their vote is counted as yours on any
+                  question you haven't voted on yourself, and you can revoke at any time.</p>
+              </div>
+              <form class="stack" data-action="delegate-proxy">
+                <div class="field">
+                  <label class="field__label" for="proxy-to">Proxy holder</label>
+                  <select class="select" id="proxy-to" name="to" data-render="memberOptions"
+                          data-placeholder="Nobody — revoke my proxy">
+                    <option value="">Nobody — revoke my proxy</option>
+                  </select>
+                  <p class="field__hint">Your own ballot, when you cast one, always outranks the proxy.</p>
+                </div>
+                <button class="btn btn--ghost" type="submit">Record the delegation</button>
+              </form>
+
+              <hr>
+              <div>
+                <h3 style="font-size:var(--fs-md);font-family:var(--font-body);font-weight:700">How thresholds work</h3>
+                <ul class="doc" style="list-style:none;padding:0;display:grid;gap:var(--sp-2);margin-top:var(--sp-3)">
+                  <li><span class="badge badge--yea">Majority</span> More yeas than nays among decisive ballots.</li>
+                  <li><span class="badge badge--present badge--tri">Two-thirds</span> Schedule changes and rule suspensions.</li>
+                  <li><span class="badge badge--info badge--square">Unanimous</span> One nay sinks it. Use sparingly.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="colophon">
+      <div class="shell">
+        <div class="colophon__grid">
+          <div>
+            <h2 class="colophon__title">The chamber</h2>
+            <ul class="colophon__list">
+              <li><a href="floor.html">The floor & presence</a></li>
+              <li><a href="voting.html">Voting</a></li>
+              <li><a href="results.html">Roll-call results</a></li>
+              <li><a href="docket.html">Docket & calendar</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">Legislation</h2>
+            <ul class="colophon__list">
+              <li><a href="bills.html">Bill tracker</a></li>
+              <li><a href="draft.html">Drafting studio</a></li>
+              <li><a href="news.html">Newsroom</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">Offices</h2>
+            <ul class="colophon__list">
+              <li><a href="members.html">Member directory</a></li>
+              <li><a href="about.html">Rules & about</a></li>
+              <li><a href="sync.html">Chamber devices</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">The fine print</h2>
+            <ul class="colophon__list">
+              <li>Local-first: your device holds the full record.</li>
+              <li>Works offline; syncs tab-to-tab and peer-to-peer.</li>
+              <li>Optional Cloudflare Worker for always-on relay.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="colophon__base">
+          <span>Cousin Congress · convened wherever two or more cousins are gathered.</span>
+          <span class="cluster">
+            <span class="u-mono" data-clock="date">—</span>
+            <button class="btn btn--ghost btn--sm" data-action="theme" aria-pressed="false"
+                    style="color:inherit">Night session</button>
+          </span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <div class="cursor" aria-hidden="true">
+    <div class="cursor__lag">
+      <span class="cursor__ring"></span>
+      <span class="cursor__square"></span>
+      <span class="cursor__tri"></span>
+      <span class="cursor__bar"></span>
+      <span class="cursor__label"></span>
+    </div>
+    <div class="cursor__dot"></div>
+  </div>
+</body>
+</html>
