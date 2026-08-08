@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Floor · Cousin Congress</title>
+  <meta name="description" content="Live presence on the chamber floor: who is here, where they are, the seating chart, quorum, and the running order of business.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0b1c4a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ccircle%20cx='36'%20cy='40'%20r='28'%20fill='%231b3fd8'/%3E%3Crect%20x='46'%20y='38'%20width='40'%20height='40'%20rx='7'%20fill='%23ffc21a'/%3E%3Cpath%20d='M28%2094%2050%2058%2072%2094z'%20fill='%23e0243c'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/features.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/motion.css">
+  <link rel="stylesheet" href="css/cursor.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <a class="u-skip" href="#main">Skip to content</a>
+  <div class="progress-rail" aria-hidden="true"><div class="progress-rail__bar"></div></div>
+
+  <input type="checkbox" class="nav-toggle" id="nav-toggle" aria-label="Open the menu">
+
+  <header class="masthead">
+    <div class="shell shell--wide masthead__inner">
+      <a class="brand" href="index.html" aria-label="Cousin Congress home">
+        <span class="brand__seal" aria-hidden="true">CC</span>
+        <span class="brand__wordmark">
+          <span class="brand__name">Cousin Congress</span>
+          <span class="brand__sub">The People's Living Room</span>
+        </span>
+      </a>
+
+      <label class="nav-burger" for="nav-toggle" aria-hidden="true">
+        <span class="nav-burger__bars"></span>
+      </label>
+
+      <nav class="nav" aria-label="Primary">
+        <a class="nav__link" href="floor.html" aria-current="page">The Floor</a>
+        <div class="nav__group">
+          <a class="nav__link" href="voting.html">Votes</a>
+          <ul class="nav__menu">
+            <li><a href="voting.html">Voting <small>Cast and call roll calls</small></a></li>
+            <li><a href="results.html">Results <small>The roll-call archive</small></a></li>
+          </ul>
+        </div>
+        <div class="nav__group">
+          <a class="nav__link" href="bills.html">Legislation</a>
+          <ul class="nav__menu">
+            <li><a href="bills.html">Bill tracker <small>Every measure on file</small></a></li>
+            <li><a href="draft.html">Drafting studio <small>Write and introduce a bill</small></a></li>
+          </ul>
+        </div>
+        <a class="nav__link" href="docket.html">Docket</a>
+        <a class="nav__link" href="news.html">Newsroom</a>
+        <a class="nav__link" href="members.html">Members</a>
+        <a class="nav__link" href="about.html">About</a>
+        <a class="conn nav__link" data-conn="static" href="sync.html" title="Replication status — chamber devices">
+          <span data-conn-label>Local</span>
+        </a>
+        <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <div class="ticker" aria-label="Chamber ticker">
+      <div class="ticker__track" data-render="ticker">
+        <span class="ticker__item ticker__item--live"><span class="ticker__label">Chamber</span>In session · sitting 14</span>
+        <span class="ticker__item"><span class="ticker__label">On the floor</span>Roll Call 31: the Pizza Friday Establishment Act</span>
+        <span class="ticker__item"><span class="ticker__label">Up next</span>Snack Committee hearing · the kitchen</span>
+        <span aria-hidden="true" style="display:contents">
+          <span class="ticker__item ticker__item--live"><span class="ticker__label">Chamber</span>In session · sitting 14</span>
+          <span class="ticker__item"><span class="ticker__label">On the floor</span>Roll Call 31: the Pizza Friday Establishment Act</span>
+          <span class="ticker__item"><span class="ticker__label">Up next</span>Snack Committee hearing · the kitchen</span>
+        </span>
+      </div>
+    </div>
+
+    <main id="main">
+      <header class="page-head">
+        <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
+        <div class="shell">
+          <ol class="crumbs"><li><a href="index.html">Home</a></li><li>The Floor</li></ol>
+          <h1 data-enter>The Floor</h1>
+          <p class="page-head__lede" data-enter style="--i:1">
+            Who is in the building, where they are sitting, and what the chamber is doing
+            right now — updated the instant any member's device learns something new.
+          </p>
+          <div class="page-head__meta" data-enter style="--i:2">
+            <span data-clock>--:--:--</span>
+            <span data-render="session" style="display:inline-flex;gap:var(--sp-4);flex-wrap:wrap">
+              <span class="badge badge--live">In session</span>
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Quorum + seating -->
+      <section class="section">
+        <div class="shell">
+          <div class="sidebar-layout sidebar-layout--aside-first">
+            <aside class="sidebar-layout__aside stack" data-reveal="left">
+              <div class="panel stack">
+                <h2 style="font-size:var(--fs-lg)">Quorum call</h2>
+                <div data-render="quorum">
+                  <div class="skeleton" style="height:34px"></div>
+                </div>
+                <p class="field__hint">A majority of enrolled members must be present —
+                  in the room or by video — before the chamber may conduct business.</p>
+              </div>
+
+              <div class="panel stack">
+                <h2 style="font-size:var(--fs-lg)">Check in</h2>
+                <p class="field__hint">One tap marks your presence on every cousin's device.</p>
+                <div class="cluster">
+                  <button class="btn btn--sm" data-action="check-in" data-presence="present"
+                          data-location="Main chamber (the living room)">On the floor</button>
+                  <button class="btn btn--gold btn--sm" data-action="check-in" data-presence="remote"
+                          data-location="Video link">Remote</button>
+                  <button class="btn btn--ghost btn--sm" data-action="check-in" data-presence="away">Stepping out</button>
+                  <button class="btn btn--ghost btn--sm" data-action="toggle-dnd">Do not disturb</button>
+                </div>
+                <p class="field__hint" data-me="seat">No seat claimed on this device yet —
+                  pick yours on the <a href="members.html">Members page</a>.</p>
+                <p class="field__hint" data-me="seated" hidden>Signed in as <strong data-me="name">—</strong>.</p>
+              </div>
+            </aside>
+
+            <div class="stack stack--lg">
+              <div class="panel panel--flush" data-reveal>
+                <div class="panel__head">
+                  <h2 style="font-size:var(--fs-lg)">The chamber</h2>
+                  <span class="u-caps u-muted">Hover a seat</span>
+                </div>
+                <div class="panel__body">
+                  <div class="chamber" data-render="chamber">
+                    <div class="chamber__rostrum">Rostrum</div>
+                  </div>
+                  <div class="chamber__key" aria-hidden="true">
+                    <span style="color:var(--c-green-500)">On the floor</span>
+                    <span style="color:var(--c-blue-600)">At the rostrum</span>
+                    <span style="color:var(--c-yellow-500)">Remote</span>
+                    <span style="color:var(--absent)">Away</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Presence board -->
+              <section class="stack" data-reveal>
+                <div class="filterbar">
+                  <div class="search">
+                    <label class="u-visually-hidden" for="roster-search">Search members</label>
+                    <input class="input" id="roster-search" type="search" placeholder="Search members or locations…"
+                           data-search-for="roster">
+                  </div>
+                  <div class="field">
+                    <label class="field__label" for="roster-presence">Presence</label>
+                    <select class="select" id="roster-presence" data-filter-for="roster" data-facet="presence">
+                      <option value="all">Everyone</option>
+                      <option value="present">On the floor</option>
+                      <option value="voting">At the rostrum</option>
+                      <option value="remote">Remote</option>
+                      <option value="away">Away</option>
+                    </select>
+                  </div>
+                  <span class="u-mono u-muted" style="font-size:var(--fs-xs)">
+                    <span data-count-for="roster">—</span> shown
+                  </span>
+                </div>
+
+                <div class="roster" id="roster" data-filter-scope data-render="roster">
+                  <div class="skeleton" style="height:4.5rem"></div>
+                  <div class="skeleton" style="height:4.5rem"></div>
+                  <div class="skeleton" style="height:4.5rem"></div>
+                  <div class="skeleton" style="height:4.5rem"></div>
+                </div>
+                <p class="empty" data-empty-for="roster" hidden>Nobody matches that filter.</p>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Status updates -->
+      <section class="section section--sunken">
+        <div class="shell">
+          <header class="section__head section__head--split">
+            <div>
+              <p class="section__eyebrow u-caps" data-reveal>From the floor</p>
+              <h2 data-reveal>Status updates</h2>
+            </div>
+            <p class="u-muted" data-reveal="right">Short, on-the-record notes. Posting also
+              refreshes your presence and location in one stroke.</p>
+          </header>
+
+          <div class="sidebar-layout">
+            <ul class="status-feed" data-render="statusFeed">
+              <li class="skeleton" style="height:5rem"></li>
+              <li class="skeleton" style="height:5rem"></li>
+            </ul>
+
+            <aside class="sidebar-layout__aside">
+              <form class="panel composer" data-action="post-status" data-reveal="right">
+                <h3 style="font-size:var(--fs-md);font-family:var(--font-body);font-weight:700">Take the floor</h3>
+                <div class="field">
+                  <label class="field__label" for="status-text">Your update</label>
+                  <textarea class="textarea" id="status-text" name="text" required minlength="3" maxlength="240"
+                            placeholder="The snack hearing is moving to the porch…" style="min-height:6rem"></textarea>
+                  <p class="field__error">Say at least a few words.</p>
+                </div>
+                <div class="composer__row composer__row--split">
+                  <div class="field">
+                    <label class="field__label" for="status-presence">Presence</label>
+                    <select class="select" id="status-presence" name="presence">
+                      <option value="">Leave as is</option>
+                      <option value="present">On the floor</option>
+                      <option value="remote">Remote</option>
+                      <option value="away">Away</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label class="field__label" for="status-location">Location</label>
+                    <input class="input" id="status-location" name="location" maxlength="60"
+                           placeholder="The kitchen">
+                  </div>
+                </div>
+                <button class="btn" type="submit">Post to the floor</button>
+              </form>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <!-- Today's order of business -->
+      <section class="section">
+        <div class="shell">
+          <header class="section__head section__head--split">
+            <div>
+              <p class="section__eyebrow u-caps" data-reveal>Order of business</p>
+              <h2 data-reveal>The running docket</h2>
+            </div>
+            <a class="link-arrow" href="docket.html" data-reveal="right">Full calendar</a>
+          </header>
+          <ol class="timeline" data-render="docket">
+            <li class="skeleton" style="height:4rem"></li>
+            <li class="skeleton" style="height:4rem"></li>
+          </ol>
+        </div>
+      </section>
+    </main>
+
+    <footer class="colophon">
+      <div class="shell">
+        <div class="colophon__grid">
+          <div>
+            <h2 class="colophon__title">The chamber</h2>
+            <ul class="colophon__list">
+              <li><a href="floor.html">The floor & presence</a></li>
+              <li><a href="voting.html">Voting</a></li>
+              <li><a href="results.html">Roll-call results</a></li>
+              <li><a href="docket.html">Docket & calendar</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">Legislation</h2>
+            <ul class="colophon__list">
+              <li><a href="bills.html">Bill tracker</a></li>
+              <li><a href="draft.html">Drafting studio</a></li>
+              <li><a href="news.html">Newsroom</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">Offices</h2>
+            <ul class="colophon__list">
+              <li><a href="members.html">Member directory</a></li>
+              <li><a href="about.html">Rules & about</a></li>
+              <li><a href="sync.html">Chamber devices</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">The fine print</h2>
+            <ul class="colophon__list">
+              <li>Local-first: your device holds the full record.</li>
+              <li>Works offline; syncs tab-to-tab and peer-to-peer.</li>
+              <li>Optional Cloudflare Worker for always-on relay.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="colophon__base">
+          <span>Cousin Congress · convened wherever two or more cousins are gathered.</span>
+          <span class="cluster">
+            <span class="u-mono" data-clock="date">—</span>
+            <button class="btn btn--ghost btn--sm" data-action="theme" aria-pressed="false"
+                    style="color:inherit">Night session</button>
+          </span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <div class="cursor" aria-hidden="true">
+    <div class="cursor__lag">
+      <span class="cursor__ring"></span>
+      <span class="cursor__square"></span>
+      <span class="cursor__tri"></span>
+      <span class="cursor__bar"></span>
+      <span class="cursor__label"></span>
+    </div>
+    <div class="cursor__dot"></div>
+  </div>
+</body>
+</html>

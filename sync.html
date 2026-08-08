@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chamber Devices · Cousin Congress</title>
+  <meta name="description" content="The replication console: pair devices peer-to-peer, watch the version vector converge, and export the full chamber record.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0b1c4a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ccircle%20cx='36'%20cy='40'%20r='28'%20fill='%231b3fd8'/%3E%3Crect%20x='46'%20y='38'%20width='40'%20height='40'%20rx='7'%20fill='%23ffc21a'/%3E%3Cpath%20d='M28%2094%2050%2058%2072%2094z'%20fill='%23e0243c'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/features.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/motion.css">
+  <link rel="stylesheet" href="css/cursor.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <a class="u-skip" href="#main">Skip to content</a>
+  <div class="progress-rail" aria-hidden="true"><div class="progress-rail__bar"></div></div>
+
+  <input type="checkbox" class="nav-toggle" id="nav-toggle" aria-label="Open the menu">
+
+  <header class="masthead">
+    <div class="shell shell--wide masthead__inner">
+      <a class="brand" href="index.html" aria-label="Cousin Congress home">
+        <span class="brand__seal" aria-hidden="true">CC</span>
+        <span class="brand__wordmark">
+          <span class="brand__name">Cousin Congress</span>
+          <span class="brand__sub">The People's Living Room</span>
+        </span>
+      </a>
+
+      <label class="nav-burger" for="nav-toggle" aria-hidden="true">
+        <span class="nav-burger__bars"></span>
+      </label>
+
+      <nav class="nav" aria-label="Primary">
+        <a class="nav__link" href="floor.html">The Floor</a>
+        <div class="nav__group">
+          <a class="nav__link" href="voting.html">Votes</a>
+          <ul class="nav__menu">
+            <li><a href="voting.html">Voting <small>Cast and call roll calls</small></a></li>
+            <li><a href="results.html">Results <small>The roll-call archive</small></a></li>
+          </ul>
+        </div>
+        <div class="nav__group">
+          <a class="nav__link" href="bills.html">Legislation</a>
+          <ul class="nav__menu">
+            <li><a href="bills.html">Bill tracker <small>Every measure on file</small></a></li>
+            <li><a href="draft.html">Drafting studio <small>Write and introduce a bill</small></a></li>
+          </ul>
+        </div>
+        <a class="nav__link" href="docket.html">Docket</a>
+        <a class="nav__link" href="news.html">Newsroom</a>
+        <a class="nav__link" href="members.html">Members</a>
+        <a class="nav__link" href="about.html">About</a>
+        <a class="conn nav__link" data-conn="static" href="sync.html" title="Replication status — chamber devices">
+          <span data-conn-label>Local</span>
+        </a>
+        <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <div class="ticker" aria-label="Chamber ticker">
+      <div class="ticker__track" data-render="ticker">
+        <span class="ticker__item ticker__item--live"><span class="ticker__label">Chamber</span>In session · sitting 14</span>
+        <span class="ticker__item"><span class="ticker__label">On the floor</span>Roll Call 31: the Pizza Friday Establishment Act</span>
+        <span class="ticker__item"><span class="ticker__label">Up next</span>Snack Committee hearing · the kitchen</span>
+        <span aria-hidden="true" style="display:contents">
+          <span class="ticker__item ticker__item--live"><span class="ticker__label">Chamber</span>In session · sitting 14</span>
+          <span class="ticker__item"><span class="ticker__label">On the floor</span>Roll Call 31: the Pizza Friday Establishment Act</span>
+          <span class="ticker__item"><span class="ticker__label">Up next</span>Snack Committee hearing · the kitchen</span>
+        </span>
+      </div>
+    </div>
+
+    <main id="main">
+      <header class="page-head">
+        <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
+        <div class="shell">
+          <ol class="crumbs"><li><a href="index.html">Home</a></li><li>Chamber devices</li></ol>
+          <h1 data-enter>Chamber Devices</h1>
+          <p class="page-head__lede" data-enter style="--i:1">
+            Every device is a full replica of the record. This console shows how yours is
+            keeping in step — and pairs it directly with another cousin's browser,
+            server or no server.
+          </p>
+          <div class="page-head__meta" data-enter style="--i:2">
+            <span>Guarantee: if any one replica survives, everything survives.</span>
+          </div>
+        </div>
+      </header>
+
+      <p class="notice notice--warn shell" style="margin-top:var(--sp-5)" data-boot-error hidden></p>
+
+      <!-- Status -->
+      <section class="section">
+        <div class="shell">
+          <header class="section__head section__head--split">
+            <div>
+              <p class="section__eyebrow u-caps" data-reveal>This replica</p>
+              <h2 data-reveal>Replication status</h2>
+            </div>
+            <div class="cluster" data-reveal="right">
+              <button class="btn btn--ghost btn--sm" data-action="force-sweep">Sync now</button>
+            </div>
+          </header>
+          <div data-render="syncStatus">
+            <div class="skeleton" style="height:16rem"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pairing -->
+      <section class="section section--sunken">
+        <div class="shell">
+          <header class="section__head">
+            <p class="section__eyebrow u-caps" data-reveal>Peer-to-peer</p>
+            <h2 data-reveal>Pair with another cousin</h2>
+          </header>
+
+          <div class="notice notice--info" data-reveal style="margin-bottom:var(--sp-5)">
+            <div>
+              With the Cloudflare relay configured, browsers on this page pair with each other
+              automatically — nothing to do. The invite codes below are the
+              <strong>zero-infrastructure</strong> path: they carry the WebRTC handshake by hand
+              (paste into any chat), and after that the connection is direct between the two
+              browsers. State flows peer to peer either way.
+            </div>
+          </div>
+
+          <div class="grid grid--2">
+            <!-- Host side -->
+            <div class="panel stack" data-reveal="left">
+              <p class="kicker">Side A — invite</p>
+              <h3 style="font-size:var(--fs-lg)">Create an invite</h3>
+              <ol style="padding-left:1.2em;display:grid;gap:var(--sp-2);color:var(--text-muted);font-size:var(--fs-sm)">
+                <li>Create the invite and send the code to your cousin.</li>
+                <li>They paste it on their device and send back an answer code.</li>
+                <li>Paste the answer below — the channel opens and both sides backfill.</li>
+              </ol>
+              <button class="btn" data-action="create-invite">Create an invite</button>
+
+              <div class="stack" id="invite-out" hidden>
+                <div class="field">
+                  <label class="field__label" for="invite-code">Invite code — send this</label>
+                  <textarea class="textarea" id="invite-code" readonly rows="4"
+                            style="min-height:5rem" aria-describedby="invite-hint"></textarea>
+                  <p class="field__hint" id="invite-hint">Codes are single-use and expire in about
+                    a minute — paste promptly.</p>
+                </div>
+                <button class="btn btn--ghost btn--sm" data-action="copy" data-copy-from="#invite-code">
+                  Copy invite code
+                </button>
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="answer-in">Answer code — paste theirs here</label>
+                <textarea class="textarea" id="answer-in" rows="4" style="min-height:5rem"
+                          placeholder="Paste the answer code your cousin sends back…"></textarea>
+              </div>
+              <button class="btn btn--gold" data-action="complete-invite">Complete the pairing</button>
+            </div>
+
+            <!-- Guest side -->
+            <div class="panel stack" data-reveal="right">
+              <p class="kicker">Side B — answer</p>
+              <h3 style="font-size:var(--fs-lg)">Accept an invite</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">Received an invite code?
+                Paste it here, then send the generated answer code back the same way.</p>
+              <div class="field">
+                <label class="field__label" for="join-code">Invite code</label>
+                <textarea class="textarea" id="join-code" rows="4" style="min-height:5rem"
+                          placeholder="Paste the invite code here…"></textarea>
+              </div>
+              <button class="btn" data-action="accept-invite">Generate my answer</button>
+
+              <div class="stack" id="answer-out" hidden>
+                <div class="field">
+                  <label class="field__label" for="answer-code">Answer code — send this back</label>
+                  <textarea class="textarea" id="answer-code" readonly rows="4" style="min-height:5rem"></textarea>
+                </div>
+                <button class="btn btn--ghost btn--sm" data-action="copy" data-copy-from="#answer-code">
+                  Copy answer code
+                </button>
+                <p class="field__hint">Once your cousin pastes this, the channel opens by itself.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Custody of the record -->
+      <section class="section">
+        <div class="shell">
+          <header class="section__head">
+            <p class="section__eyebrow u-caps" data-reveal>Custody of the record</p>
+            <h2 data-reveal>Export, import, recover</h2>
+          </header>
+
+          <div class="grid grid--3">
+            <div class="card" data-reveal style="--i:0">
+              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body)">Export the log</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">A single JSON file containing every
+                operation this replica holds. Archive it, email it, print it and frame it.</p>
+              <div class="card__foot">
+                <button class="btn btn--sm" data-action="export-log">Export</button>
+              </div>
+            </div>
+            <div class="card" data-reveal style="--i:1">
+              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body)">Import a log</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">Merge an exported file into this
+                replica. Duplicates are ignored; only genuinely new history lands.</p>
+              <div class="card__foot">
+                <button class="btn btn--sm btn--ghost" data-action="import-log">Choose a file</button>
+                <input type="file" id="import-file" accept="application/json,.json" class="u-visually-hidden"
+                       aria-label="Import an exported chamber log">
+              </div>
+            </div>
+            <div class="card" data-reveal style="--i:2">
+              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body)">Erase this device</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">Wipes this replica only. Every other
+                device keeps the record, and this one can rejoin and recover it all later.</p>
+              <div class="card__foot">
+                <button class="btn btn--danger btn--sm" data-action="reset-replica">Erase this device</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="notice notice--ok" data-reveal style="margin-top:var(--sp-6)">
+            <div>
+              <strong>The recovery guarantee, spelled out.</strong> State lives in an append-only
+              operation log, and every replica holds all of it. A brand-new browser that pairs
+              with <em>any single</em> up-to-date peer — via relay, invite code, or an imported
+              file — receives the complete history and folds it into the identical chamber state.
+              There is no primary copy to lose.
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="colophon">
+      <div class="shell">
+        <div class="colophon__grid">
+          <div>
+            <h2 class="colophon__title">The chamber</h2>
+            <ul class="colophon__list">
+              <li><a href="floor.html">The floor & presence</a></li>
+              <li><a href="voting.html">Voting</a></li>
+              <li><a href="results.html">Roll-call results</a></li>
+              <li><a href="docket.html">Docket & calendar</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">Legislation</h2>
+            <ul class="colophon__list">
+              <li><a href="bills.html">Bill tracker</a></li>
+              <li><a href="draft.html">Drafting studio</a></li>
+              <li><a href="news.html">Newsroom</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">Offices</h2>
+            <ul class="colophon__list">
+              <li><a href="members.html">Member directory</a></li>
+              <li><a href="about.html">Rules & about</a></li>
+              <li><a href="sync.html">Chamber devices</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">The fine print</h2>
+            <ul class="colophon__list">
+              <li>Local-first: your device holds the full record.</li>
+              <li>Works offline; syncs tab-to-tab and peer-to-peer.</li>
+              <li>Optional Cloudflare Worker for always-on relay.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="colophon__base">
+          <span>Cousin Congress · convened wherever two or more cousins are gathered.</span>
+          <span class="cluster">
+            <span class="u-mono" data-clock="date">—</span>
+            <button class="btn btn--ghost btn--sm" data-action="theme" aria-pressed="false"
+                    style="color:inherit">Night session</button>
+          </span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <div class="cursor" aria-hidden="true">
+    <div class="cursor__lag">
+      <span class="cursor__ring"></span>
+      <span class="cursor__square"></span>
+      <span class="cursor__tri"></span>
+      <span class="cursor__bar"></span>
+      <span class="cursor__label"></span>
+    </div>
+    <div class="cursor__dot"></div>
+  </div>
+</body>
+</html>

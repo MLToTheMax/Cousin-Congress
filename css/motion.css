@@ -1,0 +1,406 @@
+/* ==========================================================================
+   motion.css — the animation layer
+
+   Scroll choreography is expressed with native scroll-driven animations
+   (`animation-timeline: scroll()` / `view()`), which gives scrubbed, frame
+   accurate motion of the kind a tween library would normally provide —
+   without shipping one. Browsers that lack the feature fall back to a
+   class-toggled transition; browsers that lack both simply show the content.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Keyframes
+   -------------------------------------------------------------------------- */
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    translate: 0 34px;
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes reveal-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes reveal-left {
+  from {
+    opacity: 0;
+    translate: -46px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes reveal-right {
+  from {
+    opacity: 0;
+    translate: 46px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes reveal-scale {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes reveal-clip {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes progress-grow {
+  from {
+    scale: 0 1;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+
+@keyframes drift-up {
+  to {
+    translate: 0 -14%;
+  }
+}
+
+@keyframes drift-down {
+  to {
+    translate: 0 12%;
+  }
+}
+
+@keyframes spin-scrub {
+  to {
+    rotate: 220deg;
+  }
+}
+
+@keyframes seal-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes ticker-slide {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: -50% 0;
+  }
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+  50% {
+    opacity: 0.35;
+    scale: 0.78;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 2.5px var(--bg-raised), 0 0 0 2.5px currentColor;
+  }
+  70% {
+    box-shadow: 0 0 0 2.5px var(--bg-raised),
+      0 0 0 10px color-mix(in oklab, currentColor 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 2.5px var(--bg-raised), 0 0 0 2.5px transparent;
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes count-up {
+  to {
+    --tally: var(--tally-to, 0);
+  }
+}
+
+@keyframes sweep-fill {
+  to {
+    --sweep: var(--sweep-to, 0%);
+  }
+}
+
+@keyframes gavel-strike {
+  0% {
+    rotate: -34deg;
+    translate: 0 -6px;
+  }
+  55% {
+    rotate: 8deg;
+    translate: 0 0;
+  }
+  70% {
+    rotate: -4deg;
+  }
+  100% {
+    rotate: 0deg;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    translate: 0 26px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    scale: 1 0;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Above-the-fold entrance — time-based, plays once, never blocks paint
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-enter] {
+    animation: rise-in var(--dur-4) var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 90ms + 60ms);
+  }
+
+  [data-enter="clip"] {
+    animation-name: reveal-clip;
+    animation-duration: var(--dur-5);
+  }
+
+  [data-enter="scale"] {
+    animation-name: reveal-scale;
+  }
+
+  .gavel-strike {
+    transform-origin: 82% 78%;
+    animation: gavel-strike 900ms var(--ease-gavel) 500ms both;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Scroll-driven choreography (the good path)
+   -------------------------------------------------------------------------- */
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    /* Reading progress across the whole document. */
+    .progress-rail__bar {
+      animation: progress-grow linear both;
+      animation-timeline: scroll(root block);
+    }
+
+    /* Default reveal: scrubbed as the element enters the viewport. */
+    [data-reveal] {
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 4% cover 30%;
+    }
+
+    [data-reveal="fade"] {
+      animation-name: reveal-fade;
+    }
+    [data-reveal="left"] {
+      animation-name: reveal-left;
+    }
+    [data-reveal="right"] {
+      animation-name: reveal-right;
+    }
+    [data-reveal="scale"] {
+      animation-name: reveal-scale;
+    }
+    [data-reveal="clip"] {
+      animation-name: reveal-clip;
+    }
+
+    /* Stagger: siblings share a timeline but offset their entry range. */
+    [data-reveal][style*="--i"] {
+      animation-range: entry calc(4% + var(--i, 0) * 3%) cover calc(30% + var(--i, 0) * 3%);
+    }
+
+    /* Parallax layers — pure timeline, no scroll handler. */
+    [data-parallax] {
+      animation: drift-up linear both;
+      animation-timeline: view();
+      animation-range: cover;
+    }
+    [data-parallax="down"] {
+      animation-name: drift-down;
+    }
+    [data-parallax="spin"] {
+      animation-name: spin-scrub;
+    }
+
+    /* Counters tick up as their tile scrolls into frame. */
+    .counter {
+      animation: count-up linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 42%;
+    }
+
+    /* Result bars grow from the baseline. */
+    [data-grow] {
+      transform-origin: 50% 100%;
+      animation: bar-grow linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 40%;
+    }
+
+    /* The masthead condenses once the page has moved at all. */
+    .masthead {
+      animation: masthead-condense linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 120px;
+    }
+
+    @keyframes masthead-condense {
+      to {
+        box-shadow: 0 1px 0 var(--line), 0 10px 30px -22px rgb(0 0 0 / 0.55);
+        --header-h: 58px;
+      }
+    }
+
+    /* Hero headline releases its clip as you scroll away from it. */
+    .hero__title {
+      animation: reveal-clip var(--dur-5) var(--ease-out) 120ms both;
+    }
+  }
+}
+
+/* Counters that are on screen at load (the hero facts) count up on a clock
+   instead of a scroll timeline — there is no scroll left to scrub them with. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero .counter {
+    animation: count-up 1100ms var(--ease-out) 450ms both;
+    animation-timeline: auto;
+  }
+}
+
+/* Whatever the motion regime, a counter must always land on its number. */
+@media (prefers-reduced-motion: reduce) {
+  .counter {
+    --tally: var(--tally-to, 0);
+  }
+}
+
+@supports not (animation-timeline: view()) {
+  .counter {
+    animation: count-up 1100ms var(--ease-out) 450ms both;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Fallback path — a 20-line IntersectionObserver toggles .is-in
+   -------------------------------------------------------------------------- */
+
+@supports not (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    html.js [data-reveal] {
+      opacity: 0;
+      translate: 0 26px;
+      transition: opacity var(--dur-4) var(--ease-out), translate var(--dur-4) var(--ease-out);
+      transition-delay: calc(var(--i, 0) * 70ms);
+    }
+    html.js [data-reveal="left"] {
+      translate: -32px 0;
+    }
+    html.js [data-reveal="right"] {
+      translate: 32px 0;
+    }
+    html.js [data-reveal="scale"] {
+      translate: 0 0;
+      scale: 0.94;
+      transition-property: opacity, scale;
+    }
+    html.js [data-reveal].is-in {
+      opacity: 1;
+      translate: 0 0;
+      scale: 1;
+    }
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Reduced motion — hold everything still, keep all content reachable
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  [data-reveal],
+  [data-enter] {
+    opacity: 1 !important;
+    translate: none !important;
+    scale: none !important;
+    clip-path: none !important;
+    filter: none !important;
+  }
+
+  .ticker__track {
+    animation: none;
+    transform: none;
+  }
+}

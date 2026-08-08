@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>About & Rules · Cousin Congress</title>
+  <meta name="description" content="What the Cousin Congress is, the standing rules of the chamber, how the local-first record works, and how to reach the clerk.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0b1c4a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ccircle%20cx='36'%20cy='40'%20r='28'%20fill='%231b3fd8'/%3E%3Crect%20x='46'%20y='38'%20width='40'%20height='40'%20rx='7'%20fill='%23ffc21a'/%3E%3Cpath%20d='M28%2094%2050%2058%2072%2094z'%20fill='%23e0243c'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/features.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/motion.css">
+  <link rel="stylesheet" href="css/cursor.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <a class="u-skip" href="#main">Skip to content</a>
+  <div class="progress-rail" aria-hidden="true"><div class="progress-rail__bar"></div></div>
+
+  <input type="checkbox" class="nav-toggle" id="nav-toggle" aria-label="Open the menu">
+
+  <header class="masthead">
+    <div class="shell shell--wide masthead__inner">
+      <a class="brand" href="index.html" aria-label="Cousin Congress home">
+        <span class="brand__seal" aria-hidden="true">CC</span>
+        <span class="brand__wordmark">
+          <span class="brand__name">Cousin Congress</span>
+          <span class="brand__sub">The People's Living Room</span>
+        </span>
+      </a>
+
+      <label class="nav-burger" for="nav-toggle" aria-hidden="true">
+        <span class="nav-burger__bars"></span>
+      </label>
+
+      <nav class="nav" aria-label="Primary">
+        <a class="nav__link" href="floor.html">The Floor</a>
+        <div class="nav__group">
+          <a class="nav__link" href="voting.html">Votes</a>
+          <ul class="nav__menu">
+            <li><a href="voting.html">Voting <small>Cast and call roll calls</small></a></li>
+            <li><a href="results.html">Results <small>The roll-call archive</small></a></li>
+          </ul>
+        </div>
+        <div class="nav__group">
+          <a class="nav__link" href="bills.html">Legislation</a>
+          <ul class="nav__menu">
+            <li><a href="bills.html">Bill tracker <small>Every measure on file</small></a></li>
+            <li><a href="draft.html">Drafting studio <small>Write and introduce a bill</small></a></li>
+          </ul>
+        </div>
+        <a class="nav__link" href="docket.html">Docket</a>
+        <a class="nav__link" href="news.html">Newsroom</a>
+        <a class="nav__link" href="members.html">Members</a>
+        <a class="nav__link" href="about.html" aria-current="page">About</a>
+        <a class="conn nav__link" data-conn="static" href="sync.html" title="Replication status — chamber devices">
+          <span data-conn-label>Local</span>
+        </a>
+        <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <div class="ticker" aria-label="Chamber ticker">
+      <div class="ticker__track" data-render="ticker">
+        <span class="ticker__item ticker__item--live"><span class="ticker__label">Chamber</span>In session · sitting 14</span>
+        <span class="ticker__item"><span class="ticker__label">On the floor</span>Roll Call 31: the Pizza Friday Establishment Act</span>
+        <span class="ticker__item"><span class="ticker__label">Up next</span>Snack Committee hearing · the kitchen</span>
+        <span aria-hidden="true" style="display:contents">
+          <span class="ticker__item ticker__item--live"><span class="ticker__label">Chamber</span>In session · sitting 14</span>
+          <span class="ticker__item"><span class="ticker__label">On the floor</span>Roll Call 31: the Pizza Friday Establishment Act</span>
+          <span class="ticker__item"><span class="ticker__label">Up next</span>Snack Committee hearing · the kitchen</span>
+        </span>
+      </div>
+    </div>
+
+    <main id="main">
+      <header class="page-head">
+        <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
+        <div class="shell">
+          <ol class="crumbs"><li><a href="index.html">Home</a></li><li>About</li></ol>
+          <h1 data-enter>About the Chamber</h1>
+          <p class="page-head__lede" data-enter style="--i:1">
+            A working legislature for a family that takes its fun seriously —
+            and a serious piece of engineering wearing a party hat.
+          </p>
+        </div>
+      </header>
+
+      <!-- Mission -->
+      <section class="section">
+        <div class="shell">
+          <div class="sidebar-layout">
+            <div class="stack stack--lg u-prose">
+              <h2 data-reveal>Why a congress?</h2>
+              <p data-reveal>Because "whoever yells loudest picks the movie" was not scaling.
+                The Cousin Congress gives family decisions the dignity they deserve: motions,
+                debate, recorded votes, and a gavel (a wooden spoon, held with authority).</p>
+              <p data-reveal>Every decision — from Pizza Friday to reunion sites — goes through
+                the same pipeline real legislation does. Bills are drafted, referred, amended,
+                and voted on the record. Grievances become amendments. Amendments become law.
+                The archive remembers everything, which is very on-brand for this family.</p>
+              <blockquote class="quote" data-reveal>
+                The yeas and nays were demanded, and the pizza was ordered.
+                <cite>— Journal of the First Cousin Congress, Sitting 9</cite>
+              </blockquote>
+            </div>
+
+            <aside class="sidebar-layout__aside">
+              <div class="panel stack" data-reveal="right">
+                <h3 style="font-size:var(--fs-md);font-family:var(--font-body);font-weight:700">Transparency dashboard</h3>
+                <div class="kpi-rail" style="grid-template-columns:1fr 1fr" data-render="kpis">
+                  <div class="kpi"><span class="kpi__value">—</span><span class="kpi__label">Members</span></div>
+                  <div class="kpi"><span class="kpi__value">—</span><span class="kpi__label">Bills</span></div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <!-- How it runs -->
+      <section class="section section--ink">
+        <div class="shell">
+          <header class="section__head">
+            <p class="section__eyebrow u-caps" data-reveal>Under the hood</p>
+            <h2 data-reveal>A chamber with no single point of failure</h2>
+          </header>
+          <div class="grid grid--3">
+            <div class="card" data-reveal style="--i:0;background:rgb(255 255 255 / 0.05);border-color:rgb(255 255 255 / 0.15)">
+              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body);color:#fff">Local-first</h3>
+              <p style="font-size:var(--fs-sm);color:rgb(255 255 255 / 0.72)">Every action is an
+                operation appended to a log on your own device. Votes count the instant you cast
+                them — on a plane, in a basement, wherever. The network is an optimization,
+                never a requirement.</p>
+            </div>
+            <div class="card" data-reveal style="--i:1;background:rgb(255 255 255 / 0.05);border-color:rgb(255 255 255 / 0.15)">
+              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body);color:#fff">Peer-to-peer</h3>
+              <p style="font-size:var(--fs-sm);color:rgb(255 255 255 / 0.72)">Devices exchange
+                their logs tab-to-tab, over an optional Cloudflare relay, and directly
+                browser-to-browser over WebRTC. As long as one cousin is online, a new device
+                can recover the entire record from scratch.</p>
+            </div>
+            <div class="card" data-reveal style="--i:2;background:rgb(255 255 255 / 0.05);border-color:rgb(255 255 255 / 0.15)">
+              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body);color:#fff">Conflict-free</h3>
+              <p style="font-size:var(--fs-sm);color:rgb(255 255 255 / 0.72)">Operations carry
+                hybrid logical clocks and merge deterministically, so two devices editing offline
+                converge on the same state when they meet — no lost votes, no merge dialogs,
+                no arguing (about the data, anyway).</p>
+            </div>
+          </div>
+          <p style="margin-top:var(--sp-5)" data-reveal>
+            <a class="link-arrow" href="sync.html">Open the replication console</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- Rules -->
+      <section class="section">
+        <div class="shell shell--prose">
+          <header class="section__head">
+            <p class="section__eyebrow u-caps" data-reveal>The standing rules</p>
+            <h2 data-reveal>Rules of the chamber</h2>
+          </header>
+          <div class="doc">
+            <h3 data-reveal>Quorum</h3>
+            <p data-reveal>A majority of enrolled members, attending in person or by video,
+              constitutes a quorum. The chamber may gossip without a quorum but may not legislate.</p>
+            <h3 data-reveal>Recognition</h3>
+            <p data-reveal>Members speak when recognised by the Speaker. Interrupting with
+              "actually" is disorderly conduct on the third offence.</p>
+            <h3 data-reveal>Voting</h3>
+            <p data-reveal>Votes are cast yea, nay, or present. A ballot may be changed at any
+              time before the chair closes the roll. The record shows only the final ballot.</p>
+            <h3 data-reveal>Thresholds</h3>
+            <p data-reveal>Ordinary questions carry by simple majority of decisive ballots.
+              Schedule extensions on school nights, rule suspensions, and anything involving the
+              good couch require two-thirds. Renaming the family group chat requires unanimous
+              consent, as history demands.</p>
+            <h3 data-reveal>Proxies</h3>
+            <p data-reveal>A member may delegate their ballot to another member. The delegate's
+              vote counts for the absent member on any question the absent member has not voted
+              on personally. A member's own ballot always outranks their proxy.</p>
+            <h3 data-reveal>Decorum</h3>
+            <p data-reveal>Members shall not impugn one another's snack preferences on the record.
+              Off the record is a different matter and always has been.</p>
+            <h3 data-reveal>The record</h3>
+            <p data-reveal>The record is append-only. Errors are corrected by subsequent entries,
+              never by erasure. Yes, this rule is also how the software works. No, that is not a
+              coincidence.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section class="section section--sunken">
+        <div class="shell shell--prose">
+          <header class="section__head">
+            <p class="section__eyebrow u-caps" data-reveal>Questions</p>
+            <h2 data-reveal>Frequently raised points of order</h2>
+          </header>
+
+          <details class="disclosure" data-reveal>
+            <summary>Do I need an account?</summary>
+            <div class="disclosure__body"><p>No. You claim a seat from the member roster on the
+              device you use, and that device signs its entries. The chamber runs on trust and
+              version vectors, roughly in that order.</p></div>
+          </details>
+          <details class="disclosure" data-reveal>
+            <summary>What happens if I vote while offline?</summary>
+            <div class="disclosure__body"><p>Your ballot is recorded on your device immediately
+              and replicated when you next meet any other device — a peer, a tab, or the relay.
+              The tally everyone sees updates at that moment, credited at full value.</p></div>
+          </details>
+          <details class="disclosure" data-reveal>
+            <summary>What if two devices disagree?</summary>
+            <div class="disclosure__body"><p>They can't, for long. All operations carry logical
+              timestamps and merge in the same order everywhere. For a single member's ballot on
+              a single question, the latest cast wins — the same rule the floor uses in person.</p></div>
+          </details>
+          <details class="disclosure" data-reveal>
+            <summary>Can the record be lost?</summary>
+            <div class="disclosure__body"><p>Only if every replica is lost at once. Each device
+              holds the full log, every pairing copies it, and the console can export it as a
+              file. One surviving copy — device, export, or relay — rebuilds everything.</p></div>
+          </details>
+          <details class="disclosure" data-reveal>
+            <summary>Is the Cloudflare Worker required?</summary>
+            <div class="disclosure__body"><p>No. It adds an always-on relay (so devices needn't be
+              online simultaneously), durable off-device backup, and automatic peer pairing. The
+              chamber is fully functional without it, including direct invite-code pairing.</p></div>
+          </details>
+        </div>
+      </section>
+
+      <!-- Contact -->
+      <section class="section">
+        <div class="shell">
+          <div class="grid grid--2">
+            <div class="stack" data-reveal="left">
+              <p class="section__eyebrow u-caps">Constituent services</p>
+              <h2>Write to the Clerk</h2>
+              <p class="u-muted u-prose">Petitions, grievances, topping proposals, and formal
+                compliments are all received. Messages go to the clerk's office privately —
+                they are the one thing that is <em>not</em> replicated to every cousin.</p>
+              <p class="field__hint">No relay configured? Your message waits safely on this
+                device and delivers itself when the office reopens.</p>
+            </div>
+            <form class="panel stack" data-action="contact" data-reveal="right">
+              <div class="form-grid form-grid--2">
+                <div class="field">
+                  <label class="field__label" for="ct-name">Name</label>
+                  <input class="input" id="ct-name" name="name" required maxlength="80" autocomplete="name">
+                </div>
+                <div class="field">
+                  <label class="field__label" for="ct-email">Email</label>
+                  <input class="input" id="ct-email" name="email" type="email" required autocomplete="email">
+                </div>
+              </div>
+              <div class="field">
+                <label class="field__label" for="ct-topic">Topic</label>
+                <select class="select" id="ct-topic" name="topic">
+                  <option value="petition">Petition</option>
+                  <option value="grievance">Grievance</option>
+                  <option value="testimony">Committee testimony</option>
+                  <option value="compliment">Formal compliment</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field__label" for="ct-body">Message</label>
+                <textarea class="textarea" id="ct-body" name="body" required minlength="10" maxlength="2000"
+                          style="font-family:var(--font-body)"></textarea>
+                <p class="field__error">Ten characters minimum — the Clerk has standards.</p>
+              </div>
+              <button class="btn" type="submit">Deliver to the clerk's office</button>
+            </form>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="colophon">
+      <div class="shell">
+        <div class="colophon__grid">
+          <div>
+            <h2 class="colophon__title">The chamber</h2>
+            <ul class="colophon__list">
+              <li><a href="floor.html">The floor & presence</a></li>
+              <li><a href="voting.html">Voting</a></li>
+              <li><a href="results.html">Roll-call results</a></li>
+              <li><a href="docket.html">Docket & calendar</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">Legislation</h2>
+            <ul class="colophon__list">
+              <li><a href="bills.html">Bill tracker</a></li>
+              <li><a href="draft.html">Drafting studio</a></li>
+              <li><a href="news.html">Newsroom</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">Offices</h2>
+            <ul class="colophon__list">
+              <li><a href="members.html">Member directory</a></li>
+              <li><a href="about.html">Rules & about</a></li>
+              <li><a href="sync.html">Chamber devices</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">The fine print</h2>
+            <ul class="colophon__list">
+              <li>Local-first: your device holds the full record.</li>
+              <li>Works offline; syncs tab-to-tab and peer-to-peer.</li>
+              <li>Optional Cloudflare Worker for always-on relay.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="colophon__base">
+          <span>Cousin Congress · convened wherever two or more cousins are gathered.</span>
+          <span class="cluster">
+            <span class="u-mono" data-clock="date">—</span>
+            <button class="btn btn--ghost btn--sm" data-action="theme" aria-pressed="false"
+                    style="color:inherit">Night session</button>
+          </span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <div class="cursor" aria-hidden="true">
+    <div class="cursor__lag">
+      <span class="cursor__ring"></span>
+      <span class="cursor__square"></span>
+      <span class="cursor__tri"></span>
+      <span class="cursor__bar"></span>
+      <span class="cursor__label"></span>
+    </div>
+    <div class="cursor__dot"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,265 @@
+/* ==========================================================================
+   tokens.css — Design tokens for Cousin Congress
+   Single source of truth: color, type, space, motion, elevation, layers.
+   No component styling lives here.
+   ========================================================================== */
+
+:root {
+  color-scheme: light dark;
+
+  /* --- Primitive palette -------------------------------------------------
+     Primary colors, pushed to feel institutional rather than childish:
+     a deep constitutional blue, a chamber crimson, a brass yellow.        */
+  --c-blue-900: #071232;
+  --c-blue-800: #0b1c4a;
+  --c-blue-700: #122c73;
+  --c-blue-600: #1b3fd8;
+  --c-blue-500: #2f57ff;
+  --c-blue-200: #b9c7ff;
+  --c-blue-100: #e4e9ff;
+
+  --c-red-700: #8f1224;
+  --c-red-600: #c11530;
+  --c-red-500: #e0243c;
+  --c-red-200: #ffc4cd;
+  --c-red-100: #ffe6ea;
+
+  --c-yellow-600: #d99b00;
+  --c-yellow-500: #ffc21a;
+  --c-yellow-400: #ffd447;
+  --c-yellow-200: #ffeaa8;
+  --c-yellow-100: #fff6d9;
+
+  --c-green-600: #0f7a4a;
+  --c-green-500: #17a463;
+  --c-green-100: #dbf5e8;
+
+  --c-ink-900: #060911;
+  --c-ink-800: #0d1425;
+  --c-ink-700: #1b2438;
+  --c-ink-600: #38425a;
+  --c-ink-500: #5c6781;
+  --c-ink-400: #8b95ac;
+  --c-ink-300: #bec6d6;
+  --c-ink-200: #dde2ec;
+  --c-ink-100: #eef1f7;
+
+  --c-paper: #f7f5ef;
+  --c-paper-2: #fffdf8;
+  --c-white: #ffffff;
+
+  /* --- Semantic surface / text -------------------------------------------
+     Every semantic token is declared twice: a plain light value first, then
+     the same token via light-dark(). Browsers without light-dark() keep the
+     first declaration and render the day palette; browsers with it follow
+     the resolved color-scheme. That is the whole theming mechanism — the
+     night-session toggle only has to flip `color-scheme` on :root.        */
+  --bg: var(--c-paper);
+  --bg: light-dark(var(--c-paper), #070b16);
+  --bg-raised: var(--c-paper-2);
+  --bg-raised: light-dark(var(--c-paper-2), #0d1425);
+  --bg-sunken: #ece9e0;
+  --bg-sunken: light-dark(#ece9e0, #04070f);
+  --bg-inverse: var(--c-blue-900);
+  --bg-inverse: light-dark(var(--c-blue-900), #e9ecf7);
+
+  --text: var(--c-ink-800);
+  --text: light-dark(var(--c-ink-800), #e7ebf6);
+  --text-muted: var(--c-ink-500);
+  --text-muted: light-dark(var(--c-ink-500), #9aa5bf);
+  --text-faint: var(--c-ink-400);
+  --text-faint: light-dark(var(--c-ink-400), #6f7b96);
+  --text-inverse: #f2f5ff;
+  --text-inverse: light-dark(#f2f5ff, #0b1330);
+  --text-on-accent: var(--c-white);
+
+  --rule: var(--c-ink-900);
+  --rule: light-dark(var(--c-ink-900), #ffffff);
+  --line: color-mix(in oklab, var(--rule) 14%, transparent);
+  --line-strong: color-mix(in oklab, var(--rule) 30%, transparent);
+  --line-hair: color-mix(in oklab, var(--rule) 8%, transparent);
+
+  /* --- Semantic accents -------------------------------------------------- */
+  --accent: var(--c-blue-600);
+  --accent: light-dark(var(--c-blue-600), var(--c-blue-500));
+  --accent-ink: var(--c-blue-800);
+  --accent-ink: light-dark(var(--c-blue-800), var(--c-blue-200));
+  --accent-soft: var(--c-blue-100);
+  --accent-soft: light-dark(
+    var(--c-blue-100),
+    color-mix(in oklab, var(--c-blue-600) 26%, transparent)
+  );
+
+  --yea: var(--c-green-600);
+  --yea: light-dark(var(--c-green-600), #2ad07f);
+  --yea-soft: var(--c-green-100);
+  --yea-soft: light-dark(var(--c-green-100), color-mix(in oklab, #17a463 24%, transparent));
+  --nay: var(--c-red-600);
+  --nay: light-dark(var(--c-red-600), #ff5470);
+  --nay-soft: var(--c-red-100);
+  --nay-soft: light-dark(var(--c-red-100), color-mix(in oklab, #e0243c 24%, transparent));
+  --present: var(--c-yellow-600);
+  --present: light-dark(var(--c-yellow-600), var(--c-yellow-400));
+  --present-soft: var(--c-yellow-100);
+  --present-soft: light-dark(
+    var(--c-yellow-100),
+    color-mix(in oklab, var(--c-yellow-500) 22%, transparent)
+  );
+  --absent: var(--c-ink-400);
+  --absent: light-dark(var(--c-ink-400), #6f7b96);
+  --absent-soft: var(--c-ink-100);
+  --absent-soft: light-dark(var(--c-ink-100), color-mix(in oklab, #ffffff 8%, transparent));
+
+  --seal: var(--c-yellow-500);
+
+  /* Focus ring and the parchment stock used by the engrossment preview. */
+  --focus: var(--c-blue-600);
+  --focus: light-dark(var(--c-blue-600), var(--c-yellow-400));
+  --parchment: var(--c-paper-2);
+  --parchment: light-dark(var(--c-paper-2), #f4f1e8);
+
+  /* --- Typography --------------------------------------------------------
+     System stacks only — zero network requests, works offline and on Pages. */
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+    "Hoefler Text", Georgia, ui-serif, serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  /* Fluid type scale — 320px → 1440px viewport */
+  --fs-2xs: clamp(0.66rem, 0.63rem + 0.14vw, 0.74rem);
+  --fs-xs: clamp(0.75rem, 0.72rem + 0.16vw, 0.84rem);
+  --fs-sm: clamp(0.86rem, 0.83rem + 0.18vw, 0.95rem);
+  --fs-md: clamp(1rem, 0.96rem + 0.2vw, 1.09rem);
+  --fs-lg: clamp(1.16rem, 1.09rem + 0.36vw, 1.35rem);
+  --fs-xl: clamp(1.4rem, 1.26rem + 0.68vw, 1.8rem);
+  --fs-2xl: clamp(1.75rem, 1.5rem + 1.24vw, 2.5rem);
+  --fs-3xl: clamp(2.2rem, 1.7rem + 2.5vw, 3.6rem);
+  --fs-4xl: clamp(2.8rem, 1.8rem + 4.8vw, 5.6rem);
+  --fs-5xl: clamp(3.4rem, 1.7rem + 8.2vw, 8rem);
+
+  --lh-tight: 1.04;
+  --lh-snug: 1.2;
+  --lh-body: 1.62;
+
+  --tracking-mega: -0.03em;
+  --tracking-tight: -0.015em;
+  --tracking-wide: 0.08em;
+  --tracking-caps: 0.16em;
+
+  /* --- Space scale (8px base, fluid at the top end) ---------------------- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+  --sp-8: 4rem;
+  --sp-9: clamp(4rem, 3rem + 5vw, 7rem);
+  --sp-10: clamp(5rem, 3rem + 9vw, 11rem);
+
+  /* --- Layout ------------------------------------------------------------ */
+  --w-page: 1280px;
+  --w-wide: 1520px;
+  --w-prose: 68ch;
+  --gutter: clamp(1rem, 0.4rem + 2.6vw, 3rem);
+  --header-h: 68px;
+
+  /* --- Radii & elevation -------------------------------------------------- */
+  --r-xs: 3px;
+  --r-sm: 6px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --r-xl: 32px;
+  --r-pill: 999px;
+
+  --shadow-1: 0 1px 2px color-mix(in oklab, var(--c-ink-900) 8%, transparent);
+  --shadow-2: 0 2px 4px color-mix(in oklab, var(--c-ink-900) 6%, transparent),
+    0 8px 24px -12px color-mix(in oklab, var(--c-ink-900) 22%, transparent);
+  --shadow-3: 0 4px 8px color-mix(in oklab, var(--c-ink-900) 6%, transparent),
+    0 24px 56px -20px color-mix(in oklab, var(--c-ink-900) 30%, transparent);
+  --shadow-hard: 4px 4px 0 var(--c-ink-900);
+  --shadow-hard: 4px 4px 0 light-dark(var(--c-ink-900), #000);
+  --shadow-hard-blue: 5px 5px 0 var(--c-blue-600);
+
+  /* --- Motion ------------------------------------------------------------
+     Named curves so animation intent is legible at the call site.          */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-gavel: cubic-bezier(0.75, -0.4, 0.25, 1.4);
+
+  --dur-1: 120ms;
+  --dur-2: 220ms;
+  --dur-3: 380ms;
+  --dur-4: 620ms;
+  --dur-5: 1000ms;
+
+  /* --- Layers ------------------------------------------------------------ */
+  --z-base: 0;
+  --z-sticky: 20;
+  --z-header: 40;
+  --z-overlay: 60;
+  --z-modal: 80;
+  --z-cursor: 999;
+}
+
+/* --- Night sessions --------------------------------------------------------
+   The palette above resolves through light-dark(), so the manual toggle is
+   nothing more than pinning color-scheme. No attribute = follow the system. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Legacy engines without light-dark() at least follow the system setting. */
+@supports not (color: light-dark(#000, #fff)) {
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #070b16;
+      --bg-raised: #0d1425;
+      --bg-sunken: #04070f;
+      --text: #e7ebf6;
+      --text-muted: #9aa5bf;
+      --text-faint: #6f7b96;
+      --rule: #ffffff;
+      --accent: var(--c-blue-500);
+      --accent-ink: var(--c-blue-200);
+      --accent-soft: color-mix(in oklab, var(--c-blue-600) 26%, transparent);
+      --yea: #2ad07f;
+      --nay: #ff5470;
+      --present: var(--c-yellow-400);
+      --absent: #6f7b96;
+      --focus: var(--c-yellow-400);
+      --parchment: #f4f1e8;
+    }
+  }
+}
+
+/* Deep shadows in the dark, regardless of how we got there. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --shadow-2: 0 2px 4px rgb(0 0 0 / 0.4), 0 12px 32px -14px rgb(0 0 0 / 0.8);
+    --shadow-3: 0 4px 10px rgb(0 0 0 / 0.45), 0 30px 70px -24px rgb(0 0 0 / 0.9);
+  }
+}
+:root[data-theme="dark"] {
+  --shadow-2: 0 2px 4px rgb(0 0 0 / 0.4), 0 12px 32px -14px rgb(0 0 0 / 0.8);
+  --shadow-3: 0 4px 10px rgb(0 0 0 / 0.45), 0 30px 70px -24px rgb(0 0 0 / 0.9);
+}
+
+/* Animatable custom properties (used by CSS-only counters & meters). */
+@property --tally {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: false;
+}
+@property --sweep {
+  syntax: "<percentage>";
+  initial-value: 0%;
+  inherits: false;
+}

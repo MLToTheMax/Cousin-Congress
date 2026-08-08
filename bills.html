@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bill Tracker · Cousin Congress</title>
+  <meta name="description" content="Every measure before the Cousin Congress, its stage in the pipeline, cosponsors, amendments, and the public comment record.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0b1c4a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ccircle%20cx='36'%20cy='40'%20r='28'%20fill='%231b3fd8'/%3E%3Crect%20x='46'%20y='38'%20width='40'%20height='40'%20rx='7'%20fill='%23ffc21a'/%3E%3Cpath%20d='M28%2094%2050%2058%2072%2094z'%20fill='%23e0243c'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/features.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/motion.css">
+  <link rel="stylesheet" href="css/cursor.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <a class="u-skip" href="#main">Skip to content</a>
+  <div class="progress-rail" aria-hidden="true"><div class="progress-rail__bar"></div></div>
+
+  <input type="checkbox" class="nav-toggle" id="nav-toggle" aria-label="Open the menu">
+
+  <header class="masthead">
+    <div class="shell shell--wide masthead__inner">
+      <a class="brand" href="index.html" aria-label="Cousin Congress home">
+        <span class="brand__seal" aria-hidden="true">CC</span>
+        <span class="brand__wordmark">
+          <span class="brand__name">Cousin Congress</span>
+          <span class="brand__sub">The People's Living Room</span>
+        </span>
+      </a>
+
+      <label class="nav-burger" for="nav-toggle" aria-hidden="true">
+        <span class="nav-burger__bars"></span>
+      </label>
+
+      <nav class="nav" aria-label="Primary">
+        <a class="nav__link" href="floor.html">The Floor</a>
+        <div class="nav__group">
+          <a class="nav__link" href="voting.html">Votes</a>
+          <ul class="nav__menu">
+            <li><a href="voting.html">Voting <small>Cast and call roll calls</small></a></li>
+            <li><a href="results.html">Results <small>The roll-call archive</small></a></li>
+          </ul>
+        </div>
+        <div class="nav__group">
+          <a class="nav__link" href="bills.html" aria-current="page">Legislation</a>
+          <ul class="nav__menu">
+            <li><a href="bills.html">Bill tracker <small>Every measure on file</small></a></li>
+            <li><a href="draft.html">Drafting studio <small>Write and introduce a bill</small></a></li>
+          </ul>
+        </div>
+        <a class="nav__link" href="docket.html">Docket</a>
+        <a class="nav__link" href="news.html">Newsroom</a>
+        <a class="nav__link" href="members.html">Members</a>
+        <a class="nav__link" href="about.html">About</a>
+        <a class="conn nav__link" data-conn="static" href="sync.html" title="Replication status — chamber devices">
+          <span data-conn-label>Local</span>
+        </a>
+        <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <div class="ticker" aria-label="Chamber ticker">
+      <div class="ticker__track" data-render="ticker">
+        <span class="ticker__item ticker__item--live"><span class="ticker__label">Chamber</span>In session · sitting 14</span>
+        <span class="ticker__item"><span class="ticker__label">On the floor</span>Roll Call 31: the Pizza Friday Establishment Act</span>
+        <span class="ticker__item"><span class="ticker__label">Up next</span>Snack Committee hearing · the kitchen</span>
+        <span aria-hidden="true" style="display:contents">
+          <span class="ticker__item ticker__item--live"><span class="ticker__label">Chamber</span>In session · sitting 14</span>
+          <span class="ticker__item"><span class="ticker__label">On the floor</span>Roll Call 31: the Pizza Friday Establishment Act</span>
+          <span class="ticker__item"><span class="ticker__label">Up next</span>Snack Committee hearing · the kitchen</span>
+        </span>
+      </div>
+    </div>
+
+    <main id="main">
+      <header class="page-head">
+        <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
+        <div class="shell">
+          <ol class="crumbs"><li><a href="index.html">Home</a></li><li>Legislation</li></ol>
+          <h1 data-enter>Legislation Before the Chamber</h1>
+          <p class="page-head__lede" data-enter style="--i:1">
+            Every measure on file, from first draft to family law. Follow the pipeline,
+            sign on as a cosponsor, file amendments, and add your comment to the record.
+          </p>
+          <div class="page-head__meta" data-enter style="--i:2">
+            <span>Pipeline: Drafted → Introduced → Committee → Floor → Enacted</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Tracker -->
+      <section class="section">
+        <div class="shell">
+          <div class="cluster cluster--between" style="margin-bottom:var(--sp-5)">
+            <header>
+              <p class="section__eyebrow u-caps" data-reveal>The tracker</p>
+              <h2 data-reveal>Measures on file</h2>
+            </header>
+            <a class="btn" href="draft.html" data-reveal="right">Introduce a new bill</a>
+          </div>
+
+          <div class="filterbar" data-reveal>
+            <div class="search">
+              <label class="u-visually-hidden" for="bills-search">Search bills</label>
+              <input class="input" id="bills-search" type="search"
+                     placeholder="Search by number, title, or sponsor…" data-search-for="bills">
+            </div>
+            <div class="field">
+              <label class="field__label" for="bills-stage">Stage</label>
+              <select class="select" id="bills-stage" data-filter-for="bills" data-facet="stage">
+                <option value="all">All stages</option>
+                <option value="drafted">Drafted</option>
+                <option value="introduced">Introduced</option>
+                <option value="committee">In committee</option>
+                <option value="floor">On the floor</option>
+                <option value="enacted">Enacted</option>
+              </select>
+            </div>
+            <span class="u-mono u-muted" style="font-size:var(--fs-xs)">
+              <span data-count-for="bills">—</span> shown
+            </span>
+          </div>
+
+          <div class="grid grid--2" id="bills" data-filter-scope data-render="bills"
+               style="margin-top:var(--sp-5)">
+            <div class="skeleton" style="height:16rem"></div>
+            <div class="skeleton" style="height:16rem"></div>
+            <div class="skeleton" style="height:16rem"></div>
+            <div class="skeleton" style="height:16rem"></div>
+          </div>
+          <p class="empty" data-empty-for="bills" hidden>No measures match that filter.</p>
+        </div>
+      </section>
+
+      <!-- Reading room -->
+      <section class="section section--sunken" id="reading-room">
+        <div class="shell">
+          <header class="section__head section__head--split">
+            <div>
+              <p class="section__eyebrow u-caps" data-reveal>The reading room</p>
+              <h2 data-reveal>Full text &amp; record</h2>
+            </div>
+            <p class="u-muted" data-reveal="right">Pick any bill above — its engrossed text,
+              cosponsors, amendments, and comment record open here.</p>
+          </header>
+          <div data-render="billDetail">
+            <div class="skeleton" style="height:26rem"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="colophon">
+      <div class="shell">
+        <div class="colophon__grid">
+          <div>
+            <h2 class="colophon__title">The chamber</h2>
+            <ul class="colophon__list">
+              <li><a href="floor.html">The floor & presence</a></li>
+              <li><a href="voting.html">Voting</a></li>
+              <li><a href="results.html">Roll-call results</a></li>
+              <li><a href="docket.html">Docket & calendar</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">Legislation</h2>
+            <ul class="colophon__list">
+              <li><a href="bills.html">Bill tracker</a></li>
+              <li><a href="draft.html">Drafting studio</a></li>
+              <li><a href="news.html">Newsroom</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">Offices</h2>
+            <ul class="colophon__list">
+              <li><a href="members.html">Member directory</a></li>
+              <li><a href="about.html">Rules & about</a></li>
+              <li><a href="sync.html">Chamber devices</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">The fine print</h2>
+            <ul class="colophon__list">
+              <li>Local-first: your device holds the full record.</li>
+              <li>Works offline; syncs tab-to-tab and peer-to-peer.</li>
+              <li>Optional Cloudflare Worker for always-on relay.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="colophon__base">
+          <span>Cousin Congress · convened wherever two or more cousins are gathered.</span>
+          <span class="cluster">
+            <span class="u-mono" data-clock="date">—</span>
+            <button class="btn btn--ghost btn--sm" data-action="theme" aria-pressed="false"
+                    style="color:inherit">Night session</button>
+          </span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <div class="cursor" aria-hidden="true">
+    <div class="cursor__lag">
+      <span class="cursor__ring"></span>
+      <span class="cursor__square"></span>
+      <span class="cursor__tri"></span>
+      <span class="cursor__bar"></span>
+      <span class="cursor__label"></span>
+    </div>
+    <div class="cursor__dot"></div>
+  </div>
+</body>
+</html>

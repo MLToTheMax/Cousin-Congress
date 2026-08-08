@@ -1,0 +1,47 @@
+# Cousin Congress — Cloudflare Worker configuration.
+#
+# Minimal deploy (relay + durable op log + WebRTC signaling):
+#   cd worker && npx wrangler deploy
+# then put the printed URL into js/config.js as `apiBase`.
+#
+# The D1 and KV bindings below are OPTIONAL and only serve the two private
+# flows (constituent messages, bulletin subscriptions). The replicated chamber
+# record itself lives in Durable Object storage and needs no extra binding.
+
+name = "cousin-congress"
+main = "src/index.js"
+compatibility_date = "2026-06-01"
+
+[[durable_objects.bindings]]
+name = "CHAMBER"
+class_name = "ChamberRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChamberRoom"]
+
+[vars]
+# Lock CORS to your Pages origin once deployed, e.g.:
+# ALLOWED_ORIGIN = "https://<username>.github.io"
+ALLOWED_ORIGIN = "*"
+
+# Optional shared write key. If set, mirror it client-side and send as the
+# x-congress-key header (see worker/src/index.js). Set with:
+#   npx wrangler secret put WRITE_KEY
+
+# --- Optional: D1 for private mail + subscriptions -------------------------
+# npx wrangler d1 create cousin-congress
+# then paste the printed database_id below and run:
+#   npx wrangler d1 execute cousin-congress --file=./schema.sql --remote
+#
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "cousin-congress"
+# database_id = "<paste-id-here>"
+
+# --- Optional: KV fallback if you prefer it over D1 ------------------------
+# npx wrangler kv namespace create MAILBOX
+#
+# [[kv_namespaces]]
+# binding = "MAILBOX"
+# id = "<paste-id-here>"
