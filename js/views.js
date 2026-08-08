@@ -31,6 +31,14 @@ const STAGE_LABEL = {
 
 const memberName = (state, id) => select.member(state, id)?.name || "Unassigned";
 
+/** Emoji avatar when the member has picked one, initials otherwise. */
+function avatarOf(member, extraClass = "") {
+  if (member?.icon) {
+    return h`<div class="member__avatar member__avatar--icon ${raw(extraClass)}" aria-hidden="true">${member.icon}</div>`;
+  }
+  return h`<div class="member__avatar ${raw(extraClass)}" aria-hidden="true">${initials(member?.name)}</div>`;
+}
+
 /* ==========================================================================
    Chamber
    ========================================================================== */
@@ -105,7 +113,7 @@ function renderRoster(state) {
       <article class="member member--${raw(esc(m.presence || "away"))}" data-item
                data-text="${m.name} ${m.district || ""} ${m.location || ""}"
                data-presence="${m.presence || "away"}">
-        <div class="member__avatar" aria-hidden="true">${initials(m.name)}</div>
+        ${raw(avatarOf(m))}
         <div class="member__name">
           <a href="members.html#member-${m.id}" data-cursor="card">${m.name}</a>
         </div>
@@ -125,7 +133,7 @@ function renderStatusFeed(state) {
       const when = timeOfStamp(s._hlc);
       return h`
         <li class="status-item">
-          <div class="member__avatar" aria-hidden="true">${initials(memberName(state, s.memberId))}</div>
+          ${raw(avatarOf(select.member(state, s.memberId) || { name: memberName(state, s.memberId) }))}
           <div class="status-item__who">${memberName(state, s.memberId)}</div>
           <p class="status-item__text">${s.text}</p>
           <div class="status-item__when">
@@ -167,7 +175,8 @@ function tallyBar(tally) {
 function ballotForm(state, vote, myId) {
   if (!myId) {
     return h`<p class="notice notice--info">
-      Claim your seat on the <a href="sync.html">chamber devices</a> page to cast a ballot.
+      🪑 Take your seat on the <a href="members.html">Members page</a> first —
+      then these big vote buttons light up for you.
     </p>`;
   }
   const mine = select.ballotOf(state, vote.id, myId);
@@ -177,22 +186,22 @@ function ballotForm(state, vote, myId) {
              ${raw(mine?.choice === value ? "checked" : "")}
              data-action="cast" data-vote="${vote.id}">
       <span class="choice__mark" aria-hidden="true"></span>
-      <span>${label}</span>
+      <span class="choice__word">${label}</span>
       <span class="choice__sub">${sub}</span>
     </label>`;
 
   return h`
     <fieldset class="choice-set" style="border:0;padding:0;margin:0">
       <legend class="u-visually-hidden">Your ballot on ${vote.title}</legend>
-      ${raw(choice("yea", "Yea", "In favour"))}
-      ${raw(choice("nay", "Nay", "Opposed"))}
-      ${raw(choice("present", "Present", "Abstain"))}
+      ${raw(choice("yea", "Yea", "For it!"))}
+      ${raw(choice("nay", "Nay", "Against it!"))}
+      ${raw(choice("present", "Present", "Just watching"))}
     </fieldset>
     <p class="field__hint">
       ${raw(
         mine
-          ? h`Recorded ${relTime(timeOfStamp(mine._hlc))} — change it any time before the vote closes.`
-          : raw("Your ballot is written locally first, then replicated to every other device.")
+          ? h`✅ Your ballot says <strong>${mine.choice}</strong> (${relTime(timeOfStamp(mine._hlc))}). Tap another to change your mind — only your last pick counts.`
+          : raw("Tap one! Your ballot lands instantly and travels to every cousin's device.")
       )}
     </p>`;
 }
@@ -239,14 +248,15 @@ function renderOpenVotes(state, node) {
           )}
           ${raw(ballotForm(state, vote, myId))}
           <details class="disclosure" style="margin-top:var(--sp-2)">
-            <summary>Chair's controls</summary>
+            <summary>🔨 Chair's controls</summary>
             <div class="disclosure__body cluster">
               <button class="btn btn--danger btn--sm" data-action="close-vote" data-vote="${vote.id}">
                 Gavel it closed
               </button>
-              <span class="field__hint">Closing freezes the tally into the record as ${raw(
-                tally.passing ? "<strong>agreed to</strong>" : "<strong>not agreed to</strong>"
-              )}.</span>
+              <span class="field__hint">Needs the Chair's password. Closing freezes the tally into
+                the record as ${raw(
+                  tally.passing ? "<strong>agreed to</strong>" : "<strong>not agreed to</strong>"
+                )}.</span>
             </div>
           </details>
         </article>`;
@@ -422,6 +432,17 @@ function renderBillDetail(state, node) {
         <li class="pipeline__step">Floor</li>
         <li class="pipeline__step">Enacted</li>
       </ol>
+
+      ${raw(
+        (bill.stage || "drafted") !== "enacted"
+          ? h`<div class="cluster">
+               <button class="btn btn--ghost btn--sm" data-action="advance-stage" data-bill="${bill.id}">
+                 🔨 Move it along the pipeline
+               </button>
+               <span class="field__hint">Chair only — needs the gavel's password.</span>
+             </div>`
+          : raw("")
+      )}
 
       <div class="engrossment">
         <div class="engrossment__seal" aria-hidden="true">CC</div>
@@ -626,19 +647,21 @@ function renderCalendar(state) {
   return cells;
 }
 
-function renderDirectory(state) {
+function renderDirectory(state, node) {
   const members = select.members(state);
-  if (!members.length) return h`<p class="empty">No members enrolled.</p>`;
+  if (!members.length) return h`<p class="empty">No members enrolled yet — the Chair's Office below can fix that.</p>`;
+  const myId = node?.dataset.member || "";
 
   return members
     .map((m) => {
       const card = select.scorecard(state, m.id);
+      const isMe = m.id === myId;
       return h`
-        <article class="scorecard" id="member-${m.id}" data-item
+        <article class="scorecard ${raw(isMe ? "scorecard--me" : "")}" id="member-${m.id}" data-item
                  data-text="${m.name} ${m.district || ""} ${m.role || ""}"
                  data-presence="${m.presence || "away"}">
           <div class="scorecard__head">
-            <div class="member__avatar" aria-hidden="true">${initials(m.name)}</div>
+            ${raw(avatarOf(m))}
             <div>
               <h3 style="font-size:var(--fs-md);font-family:var(--font-body)">${m.name}</h3>
               <p class="profile__role">${m.role || "Representative"} · ${m.district || "At large"}</p>
@@ -648,6 +671,9 @@ function renderDirectory(state) {
             <span class="badge badge--${raw(
               esc(m.presence === "present" || m.presence === "voting" ? "yea" : m.presence === "remote" ? "present" : "absent")
             )}">${raw(esc(PRESENCE_LABEL[m.presence] || "Away"))}</span>
+            <span class="badge badge--bare badge--${raw(m.auth ? "info" : "absent")}">${raw(
+              m.auth ? "🔒 password set" : "✨ no password yet"
+            )}</span>
             ${raw(m.dnd ? h`<span class="dnd">Do not disturb</span>` : raw(""))}
           </div>
           <dl class="scorecard__metrics">
@@ -656,11 +682,47 @@ function renderDirectory(state) {
             <div class="scorecard__metric"><dt>Sponsored</dt><dd>${card.sponsored}</dd></div>
             <div class="scorecard__metric"><dt>Cosponsored</dt><dd>${card.cosponsored}</dd></div>
           </dl>
-          <button class="btn btn--ghost btn--sm" data-action="claim-seat" data-member="${m.id}">
-            This is my seat
-          </button>
+          ${raw(
+            isMe
+              ? h`<div class="cluster">
+                   <span class="badge badge--yea">🪑 You're seated here</span>
+                   <button class="btn btn--ghost btn--sm" data-action="release-seat">Stand up</button>
+                 </div>`
+              : h`<button class="btn btn--sm" data-action="claim-seat" data-member="${m.id}">
+                   👋 This is my seat
+                 </button>`
+          )}
         </article>`;
     })
+    .join("");
+}
+
+/** The Chair's roster editor — the easily editable list of users. */
+function renderProvision(state) {
+  const members = select.members(state);
+  if (!members.length) return h`<p class="empty">Nobody enrolled yet. Add the first cousin above!</p>`;
+
+  return members
+    .map(
+      (m) => h`
+      <div class="row provision-row">
+        <span class="row__when" style="font-size:1.4rem" aria-hidden="true">${m.icon || "🪑"}</span>
+        <div class="row__what">
+          <span class="row__title">${m.name}</span>
+          <span class="row__note">${m.district || "At large"} · ${raw(
+            m.auth ? "🔒 has a password" : "✨ no password yet"
+          )}</span>
+        </div>
+        <span class="cluster">
+          <button class="btn btn--ghost btn--sm" data-action="reset-pin" data-member="${m.id}">
+            Reset password
+          </button>
+          <button class="btn btn--danger btn--sm" data-action="remove-member" data-member="${m.id}">
+            Retire
+          </button>
+        </span>
+      </div>`
+    )
     .join("");
 }
 
@@ -800,6 +862,7 @@ export const VIEWS = {
   memberOptions: renderMemberOptions,
   committeeOptions: renderCommitteeOptions,
   ticker: renderTicker,
+  provision: renderProvision,
 };
 
 /**
@@ -812,15 +875,39 @@ export function renderAll(state, scope = document) {
     const view = VIEWS[node.dataset.render];
     if (!view) continue;
     try {
-      // A repaint must never eat what the member is doing: skip regions that
-      // currently contain focus (mid-vote, mid-form), and put a select's
-      // value back after its options are rebuilt.
-      if (node.contains(document.activeElement) && document.activeElement !== document.body) {
-        continue;
+      // A repaint must never eat what the member is typing — but a focused
+      // radio or button must not freeze its region either (that would stall
+      // the live tally the moment someone casts a ballot). So: skip only for
+      // text entry, and re-find focus for everything else after the repaint.
+      const ae = document.activeElement;
+      const holdsFocus = ae && ae !== document.body && node.contains(ae);
+      if (holdsFocus) {
+        const typing =
+          ae.tagName === "TEXTAREA" ||
+          ae.tagName === "SELECT" ||
+          ae.isContentEditable ||
+          (ae.tagName === "INPUT" && !["radio", "checkbox", "button", "submit"].includes(ae.type));
+        if (typing) continue;
       }
+
+      let refocus = null;
+      if (holdsFocus) {
+        if (ae.id) refocus = `#${CSS.escape(ae.id)}`;
+        else if (ae.tagName === "INPUT" && ae.name) {
+          refocus = `input[name="${CSS.escape(ae.name)}"][value="${CSS.escape(ae.value)}"]`;
+        } else if (ae.dataset?.action) {
+          refocus =
+            `[data-action="${CSS.escape(ae.dataset.action)}"]` +
+            (ae.dataset.member ? `[data-member="${CSS.escape(ae.dataset.member)}"]` : "") +
+            (ae.dataset.vote ? `[data-vote="${CSS.escape(ae.dataset.vote)}"]` : "") +
+            (ae.dataset.bill ? `[data-bill="${CSS.escape(ae.dataset.bill)}"]` : "");
+        }
+      }
+
       const keepValue = node.tagName === "SELECT" ? node.value : null;
       node.innerHTML = view(state, node);
       if (keepValue !== null) node.value = keepValue;
+      if (refocus) node.querySelector(refocus)?.focus({ preventScroll: true });
       node.dataset.rendered = "true";
     } catch (error) {
       console.error(`[cousin-congress] view "${node.dataset.render}" failed`, error);

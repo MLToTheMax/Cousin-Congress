@@ -11,13 +11,45 @@ cousin-to-cousin with no server required.
 | Area | Features |
 | --- | --- |
 | **The Floor** (`floor.html`) | Live presence board, seating chart on an arc, location + status updates, quorum meter, one-tap check-in, do-not-disturb, running docket |
-| **Voting** (`voting.html`) | Cast Yea/Nay/Present with shape-morphing ballots, live tallies with majority lines, countdown windows, whip board, call & close roll calls, Rule 9 proxy delegation |
+| **Voting** (`voting.html`) | Cast Yea/Nay/Present with big shape-morphing ballots, live tallies with majority lines, countdown windows, whip board, Chair-gated call & close, Rule 9 proxy delegation |
 | **Results** (`results.html`) | Roll-call archive, member-by-member ballots, division histograms, transparency KPIs |
-| **Legislation** (`bills.html`, `draft.html`) | Bill tracker with 5-stage pipeline, cosponsor sign-on, amendments, public comment record, drafting studio with live engrossed-parchment preview and autosave |
-| **Docket** (`docket.html`) | Month calendar, filterable schedule, Clerk's desk for new entries |
-| **Newsroom** (`news.html`) | Dispatch feed, press office composer, bulletin signup |
-| **Members** (`members.html`) | Directory with scorecards (attendance, votes cast, sponsorship), committees, leadership, seat claiming |
-| **Devices** (`sync.html`) | Replication console: transports, version vector, peer pairing, export/import, recovery |
+| **Legislation** (`bills.html`, `draft.html`) | Bill tracker with 5-stage pipeline, Chair-gated stage advancement, cosponsor sign-on, amendments, public comment record, drafting studio with live engrossed-parchment preview and autosave |
+| **Docket** (`docket.html`) | Month calendar, filterable schedule, Chair-gated Clerk's desk for new entries |
+| **Newsroom** (`news.html`) | Dispatch feed, Chair-gated press office composer, bulletin signup |
+| **Members** (`members.html`) | Directory with emoji badges and scorecards, password-protected seat claiming, the Chair's Office (enroll / reset / retire members), committees, leadership |
+| **Devices** (`sync.html`) | Replication console: transports, version vector, emoji picture-code pairing with match badges, export/import, recovery |
+
+## Seats, passwords, and the Chair
+
+Built for cousins from "just learned to read" up:
+
+- **Claiming a seat**: find your card on the Members page, tap *"This is my
+  seat"*, and type your secret word. A seat with no password yet asks its
+  first claimant to invent one. Passwords are case- and space-insensitive and
+  typed in visible text — kid-friendly on purpose.
+- **Hashing**: passwords are salted and hashed **client-side** (WebCrypto
+  SHA-256; honest FNV fallback on non-secure origins) and only the hash
+  travels in the replicated record, so any device can verify a claim with no
+  server. This is a family latch, not a bank vault — it stops a younger
+  cousin voting as an older one, which is its entire job.
+- **The Chair** 🔨: calling and closing votes, advancing bills, editing the
+  docket, publishing dispatches, and managing the roster all require the
+  Chair's password. The first chair action ever performed sets it (a small
+  constitutional moment); it can be changed from the Chair's Office, and the
+  unlock lasts only for the current tab.
+- **The editable member list**: seed the roster in `data/seed.json` (each
+  member takes a `name`, `icon` emoji, and `district`), or manage it live
+  from the Chair's Office — enroll with an icon picker, reset passwords,
+  retire members (their voting record stays in the archive).
+
+## Picture-code pairing
+
+Direct device pairing uses **emoji picture codes**: the WebRTC handshake is
+encoded with a 256-emoji alphabet (one icon per byte), so an invite is a
+string of little pictures that survives any chat app. Each code comes with a
+4-icon **match badge** — both cousins seeing the same four pictures confirms
+they've paired with each other. Codes from the previous base64 build still
+decode.
 
 ## Architecture: local-first, peer-to-peer
 

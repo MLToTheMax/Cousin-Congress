@@ -11,6 +11,8 @@
 import CONFIG from "./config.js";
 import { select } from "./crdt.js";
 import { copyText, download, qs, qsa, toast } from "./ui.js";
+import { changeChairPin, claimSeat, requireChair } from "./auth.js";
+import { iconFingerprint } from "./icons.js";
 
 const newId = (prefix) =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -91,7 +93,7 @@ export async function drainOutbox() {
 
 function requireSeat(store) {
   if (store.identity.memberId) return store.identity.memberId;
-  toast("Claim your seat on the Members page first — then the chamber knows who you are.", "warn");
+  toast("Take your seat on the Members page first — then the chamber knows who you are. 🪑", "warn");
   return null;
 }
 
@@ -112,17 +114,14 @@ const CLICK_ACTIONS = {
     toast(already ? "Sign-on withdrawn." : "Sign-on recorded.");
   },
 
-  /** Bind this browser to a seat. Purely local — it changes who *this* device votes as. */
-  "claim-seat"(store, el) {
-    const memberId = el.dataset.member;
-    const member = select.member(store.state, memberId);
-    store.setIdentity({ memberId, displayName: member?.name || "" });
-    toast(`This device now votes as ${member?.name || memberId}.`);
+  /** Bind this browser to a seat — password-checked against the synced hash. */
+  async "claim-seat"(store, el) {
+    await claimSeat(el.dataset.member);
   },
 
   "release-seat"(store) {
     store.setIdentity({ memberId: null, displayName: "" });
-    toast("Seat released on this device.");
+    toast("Seat released — this device is a visitor in the gallery now. 👋");
   },
 
   /** Presence beacon straight from the header. */
@@ -147,8 +146,9 @@ const CLICK_ACTIONS = {
     toast(current ? "Do-not-disturb cleared." : "Do-not-disturb set.");
   },
 
-  /** Close a motion and freeze its result into the log. */
-  "close-vote"(store, el) {
+  /** Close a motion and freeze its result into the log. Chair only. */
+  async "close-vote"(store, el) {
+    if (!(await requireChair())) return;
     const voteId = el.dataset.vote;
     const tally = select.tally(store.state, voteId);
     store.dispatch("vote.close", {
@@ -157,12 +157,60 @@ const CLICK_ACTIONS = {
       closedAt: new Date().toISOString(),
       finalTally: { yea: tally.yea, nay: tally.nay, present: tally.present },
     });
-    toast(`Roll call closed — ${tally.passing ? "agreed to" : "not agreed to"}.`);
+    toast(`🔨 Bang! Roll call closed — ${tally.passing ? "agreed to" : "not agreed to"}.`);
+  },
+
+  /** Move a bill one stop down the pipeline. Chair only. */
+  async "advance-stage"(store, el) {
+    if (!(await requireChair())) return;
+    const stages = ["drafted", "introduced", "committee", "floor", "enacted"];
+    const bill = select.bill(store.state, el.dataset.bill);
+    if (!bill) return;
+    const next = stages[Math.min(stages.indexOf(bill.stage || "drafted") + 1, stages.length - 1)];
+    if (next === bill.stage) return;
+    store.dispatch("bill.stage", { billId: bill.id, stage: next });
+    toast(next === "enacted" ? "🎉 Enacted! It's family law now." : `Bill moved along: now ${next}.`);
   },
 
   "member-detail"(store, el) {
     const member = select.member(store.state, el.dataset.member);
-    if (member) toast(`${member.name} — ${member.location || "location not set"}`);
+    if (member) toast(`${member.icon || "🪑"} ${member.name} — ${member.location || "location not set"}`);
+  },
+
+  /* --- the Chair's office ------------------------------------------------- */
+
+  /** Clear a member's password so they can invent a new one. Chair only. */
+  async "reset-pin"(store, el) {
+    if (!(await requireChair())) return;
+    const member = select.member(store.state, el.dataset.member);
+    if (!member) return;
+    store.dispatch("member.auth", { memberId: member.id, auth: null });
+    toast(`${member.name}'s password is cleared — they'll pick a fresh one next time they sit down.`);
+  },
+
+  /** Retire a member from the roster. Chair only, two-tap confirm. */
+  async "remove-member"(store, el) {
+    if (el.dataset.confirmed !== "true") {
+      el.dataset.confirmed = "true";
+      el.textContent = "Really retire them?";
+      setTimeout(() => {
+        el.dataset.confirmed = "false";
+        el.textContent = "Retire";
+      }, 5000);
+      return;
+    }
+    if (!(await requireChair())) return;
+    const member = select.member(store.state, el.dataset.member);
+    if (!member) return;
+    store.dispatch("member.retract", { id: member.id });
+    if (store.identity.memberId === member.id) {
+      store.setIdentity({ memberId: null, displayName: "" });
+    }
+    toast(`${member.name} has been retired from the roster with full honours.`);
+  },
+
+  async "chair-pin"() {
+    await changeChairPin();
   },
 
   copy(store, el) {
@@ -176,17 +224,19 @@ const CLICK_ACTIONS = {
     const output = qs("#invite-code");
     const wrap = qs("#invite-out");
     el.disabled = true;
-    el.textContent = "Gathering network routes…";
+    el.textContent = "Drawing your picture code…";
     try {
       const { code } = await ctx.sync.createInvite();
       output.value = code;
+      const badge = qs("#invite-badge");
+      if (badge) badge.textContent = await iconFingerprint(code);
       wrap.hidden = false;
-      toast("Invite ready. Send it to the other cousin, then paste their answer below.");
+      toast("Picture code ready! Send it to your cousin, then paste their reply below.");
     } catch (error) {
       toast(String(error.message || error), "err");
     } finally {
       el.disabled = false;
-      el.textContent = "Create an invite";
+      el.textContent = "Make a picture code";
     }
   },
 
@@ -194,12 +244,16 @@ const CLICK_ACTIONS = {
     const input = qs("#join-code");
     const output = qs("#answer-code");
     const wrap = qs("#answer-out");
-    if (!input?.value.trim()) return toast("Paste the invite code first.", "warn");
+    if (!input?.value.trim()) return toast("Paste your cousin's picture code first.", "warn");
     el.disabled = true;
     try {
+      const joinBadge = qs("#join-badge");
+      if (joinBadge) joinBadge.textContent = await iconFingerprint(input.value.trim());
       output.value = await ctx.sync.acceptInvite(input.value);
+      const badge = qs("#answer-badge");
+      if (badge) badge.textContent = await iconFingerprint(output.value);
       wrap.hidden = false;
-      toast("Answer ready. Send it back to whoever invited you.");
+      toast("Reply code ready! Send it back the same way.");
     } catch (error) {
       toast(String(error.message || error), "err");
     } finally {
@@ -209,11 +263,11 @@ const CLICK_ACTIONS = {
 
   async "complete-invite"(store, el, ctx) {
     const input = qs("#answer-in");
-    if (!input?.value.trim()) return toast("Paste the answer code first.", "warn");
+    if (!input?.value.trim()) return toast("Paste the reply code first.", "warn");
     el.disabled = true;
     try {
-      const peer = await ctx.sync.completeInvite(input.value);
-      toast(`Paired with ${peer}. Backfilling both directions…`);
+      await ctx.sync.completeInvite(input.value);
+      toast("Paired! 🎉 Your two chambers are trading everything they know.");
       input.value = "";
     } catch (error) {
       toast(String(error.message || error), "err");
@@ -327,7 +381,27 @@ const FORM_ACTIONS = {
     return true;
   },
 
-  "open-vote"(store, form, values) {
+  /** Enroll a new cousin. Chair only. */
+  async "add-member"(store, form, values) {
+    if (!(await requireChair())) return false;
+    const name = String(values.name || "").trim();
+    if (!name) return false;
+    const count = select.members(store.state).length;
+    store.dispatch("member.upsert", {
+      id: newId("m"),
+      name,
+      icon: values.icon || "🪑",
+      district: values.district || "At large",
+      role: "Representative",
+      presence: "away",
+      seniority: count + 1,
+    });
+    toast(`${values.icon || "🪑"} ${name} is enrolled! They'll pick their password when they first sit down.`);
+    return true;
+  },
+
+  async "open-vote"(store, form, values) {
+    if (!(await requireChair())) return false;
     const closesAt = values.minutes
       ? new Date(Date.now() + Number(values.minutes) * 60000).toISOString()
       : undefined;
@@ -341,7 +415,7 @@ const FORM_ACTIONS = {
       opensAt: new Date().toISOString(),
       closesAt,
     });
-    toast("The chair has called the vote.");
+    toast("🔨 The Chair has called the vote — every device just heard the bell.");
     return true;
   },
 
@@ -362,7 +436,8 @@ const FORM_ACTIONS = {
     return true;
   },
 
-  "add-docket"(store, form, values) {
+  async "add-docket"(store, form, values) {
+    if (!(await requireChair())) return false;
     store.dispatch("docket.add", {
       id: newId("evt"),
       title: values.title,
@@ -376,7 +451,8 @@ const FORM_ACTIONS = {
     return true;
   },
 
-  "post-news"(store, form, values) {
+  async "post-news"(store, form, values) {
+    if (!(await requireChair())) return false;
     store.dispatch("news.post", {
       id: newId("news"),
       title: values.title,

@@ -219,6 +219,13 @@ const REDUCERS = {
 
   "member.retract": (s, op) => put(s.members, op.payload.id, { _deleted: true }, op),
 
+  /** Seat password: {memberId, auth: {salt, hash}} — auth:null clears it. */
+  "member.auth": (s, op) => {
+    const { memberId, auth } = op.payload;
+    if (!memberId) return;
+    put(s.members, memberId, { auth: auth || null }, op);
+  },
+
   "committee.upsert": (s, op) => put(s.committees, op.payload.id, op.payload, op),
 
   "status.post": (s, op) => put(s.statuses, op.payload.id, op.payload, op),

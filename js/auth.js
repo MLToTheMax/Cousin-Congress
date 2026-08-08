@@ -1,0 +1,236 @@
+/**
+ * auth.js — secret words for seats and the gavel.
+ *
+ * Passwords are hashed client-side (salted SHA-256 via WebCrypto) and the
+ * hash travels in the replicated record like everything else, so any device
+ * can check a password with no server involved. Honesty about the threat
+ * model: this is a family latch, not a bank vault — it keeps a younger cousin
+ * from voting as an older one, and that is exactly the job. Anyone who can
+ * read this code can bypass it; anyone who can do that has aged out of
+ * needing to.
+ *
+ * Kid concessions, deliberate:
+ *  - passwords are case-insensitive and whitespace-trimmed,
+ *  - typed in visible text, not dots,
+ *  - three friendly attempts, then a hint to go find the Chair.
+ */
+
+import store from "./store.js";
+import { select } from "./crdt.js";
+import { askDialog, toast } from "./ui.js";
+
+const CHAIR_UNLOCK_KEY = "cc.chair";
+
+/* --------------------------------------------------------------------------
+   Hashing
+   -------------------------------------------------------------------------- */
+
+const hex = (buf) =>
+  [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+export function newSalt() {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return hex(bytes);
+}
+
+const normalize = (pin) => String(pin).trim().toLowerCase();
+
+/**
+ * Salted hash of a normalized password. WebCrypto needs a secure context
+ * (https, localhost, file); plain-http LAN hosting falls back to an FNV-based
+ * digest. The algorithm is recorded in the hash prefix so verification always
+ * uses the algorithm the password was created with.
+ */
+export async function hashPin(pin, salt) {
+  const material = `cc:${salt}:${normalize(pin)}`;
+  if (globalThis.crypto?.subtle) {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(material));
+    return `s:${hex(digest)}`;
+  }
+  let h1 = 0x811c9dc5;
+  let h2 = 0xcbf29ce4;
+  for (const ch of material) {
+    const c = ch.codePointAt(0);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ ((c << 3) | (c >> 5)), 0x01000193) >>> 0;
+  }
+  return `f:${h1.toString(16).padStart(8, "0")}${h2.toString(16).padStart(8, "0")}`;
+}
+
+export async function verifyPin(pin, auth) {
+  if (!auth?.salt || !auth?.hash) return false;
+  if (auth.hash.startsWith("s:") && !globalThis.crypto?.subtle) {
+    toast(
+      "This browser can't check passwords over an insecure connection — open the site the same way it was set up.",
+      "err"
+    );
+    return false;
+  }
+  return (await hashPin(pin, auth.salt)) === auth.hash;
+}
+
+export async function makeAuth(pin) {
+  const salt = newSalt();
+  return { salt, hash: await hashPin(pin, salt) };
+}
+
+/* --------------------------------------------------------------------------
+   Seat claiming
+   -------------------------------------------------------------------------- */
+
+const ATTEMPTS = 3;
+
+/**
+ * Bind this device to a member's seat. A seat with no password yet asks its
+ * first claimant to invent one — that op replicates, and from then on every
+ * device honours it.
+ */
+export async function claimSeat(memberId) {
+  const member = select.member(store.state, memberId);
+  if (!member) {
+    toast("That seat isn't in the roster any more.", "err");
+    return false;
+  }
+
+  if (!member.auth) {
+    const pin = await askDialog({
+      icon: "✨",
+      title: `Pick a secret password for ${member.name}`,
+      hint: "Three or more letters. Capitals and spaces don't matter. You'll use it to sit here on any device — don't lose it, or the Chair will have to reset it!",
+      placeholder: "your secret word",
+      confirmLabel: "Save my password",
+      minLength: 3,
+    });
+    if (!pin) return false;
+    if (normalize(pin).length < 3) {
+      toast("A password needs at least three letters.", "warn");
+      return false;
+    }
+    store.dispatch("member.auth", { memberId, auth: await makeAuth(pin) });
+    store.setIdentity({ memberId, displayName: member.name });
+    toast(`Password saved. Welcome to the floor, ${member.name}! 🎉`);
+    return true;
+  }
+
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
+    const pin = await askDialog({
+      icon: "🔑",
+      title: `What's the password for ${member.name}?`,
+      hint:
+        attempt === 1
+          ? "Capitals and spaces don't matter."
+          : `Not quite — try again (${ATTEMPTS - attempt + 1} ${ATTEMPTS - attempt + 1 === 1 ? "try" : "tries"} left).`,
+      placeholder: "secret word",
+      confirmLabel: "Take my seat",
+    });
+    if (pin === null) return false;
+    if (await verifyPin(pin, member.auth)) {
+      store.setIdentity({ memberId, displayName: member.name });
+      toast(`Welcome back to the floor, ${member.name}! 🎉`);
+      return true;
+    }
+  }
+
+  toast("Three misses — ask the Chair to reset your password in the Chair's Office.", "err");
+  return false;
+}
+
+/* --------------------------------------------------------------------------
+   The Chair
+   -------------------------------------------------------------------------- */
+
+const chairAuth = () => store.state.session?.chairAuth || null;
+
+/** Chair unlock is per-tab and dies with the tab (sessionStorage). */
+function chairUnlocked() {
+  const auth = chairAuth();
+  try {
+    return Boolean(auth) && sessionStorage.getItem(CHAIR_UNLOCK_KEY) === auth.hash;
+  } catch {
+    return false;
+  }
+}
+
+function rememberChairUnlock() {
+  try {
+    sessionStorage.setItem(CHAIR_UNLOCK_KEY, chairAuth()?.hash || "");
+  } catch {
+    /* per-tab convenience only */
+  }
+}
+
+export function isChair() {
+  return chairUnlocked();
+}
+
+/**
+ * Gate for everything only the gavel may do: calling and closing votes,
+ * editing the docket, publishing dispatches, and provisioning members.
+ * The very first use anywhere in the chamber sets the Chair's password —
+ * a small constitutional moment.
+ */
+export async function requireChair() {
+  if (chairUnlocked()) return true;
+
+  const auth = chairAuth();
+  if (!auth) {
+    const pin = await askDialog({
+      icon: "🔨",
+      title: "Set the Chair's password",
+      hint: "No Chair password exists yet, so you get to invent it. Whoever knows it holds the gavel: they can add members, call votes, and run the chamber. Share it wisely!",
+      placeholder: "the gavel's secret word",
+      confirmLabel: "Take the gavel",
+      minLength: 3,
+    });
+    if (!pin) return false;
+    if (normalize(pin).length < 3) {
+      toast("The gavel deserves at least three letters.", "warn");
+      return false;
+    }
+    store.dispatch("session.set", { chairAuth: await makeAuth(pin) });
+    rememberChairUnlock();
+    toast("You hold the gavel. 🔨 Rule justly.");
+    return true;
+  }
+
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
+    const pin = await askDialog({
+      icon: "🔨",
+      title: "Chair's password, please",
+      hint:
+        attempt === 1
+          ? "This action needs the gavel."
+          : `That's not it — ${ATTEMPTS - attempt + 1} ${ATTEMPTS - attempt + 1 === 1 ? "try" : "tries"} left.`,
+      placeholder: "the gavel's secret word",
+      confirmLabel: "Unlock",
+    });
+    if (pin === null) return false;
+    if (await verifyPin(pin, auth)) {
+      rememberChairUnlock();
+      toast("Gavel unlocked for this tab. 🔨");
+      return true;
+    }
+  }
+
+  toast("The gavel stays put. Ask whoever holds the Chair's password.", "err");
+  return false;
+}
+
+/** Change the Chair's password (requires knowing the current one). */
+export async function changeChairPin() {
+  if (!(await requireChair())) return false;
+  const pin = await askDialog({
+    icon: "🔨",
+    title: "New Chair's password",
+    hint: "Replaces the old one everywhere, on every device, as soon as they sync.",
+    placeholder: "new secret word",
+    confirmLabel: "Change it",
+    minLength: 3,
+  });
+  if (!pin) return false;
+  store.dispatch("session.set", { chairAuth: await makeAuth(pin) });
+  rememberChairUnlock();
+  toast("Chair's password changed.");
+  return true;
+}
