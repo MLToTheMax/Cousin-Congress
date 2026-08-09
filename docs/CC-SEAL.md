@@ -448,6 +448,27 @@ DB) clobbered each other's identity and a reload regenerated a fresh key —
 silently breaking any binding tied to it. Keys are now stored per replica
 (`tests/identity-persist.test.mjs`).
 
+**A third adversarial pass** found and closed two more (`tests/hlc-guest.test.mjs`):
+
+- **HLC clock-poison (was High).** One in-room op carrying a near-maximum `ms`
+  dragged a victim's hybrid logical clock into the far future, so the victim's
+  *own next* stamp overflowed the wire width and was silently dropped by every
+  peer — a persistent, self-inflicted write-partition. `Clock.observe` now clamps
+  adoption to a bounded skew (and rolls counter overflow into `ms`), and
+  `validateEnvelope` rejects an out-of-range HLC, so a poison op is dropped at
+  the gate and cannot take hold even if an old peer gossips one.
+- **Guest relay injection (was Med-High).** A scoped guest is room-MAC-exempt, so
+  a relay could send an `id.announce` carrying the guest's scope id to slip past
+  the item filter, get its throwaway key learned, then fold forged content over
+  the shared item. Guests now refuse `id.announce` entirely — the sharer's key is
+  pinned during the guest handshake, so no network key-learning is ever needed —
+  and the one-item scope is enforced inside `store.ingest` for every path.
+
+Also hardened in the same pass: the per-call ingest batch is capped at
+`LIMITS.opsPerMessage` (a hostile server pull can no longer force unbounded
+signature work), and `comment.retract` is now Chair-only moderation rather than
+open to any member.
+
 ### Residual risk — stated plainly
 
 - **Same-room founding races.** First-writer-wins is ordered by the HLC, which a
@@ -464,6 +485,14 @@ silently breaking any binding tied to it. Keys are now stored per replica
   already-claimed seat is refused by the mesh until the Chair enrols it
   (Chair's Office → Seats / Chair devices). This is the deliberate cost of
   binding votes to keys instead of to a shared password.
+- **Unbounded in-room log growth.** The op log is append-only and retains every
+  op (compaction snapshots state, not history), so a *same-room* member can
+  append validly-signed **no-effect** ops (e.g. ballots for seats they don't own)
+  that fold to nothing but still consume storage and gossip bandwidth. It is
+  attributable (every op is signed) and cannot change any tally or binding, and
+  the per-message cap bounds any single flood, but there is no per-actor rate
+  budget on the fold path — a storage-quota / rate limit is the recommended
+  next step for the insider-DoS tier.
 
 ---
 

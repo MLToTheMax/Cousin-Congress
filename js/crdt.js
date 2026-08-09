@@ -39,6 +39,16 @@ import {
 
 const PAD_MS = 15;
 const PAD_CT = 5;
+const COUNT_CAP = 10 ** PAD_CT; // counter rolls into ms before it overflows its field
+/**
+ * How far ahead of our own wall clock we will let a peer's timestamp move us.
+ * Without this cap a single op carrying a near-maximum `ms` would poison our
+ * clock so that our OWN subsequent stamps overflow the wire format and are
+ * dropped by every peer — a silent, persistent, chamber-wide write-partition
+ * from one message. A day is generous for honest clock drift and astronomically
+ * short of the attack.
+ */
+const MAX_CLOCK_SKEW_MS = 24 * 60 * 60 * 1000;
 
 const pad = (n, w) => String(n).padStart(w, "0");
 
@@ -64,6 +74,7 @@ export class Clock {
     } else {
       this.count += 1;
     }
+    this.#normalize();
     return this.pack();
   }
 
@@ -76,15 +87,30 @@ export class Clock {
     const remote = Clock.parse(stamp);
     if (!remote) return;
     const wall = Date.now();
-    if (remote.ms > this.ms) {
-      this.ms = remote.ms;
-      this.count = remote.count + 1;
-    } else if (remote.ms === this.ms) {
-      this.count = Math.max(this.count, remote.count) + 1;
+    // Never adopt a timestamp more than a bounded skew ahead of our wall clock:
+    // that is the clock-poison defence. Counts are likewise bounded so a huge
+    // remote counter cannot overflow our fixed-width field.
+    const ceil = wall + MAX_CLOCK_SKEW_MS;
+    const remoteMs = Math.min(remote.ms, ceil);
+    const remoteCount = Math.min(remote.count, COUNT_CAP - 1);
+    if (remoteMs > this.ms) {
+      this.ms = remoteMs;
+      this.count = remoteCount + 1;
+    } else if (remoteMs === this.ms) {
+      this.count = Math.max(this.count, remoteCount) + 1;
     }
     if (wall > this.ms) {
       this.ms = wall;
       this.count = 0;
+    }
+    this.#normalize();
+  }
+
+  /** Keep the counter inside its field width by rolling overflow into ms. */
+  #normalize() {
+    while (this.count >= COUNT_CAP) {
+      this.ms += 1;
+      this.count -= COUNT_CAP;
     }
   }
 

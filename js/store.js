@@ -11,7 +11,7 @@
 
 import CONFIG from "./config.js";
 import { Clock, Log, VV, isValidOp, select } from "./crdt.js";
-import { SCHEMA_VERSION, versionOf, validateEnvelope } from "./schema.js";
+import { SCHEMA_VERSION, versionOf, validateEnvelope, LIMITS } from "./schema.js";
 import { migrations } from "./migrate.js";
 import { verifyOp, verifyIdentityOp, macOp, verifyOpMac } from "./crypto.js";
 
@@ -462,6 +462,12 @@ export class Store extends EventTarget {
     // while signing as itself). Anything malformed is dropped, never folded.
     let raw = Array.isArray(ops) ? ops.filter((op) => isValidOp(op) && validateEnvelope(op) === null) : [];
 
+    // Bound the work a single ingest call can be made to do. Honest deltas are
+    // chunked well under this; a hostile server pull returning a giant array
+    // (each op forcing a signature/MAC verification) is capped here, and any
+    // genuinely missing tail is re-requested by the next anti-entropy sweep.
+    if (raw.length > LIMITS.opsPerMessage) raw = raw.slice(0, LIMITS.opsPerMessage);
+
     // A scoped guest may only ever fold its ONE granted item, whatever the
     // source. Enforcing it HERE (not only in the peer-message handler) means the
     // server HTTP-pull path and every other ingest route inherit the scope — so
@@ -482,6 +488,13 @@ export class Store extends EventTarget {
     const toFold = [];
     for (const op of incoming) {
       if (op.actor === "genesis") continue; // never trust a networked seed
+
+      // A scoped guest is room-MAC-exempt (it holds no room secret), so an
+      // `id.announce` is the one op that could otherwise teach it an attacker's
+      // key and let a relay forge scoped content. A guest never needs to learn
+      // keys over the network — the sharer's key is pinned during the guest
+      // handshake — so identity announcements are simply refused in guest mode.
+      if (this.guestMode && op.type === "id.announce") continue;
 
       // Room-membership gate. A network op must carry a valid room MAC, which
       // only a holder of the room secret can produce. A hostile relay never

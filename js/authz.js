@@ -191,10 +191,15 @@ export function authorize(state, op) {
     case "bill.retract":
       return recordScoped(state, "bills", p.id, "sponsor", kid);
 
+    // Retracting a comment is moderation: comments are pseudonymous (no member
+    // key to scope to), so deletion belongs to the chair, not to any member who
+    // can name someone else's comment id.
+    case "comment.retract":
+      return chair || noChair;
+
     /* --- open / self-authenticating / low-stakes -------------------------- */
     case "id.announce":
     case "comment.post":
-    case "comment.retract":
       return true;
 
     default:

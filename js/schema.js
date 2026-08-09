@@ -72,7 +72,15 @@ export function validateEnvelope(op) {
 
   // The clock's actor component must match the op's actor, or a peer could
   // borrow someone else's identity for tie-breaking while signing as itself.
-  if (op.hlc.split(":")[2] !== op.actor) return "hlc actor mismatch";
+  const [hlcMs, hlcCount, hlcActor] = op.hlc.split(":");
+  if (hlcActor !== op.actor) return "hlc actor mismatch";
+
+  // A sane upper bound on the clock. The wire format allows up to 20 ms digits,
+  // but a timestamp far in the future is either a broken clock or a clock-poison
+  // op crafted to overflow a victim's counter and silence their future writes.
+  // Year-2100 is decades beyond any honest clock and astronomically short of the
+  // attack (which uses ~1e20). Genesis (ms 0) and all real stamps pass.
+  if (Number(hlcMs) > 4102444800000 || Number(hlcCount) >= 100000) return "hlc out of range";
 
   const depth = payloadDepth(op.payload);
   if (depth > LIMITS.nesting) return "payload too deeply nested";
