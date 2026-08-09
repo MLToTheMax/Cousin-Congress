@@ -170,9 +170,8 @@
 #drawer-chair:checked ~ .drawer-scrim,
 #congress-help:checked ~ .congress-scrim { opacity: 1; pointer-events: auto; }
 
-/* The Chair's gavel button: gold, so it reads as special and clearly theirs. */
-.appbar__icon--gavel { background: color-mix(in oklab, var(--c-yellow-500) 22%, var(--surface-2)); border-color: var(--c-yellow-500); }
-.appbar__icon--gavel:hover { background: color-mix(in oklab, var(--c-yellow-500) 34%, var(--surface-2)); }
+/* The Chair's gavel button uses the same neutral surface style as the other
+   top-bar icons; it already reads as special by being the Chair-only one. */
 .drawer--chair { width: min(560px, 96vw); }
 @media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
 
