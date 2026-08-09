@@ -1,292 +1,93 @@
 {
   "meta": {
-    "note": "Genesis snapshot for the Cousin Congress. Every replica derives identical genesis operations from this file, so it can be edited freely before first deployment — but after devices are in the field, treat it as append-only history and make changes through the app instead.",
-    "version": 1
+    "note": "Demo snapshot. Everything here is flagged `demo: true` so the Chair can clear it in one action once the real chamber is running. Every replica derives identical genesis operations from this file, so it can be edited freely before first deployment — but once devices are in the field, make changes through the app instead.",
+    "version": 2
   },
 
   "session": {
     "inSession": true,
     "recess": false,
-    "sitting": 14,
+    "sitting": 1,
     "congress": "First Cousin Congress",
     "sessionName": "Session I",
-    "convened": "2026-01-03T17:00:00.000Z"
+    "demo": true
   },
 
   "members": [
-    { "id": "m-june", "name": "June Maxwell", "icon": "🦉", "role": "Speaker", "district": "The Lake House", "presence": "present", "location": "Main chamber (the living room)", "seniority": 1 },
-    { "id": "m-theo", "name": "Theo Maxwell", "icon": "📝", "role": "Clerk", "district": "Apartment 4B", "presence": "voting", "location": "At the rostrum", "seniority": 2 },
-    { "id": "m-priya", "name": "Priya Nair-Maxwell", "icon": "📚", "role": "Whip", "district": "College Dorms", "presence": "remote", "location": "Video link — study hall", "seniority": 3 },
-    { "id": "m-sam", "name": "Sam Okafor", "icon": "🌊", "role": "Representative", "district": "The Coast", "presence": "present", "location": "Main chamber (the living room)", "seniority": 4 },
-    { "id": "m-lena", "name": "Lena Okafor", "icon": "🍿", "role": "Representative", "district": "The Coast", "presence": "present", "location": "Snack committee (the kitchen)", "seniority": 5 },
-    { "id": "m-marco", "name": "Marco Reyes", "icon": "🚨", "role": "Sergeant-at-Arms", "district": "Uptown", "presence": "away", "location": "", "seniority": 6, "dnd": true },
-    { "id": "m-ivy", "name": "Ivy Chen-Maxwell", "icon": "🌱", "role": "Representative", "district": "The Garden Flat", "presence": "remote", "location": "Video link — kitchen table", "seniority": 7 },
-    { "id": "m-noah", "name": "Noah Maxwell", "icon": "🎲", "role": "Representative", "district": "The Bunk Room", "presence": "present", "location": "Main chamber (the living room)", "seniority": 8 },
-    { "id": "m-zadie", "name": "Zadie Reyes", "icon": "📖", "role": "Parliamentarian", "district": "Uptown", "presence": "present", "location": "Rules corner (the window seat)", "seniority": 9 },
-    { "id": "m-felix", "name": "Felix Nair", "icon": "🎧", "role": "Representative", "district": "College Dorms", "presence": "away", "location": "", "seniority": 10 }
+    { "id": "m-demo-1", "name": "June", "icon": "🦉", "role": "Speaker", "district": "The Lake House", "presence": "present", "location": "Main chamber", "demo": true },
+    { "id": "m-demo-2", "name": "Theo", "icon": "🎲", "role": "Clerk", "district": "Apartment 4B", "presence": "present", "location": "At the rostrum", "demo": true },
+    { "id": "m-demo-3", "name": "Priya", "icon": "🌱", "role": "Representative", "district": "College Dorms", "presence": "remote", "location": "Video link", "demo": true },
+    { "id": "m-demo-4", "name": "Sam", "icon": "🍿", "role": "Representative", "district": "The Coast", "presence": "away", "location": "", "demo": true }
   ],
 
   "committees": [
-    { "id": "cmt-rules", "name": "Committee on Rules & Decorum", "chair": "m-zadie", "members": ["m-zadie", "m-june", "m-marco"], "scope": "Order of business, points of order, and whether pets may hold the gavel." },
-    { "id": "cmt-snacks", "name": "Committee on Ways, Means & Snacks", "chair": "m-lena", "members": ["m-lena", "m-sam", "m-noah"], "scope": "Provisioning of the chamber, budgetary matters, and the popcorn reserve." },
-    { "id": "cmt-games", "name": "Committee on Games & Recreation", "chair": "m-noah", "members": ["m-noah", "m-priya", "m-felix", "m-ivy"], "scope": "Tournament rules, team selection fairness, and console time allocation." },
-    { "id": "cmt-comms", "name": "Committee on Communications", "chair": "m-theo", "members": ["m-theo", "m-ivy"], "scope": "The group chat, the newsletter, and the official record." }
+    { "id": "cmt-demo-1", "name": "Committee on Snacks", "chair": "m-demo-4", "members": ["m-demo-4", "m-demo-2"], "scope": "Provisioning of the chamber and the popcorn reserve.", "demo": true }
   ],
 
   "bills": [
     {
-      "id": "b-101",
-      "number": "H.CC. 101",
-      "title": "The Pizza Friday Establishment Act",
-      "summary": "Establishes the last Friday of each month as Pizza Friday, provides for equitable topping allocation, and creates the Office of the Slice Auditor.",
-      "text": "SECTION 1. SHORT TITLE.\nThis Act may be cited as the \"Pizza Friday Establishment Act\".\n\nSEC. 2. DESIGNATION.\nThe last Friday of each calendar month is designated as Pizza Friday, to be observed by all member households.\n\nSEC. 3. TOPPING EQUITY.\n(a) No fewer than one-half of all pies shall carry toppings approved by unanimous consent of those present.\n(b) Pineapple remains a matter of conscience and shall not be whipped.\n\nSEC. 4. SLICE AUDITOR.\nThe Clerk shall appoint a Slice Auditor to certify fair distribution, who may not audit their own plate.",
-      "sponsor": "m-lena",
-      "committee": "cmt-snacks",
+      "id": "b-demo-1",
+      "number": "H.CC. 1",
+      "title": "The Pizza Friday Act",
+      "summary": "Makes the last Friday of each month Pizza Friday, and says everyone gets a say in the toppings.",
+      "text": "SECTION 1. SHORT TITLE.\nThis Act may be cited as the \"Pizza Friday Act\".\n\nSEC. 2. PIZZA FRIDAY.\nThe last Friday of each month is Pizza Friday.\n\nSEC. 3. TOPPINGS.\nEveryone present gets a say in the toppings. Pineapple is a matter of conscience.",
+      "sponsor": "m-demo-4",
+      "committee": "cmt-demo-1",
       "stage": "floor",
       "session": "Session I",
-      "introduced": "2026-06-12T18:30:00.000Z"
-    },
-    {
-      "id": "b-102",
-      "number": "H.CC. 102",
-      "title": "The Annual Reunion Site Selection Act",
-      "summary": "Prescribes a rotating site selection process for the annual cousin reunion and establishes the tie-break authority of the Speaker's coin.",
-      "text": "SECTION 1. ROTATION.\nThe reunion shall rotate among districts in order of seniority of their senior member.\n\nSEC. 2. PETITION FOR VARIANCE.\nA district may petition to swap its year with the consent of both districts and a majority of the Congress.\n\nSEC. 3. TIE-BREAK.\nAll ties shall be resolved by the Speaker's commemorative coin, minted 2019, heads meaning yes.",
-      "sponsor": "m-june",
-      "committee": "cmt-rules",
-      "stage": "committee",
-      "session": "Session I",
-      "introduced": "2026-07-02T16:00:00.000Z"
-    },
-    {
-      "id": "b-103",
-      "number": "H.CC. 103",
-      "title": "The Board Game Tournament Fairness Act",
-      "summary": "Bans undisclosed house rules in sanctioned tournaments and requires publication of all rule variants no later than 48 hours before first roll.",
-      "text": "SECTION 1. DISCLOSURE.\nAll house rules must be entered into the record 48 hours before tournament play begins.\n\nSEC. 2. BANKER NEUTRALITY.\nThe banker in any property-trading game shall not simultaneously hold the thimble.\n\nSEC. 3. PENALTIES.\nViolations are referred to the Committee on Games & Recreation, which may impose a one-round supervised snack fetch.",
-      "sponsor": "m-noah",
-      "committee": "cmt-games",
-      "stage": "enacted",
-      "session": "Session I",
-      "introduced": "2026-03-20T19:00:00.000Z"
-    },
-    {
-      "id": "b-104",
-      "number": "H.CC. 104",
-      "title": "The Group Chat Decorum Resolution",
-      "summary": "Sets quiet hours for the family group chat, regulates the use of the siren emoji, and protects the right to leave a message on read during exams.",
-      "text": "SECTION 1. QUIET HOURS.\nNo non-emergency message shall be posted between 11 p.m. and 7 a.m. in the recipient-majority time zone.\n\nSEC. 2. SIREN EMOJI.\nThe siren emoji is reserved for actual emergencies and reunion date announcements.\n\nSEC. 3. READ RECEIPTS.\nDuring examination periods, a message may be left on read without prejudice.",
-      "sponsor": "m-ivy",
-      "committee": "cmt-comms",
-      "stage": "introduced",
-      "session": "Session I",
-      "introduced": "2026-08-01T15:00:00.000Z"
+      "introduced": "2026-08-01T18:30:00.000Z",
+      "demo": true
     }
   ],
 
   "cosponsors": [
-    { "billId": "b-101", "memberId": "m-lena" },
-    { "billId": "b-101", "memberId": "m-sam" },
-    { "billId": "b-101", "memberId": "m-noah" },
-    { "billId": "b-101", "memberId": "m-priya" },
-    { "billId": "b-102", "memberId": "m-june" },
-    { "billId": "b-102", "memberId": "m-theo" },
-    { "billId": "b-103", "memberId": "m-noah" },
-    { "billId": "b-103", "memberId": "m-felix" },
-    { "billId": "b-103", "memberId": "m-priya" },
-    { "billId": "b-103", "memberId": "m-ivy" },
-    { "billId": "b-104", "memberId": "m-ivy" },
-    { "billId": "b-104", "memberId": "m-theo" }
-  ],
-
-  "amendments": [
-    {
-      "id": "amdt-1",
-      "billId": "b-101",
-      "number": "Amdt. 12",
-      "author": "m-sam",
-      "text": "In Section 3(a), strike \"one-half\" and insert \"one-third\", and add at the end: \"Provided, that at least one pie shall be plain cheese as a refuge for the undecided.\"",
-      "filed": "2026-07-28T20:15:00.000Z"
-    },
-    {
-      "id": "amdt-2",
-      "billId": "b-102",
-      "number": "Amdt. 14",
-      "author": "m-zadie",
-      "text": "Add a new Section 4: \"The coin flip shall be recorded on video and preserved in the archives of the Committee on Communications.\"",
-      "filed": "2026-07-30T14:45:00.000Z"
-    }
+    { "billId": "b-demo-1", "memberId": "m-demo-4", "demo": true },
+    { "billId": "b-demo-1", "memberId": "m-demo-2", "demo": true }
   ],
 
   "votes": [
     {
-      "id": "v-2031",
-      "number": "Roll Call 31",
-      "title": "On passage of H.CC. 101 — the Pizza Friday Establishment Act",
-      "summary": "Final passage vote. A simple majority of decisive ballots carries the measure to the Speaker's desk.",
-      "billId": "b-101",
+      "id": "v-demo-1",
+      "number": "Roll Call 1",
+      "title": "On passage of the Pizza Friday Act",
+      "summary": "Should the Pizza Friday Act become family law?",
+      "billId": "b-demo-1",
       "threshold": "majority",
       "state": "open",
       "opensAt": "2026-08-08T16:00:00.000Z",
-      "closesAt": "2026-08-08T23:59:00.000Z"
-    },
-    {
-      "id": "v-2030",
-      "number": "Roll Call 30",
-      "title": "On the amendment offered by Mr. Okafor to H.CC. 101",
-      "summary": "Adoption of Amendment 12 (topping threshold and the cheese refuge clause).",
-      "billId": "b-101",
-      "threshold": "majority",
-      "state": "closed",
-      "result": "passed",
-      "opensAt": "2026-08-01T18:00:00.000Z",
-      "closedAt": "2026-08-01T18:25:00.000Z"
-    },
-    {
-      "id": "v-2029",
-      "number": "Roll Call 29",
-      "title": "On passage of H.CC. 103 — the Board Game Tournament Fairness Act",
-      "summary": "Final passage. Carried and signed into family law the same evening.",
-      "billId": "b-103",
-      "threshold": "majority",
-      "state": "closed",
-      "result": "passed",
-      "opensAt": "2026-07-18T19:00:00.000Z",
-      "closedAt": "2026-07-18T19:40:00.000Z"
-    },
-    {
-      "id": "v-2028",
-      "number": "Roll Call 28",
-      "title": "On the motion to extend movie night by ninety minutes",
-      "summary": "Privileged motion from the floor. Required a two-thirds majority under Rule 6 and did not achieve it.",
-      "threshold": "twothirds",
-      "state": "closed",
-      "result": "failed",
-      "opensAt": "2026-07-11T21:00:00.000Z",
-      "closedAt": "2026-07-11T21:10:00.000Z"
-    },
-    {
-      "id": "v-2027",
-      "number": "Roll Call 27",
-      "title": "On agreeing to the summer schedule of sittings",
-      "summary": "Adoption of the sitting calendar for June through August.",
-      "threshold": "majority",
-      "state": "closed",
-      "result": "passed",
-      "opensAt": "2026-06-06T17:00:00.000Z",
-      "closedAt": "2026-06-06T17:20:00.000Z"
+      "demo": true
     }
   ],
 
   "ballots": [
-    { "voteId": "v-2031", "memberId": "m-lena", "choice": "yea", "castAt": "2026-08-08T16:02:00.000Z" },
-    { "voteId": "v-2031", "memberId": "m-sam", "choice": "yea", "castAt": "2026-08-08T16:04:00.000Z" },
-    { "voteId": "v-2031", "memberId": "m-noah", "choice": "yea", "castAt": "2026-08-08T16:05:00.000Z" },
-    { "voteId": "v-2031", "memberId": "m-priya", "choice": "yea", "castAt": "2026-08-08T16:09:00.000Z" },
-    { "voteId": "v-2031", "memberId": "m-zadie", "choice": "present", "castAt": "2026-08-08T16:12:00.000Z" },
-    { "voteId": "v-2031", "memberId": "m-theo", "choice": "nay", "castAt": "2026-08-08T16:15:00.000Z" },
-
-    { "voteId": "v-2030", "memberId": "m-june", "choice": "yea" },
-    { "voteId": "v-2030", "memberId": "m-theo", "choice": "yea" },
-    { "voteId": "v-2030", "memberId": "m-priya", "choice": "yea" },
-    { "voteId": "v-2030", "memberId": "m-sam", "choice": "yea" },
-    { "voteId": "v-2030", "memberId": "m-lena", "choice": "nay" },
-    { "voteId": "v-2030", "memberId": "m-noah", "choice": "yea" },
-    { "voteId": "v-2030", "memberId": "m-zadie", "choice": "yea" },
-    { "voteId": "v-2030", "memberId": "m-ivy", "choice": "present" },
-
-    { "voteId": "v-2029", "memberId": "m-june", "choice": "yea" },
-    { "voteId": "v-2029", "memberId": "m-theo", "choice": "yea" },
-    { "voteId": "v-2029", "memberId": "m-priya", "choice": "yea" },
-    { "voteId": "v-2029", "memberId": "m-sam", "choice": "yea" },
-    { "voteId": "v-2029", "memberId": "m-lena", "choice": "yea" },
-    { "voteId": "v-2029", "memberId": "m-noah", "choice": "yea" },
-    { "voteId": "v-2029", "memberId": "m-zadie", "choice": "yea" },
-    { "voteId": "v-2029", "memberId": "m-ivy", "choice": "yea" },
-    { "voteId": "v-2029", "memberId": "m-felix", "choice": "yea" },
-    { "voteId": "v-2029", "memberId": "m-marco", "choice": "present" },
-
-    { "voteId": "v-2028", "memberId": "m-june", "choice": "nay" },
-    { "voteId": "v-2028", "memberId": "m-theo", "choice": "nay" },
-    { "voteId": "v-2028", "memberId": "m-priya", "choice": "yea" },
-    { "voteId": "v-2028", "memberId": "m-sam", "choice": "yea" },
-    { "voteId": "v-2028", "memberId": "m-lena", "choice": "yea" },
-    { "voteId": "v-2028", "memberId": "m-noah", "choice": "yea" },
-    { "voteId": "v-2028", "memberId": "m-zadie", "choice": "nay" },
-    { "voteId": "v-2028", "memberId": "m-ivy", "choice": "yea" },
-    { "voteId": "v-2028", "memberId": "m-marco", "choice": "nay" },
-
-    { "voteId": "v-2027", "memberId": "m-june", "choice": "yea" },
-    { "voteId": "v-2027", "memberId": "m-theo", "choice": "yea" },
-    { "voteId": "v-2027", "memberId": "m-priya", "choice": "yea" },
-    { "voteId": "v-2027", "memberId": "m-sam", "choice": "yea" },
-    { "voteId": "v-2027", "memberId": "m-lena", "choice": "yea" },
-    { "voteId": "v-2027", "memberId": "m-noah", "choice": "nay" },
-    { "voteId": "v-2027", "memberId": "m-zadie", "choice": "yea" },
-    { "voteId": "v-2027", "memberId": "m-felix", "choice": "yea" }
-  ],
-
-  "proxies": [
-    { "memberId": "m-felix", "to": "m-priya", "scope": "all" }
+    { "voteId": "v-demo-1", "memberId": "m-demo-4", "choice": "yea", "demo": true },
+    { "voteId": "v-demo-1", "memberId": "m-demo-2", "choice": "yea", "demo": true },
+    { "voteId": "v-demo-1", "memberId": "m-demo-3", "choice": "nay", "demo": true }
   ],
 
   "news": [
     {
-      "id": "n-9",
-      "title": "Pizza Friday Act reaches the floor after marathon markup",
-      "category": "Legislation",
-      "excerpt": "H.CC. 101 cleared the Committee on Ways, Means & Snacks on a bipartisan basis after the adoption of the cheese refuge amendment. Final passage is expected this sitting.",
-      "body": "After three weeks in markup, the Pizza Friday Establishment Act was reported favourably to the floor. Chairwoman Lena Okafor called it 'the most significant provisioning measure of the session.' The bill faces one recorded objection from the Clerk, who is holding out for calzones.",
-      "author": "Office of the Clerk",
-      "published": "2026-08-06T14:00:00.000Z"
-    },
-    {
-      "id": "n-8",
-      "title": "Speaker announces the autumn sitting calendar",
+      "id": "n-demo-1",
+      "title": "The chamber is open for business",
       "category": "Chamber",
-      "excerpt": "The chamber will sit on the first and third Sunday of each month through December, with a full-attendance sitting scheduled for the Thanksgiving recess.",
-      "body": "Speaker June Maxwell laid the autumn calendar before the chamber, noting that video attendance remains in order for members in distant districts. The Sergeant-at-Arms was directed to ensure the good couch is reserved for senior members.",
-      "author": "Speaker's Office",
-      "published": "2026-08-02T16:30:00.000Z"
-    },
-    {
-      "id": "n-7",
-      "title": "Tournament Fairness Act signed; thimble neutrality now family law",
-      "category": "Enacted",
-      "excerpt": "H.CC. 103 was signed at a ceremony in the main chamber. The banker may no longer hold the thimble, effective immediately.",
-      "body": "In a ceremony attended by all districts, the Board Game Tournament Fairness Act became the third measure enacted by the First Cousin Congress. The signing pen has been deposited with the archives, which is a shoebox under Theo's bed.",
+      "excerpt": "The First Cousin Congress has convened. Connect a second device to start the real record.",
+      "body": "This is example news, here so the newsroom is not an empty page on your first visit. Once your cousins have connected, the Chair can clear all of this demo material from the Chair's Office and the chamber's real history begins.",
       "author": "Office of the Clerk",
-      "published": "2026-07-19T15:00:00.000Z"
-    },
-    {
-      "id": "n-6",
-      "title": "Motion to extend movie night fails under the two-thirds rule",
-      "category": "Roll call",
-      "excerpt": "Despite a 5–4 majority, the privileged motion fell short of the two-thirds threshold required under Rule 6 for schedule extensions on a school night.",
-      "body": "The Parliamentarian's ruling that Rule 6 applied was decisive. 'The math is the math,' said Zadie Reyes. Proponents have signalled they will reintroduce the motion for a Friday sitting, where a simple majority suffices.",
-      "author": "Press Gallery",
-      "published": "2026-07-12T13:00:00.000Z"
+      "published": "2026-08-08T14:00:00.000Z",
+      "demo": true
     }
   ],
 
   "docket": [
-    { "id": "e-40", "title": "Morning hour — open statements", "kind": "session", "starts": "2026-08-08T16:00:00.000Z", "durationMin": 30, "room": "Main chamber", "note": "Two minutes per member, strictly enforced by the egg timer." },
-    { "id": "e-41", "title": "Roll Call 31 — final passage of H.CC. 101", "kind": "vote", "starts": "2026-08-08T16:30:00.000Z", "durationMin": 30, "room": "Main chamber", "note": "Voting open all day for remote districts." },
-    { "id": "e-42", "title": "Snack Committee hearing — Q3 popcorn reserve", "kind": "hearing", "starts": "2026-08-08T18:00:00.000Z", "durationMin": 45, "room": "The kitchen", "note": "Witness: the pantry. Exhibits will be eaten after adjournment." },
-    { "id": "e-43", "title": "Games Committee markup — H.CC. 104 amendments", "kind": "hearing", "starts": "2026-08-09T17:00:00.000Z", "durationMin": 60, "room": "The bunk room", "note": "Markup of the Group Chat Decorum Resolution." },
-    { "id": "e-44", "title": "Sitting 15 — Reunion Site Selection Act on the floor", "kind": "session", "starts": "2026-08-16T16:00:00.000Z", "durationMin": 120, "room": "Main chamber", "note": "Debate under the one-hour rule." },
-    { "id": "e-45", "title": "August recess begins", "kind": "recess", "starts": "2026-08-23T00:00:00.000Z", "durationMin": 10080, "room": "", "note": "The chamber stands in recess until the first September sitting." }
+    { "id": "e-demo-1", "title": "Morning hour — open statements", "kind": "session", "starts": "2026-08-08T16:00:00.000Z", "durationMin": 30, "room": "Main chamber", "note": "Two minutes each.", "demo": true },
+    { "id": "e-demo-2", "title": "Roll Call 1 — the Pizza Friday Act", "kind": "vote", "starts": "2026-08-08T16:30:00.000Z", "durationMin": 30, "room": "Main chamber", "note": "Voting open to all districts.", "demo": true }
   ],
 
   "statuses": [
-    { "id": "s-100", "memberId": "m-theo", "text": "The desk is open — Roll Call 31 is live. Remote districts, your ballots are being received.", "location": "At the rostrum" },
-    { "id": "s-101", "memberId": "m-lena", "text": "Snack hearing moved up to 6pm. The pantry will testify voluntarily.", "location": "The kitchen" },
-    { "id": "s-102", "memberId": "m-priya", "text": "Attending by video until finals are over. Holding Felix's proxy per the standing order.", "location": "Study hall" }
+    { "id": "s-demo-1", "memberId": "m-demo-2", "text": "The desk is open — Roll Call 1 is live.", "location": "At the rostrum", "demo": true }
   ],
 
-  "comments": [
-    { "id": "c-1", "targetId": "b-101", "targetType": "bill", "author": "Grandma Rosa (constituent)", "stance": "support", "body": "I have reviewed Section 3 and I approve, provided somebody saves me a plain slice. The cheese refuge clause shows real statesmanship." },
-    { "id": "c-2", "targetId": "b-101", "targetType": "bill", "author": "Uncle Dave (constituent)", "stance": "oppose", "body": "Respectfully, the last Friday of the month is bowling night. I urge the chamber to consider the second Friday and will be submitting a petition." },
-    { "id": "c-3", "targetId": "b-102", "targetType": "bill", "author": "Aunt Simone (constituent)", "stance": "neutral", "body": "No position on rotation order, but the coin from 2019 has come up heads eleven consecutive times and I want that noted in the record." }
-  ]
+  "proxies": [],
+  "amendments": [],
+  "comments": []
 }

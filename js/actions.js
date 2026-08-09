@@ -17,6 +17,14 @@ import { iconFingerprint } from "./icons.js";
 const newId = (prefix) =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
+/** Resolve one shareable item (news / bill / docket) to its display record. */
+function findShareItem(state, type, id) {
+  if (type === "bill") return select.bill(state, id);
+  const table = { news: state.news, docket: state.docket }[type];
+  const record = table?.[id];
+  return record && !record._deleted ? record : null;
+}
+
 const OUTBOX_KEY = "cc.outbox";
 
 /* --------------------------------------------------------------------------
@@ -213,6 +221,200 @@ const CLICK_ACTIONS = {
     await changeChairPin();
   },
 
+  /** Chair-controlled toggles for the whole chamber. */
+  async "toggle-lock"(store) {
+    if (!(await requireChair())) return;
+    const locked = !store.state.session?.locked;
+    store.dispatch("session.set", { locked });
+    toast(locked ? "🔒 Chamber locked — no new devices can join." : "🔓 Chamber open to new devices.");
+  },
+
+  async "toggle-stun"(store) {
+    if (!(await requireChair())) return;
+    const off = store.state.session?.stun === false;
+    store.dispatch("session.set", { stun: off ? true : false });
+    toast(off ? "🌐 STUN on — cousins on other networks can connect." : "🏠 STUN off — local network only, no outside servers.");
+  },
+
+  async "chat-policy"(store) {
+    if (!(await requireChair())) return;
+    const current = store.state.session?.chatPolicy || "chair-picks";
+    const next = current === "all" ? "chair-picks" : "all";
+    store.dispatch("session.set", { chatPolicy: next });
+    toast(next === "all" ? "💬 Chat open to everyone." : "💬 Chat is now Chair-picks only.");
+  },
+
+  async "toggle-chat"(store, el) {
+    if (!(await requireChair())) return;
+    const member = select.member(store.state, el.dataset.member);
+    if (!member) return;
+    store.dispatch("member.presence", { memberId: member.id, canChat: !member.canChat });
+    toast(member.canChat ? `Chat off for ${member.name}.` : `💬 Chat on for ${member.name}.`);
+  },
+
+  /** Copy a static, offline read-link for one item (news/bill/docket). */
+  async "share-item"(store, el) {
+    const { createShareLink } = await import("./share.js");
+    const { type, id } = el.dataset;
+    const record = findShareItem(store.state, type, id);
+    if (!record) return toast("Couldn't find that to share.", "err");
+    const withNames =
+      type === "bill" ? { ...record, sponsorName: select.member(store.state, record.sponsor)?.name } : record;
+    const link = await createShareLink(type, withNames);
+    await copyText(link, "Read-only link copied — it unlocks just this one item.");
+  },
+
+  /** Mint a LIVE scoped guest link (revocable, connects through the mesh). */
+  async "share-live"(store, el, ctx) {
+    const memberId = requireSeat(store);
+    if (!memberId) return;
+    try {
+      const { code } = await ctx.sync.createGuestShare(el.dataset.type, el.dataset.id);
+      await copyText(code, "Live guest code copied. They can read only this — revoke any time from the Chair's dashboard.");
+    } catch (error) {
+      toast(String(error.message || error), "err");
+    }
+  },
+
+  async "revoke-share"(store, el, ctx) {
+    if (el.dataset.mine !== "true" && !(await requireChair())) return;
+    ctx.sync.revokeShare(el.dataset.share);
+    toast("Access revoked — their screen has been cleared.");
+  },
+
+  /** Chair approves a device asking to hold the gavel. */
+  async "approve-chair"(store, el) {
+    if (!(await requireChair())) return;
+    store.dispatch("chair.enroll", { kid: el.dataset.kid, actor: el.dataset.actor || undefined });
+    toast("✅ Approved — that device now holds the gavel too.");
+  },
+
+  /** Chair clears a seat's registered devices so a new one can re-claim it.
+   *  This is the recovery path for a lost, replaced, or shared device. */
+  async "reset-seat"(store, el) {
+    if (el.dataset.confirmed !== "true") {
+      el.dataset.confirmed = "true";
+      el.textContent = "Really unregister their devices?";
+      setTimeout(() => {
+        el.dataset.confirmed = "false";
+        el.textContent = "Reset devices";
+      }, 5000);
+      return;
+    }
+    if (!(await requireChair())) return;
+    const member = select.member(store.state, el.dataset.member);
+    if (!member) return;
+    store.dispatch("member.resetKeys", { memberId: member.id });
+    toast(`${member.name}'s devices are cleared — the next device to enter their password takes the seat.`);
+  },
+
+  /** Chair verdict on a watchdog flag — teaches the classifier. */
+  "watchdog-verdict"(store, el, ctx) {
+    ctx.sync.__watchdog?.update({ fingerprint: el.dataset.fp, ip: el.dataset.ip }, el.dataset.verdict);
+    toast(el.dataset.verdict === "fine" ? "Marked as fine — noted." : "Marked as suspicious — watching closer.");
+    el.closest("[data-flag]")?.remove();
+  },
+
+  /** Chair toggles the chamber's walkie-talkie policy between everyone and picked. */
+  async "talkie-policy"(store, el) {
+    if (!(await requireChair())) return;
+    const current = store.state.session?.talkiePolicy || "all";
+    const next = current === "all" ? "chair-picks" : "all";
+    store.dispatch("session.set", { talkiePolicy: next });
+    toast(next === "all" ? "📻 Everyone may use the talkie." : "📻 Only cousins you pick may use the talkie.");
+  },
+
+  /** Chair freezes (isolates) or thaws a member. Frozen members stay connected
+   *  but can do nothing until the Chair releases them. */
+  async "toggle-freeze"(store, el) {
+    if (!(await requireChair())) return;
+    const memberId = el.dataset.member;
+    const member = select.member(store.state, memberId);
+    if (!member) return;
+    store.dispatch("member.presence", {
+      memberId,
+      frozen: !member.frozen,
+      frozenBy: member.frozen ? null : store.identity.displayName || "the Chair",
+    });
+    toast(member.frozen ? `${member.name} is un-frozen.` : `❄️ ${member.name} is frozen — they must contact you.`);
+  },
+
+  /** Chair drops a live peer connection outright. */
+  async "disconnect-peer"(store, el, ctx) {
+    if (!(await requireChair())) return;
+    ctx.sync.peers?.disconnectPeer(el.dataset.peer);
+    toast("Connection dropped.");
+  },
+
+  /** Chair isolates a live connection locally: it stays open, but no data
+   *  crosses it until released. */
+  async "isolate-peer"(store, el, ctx) {
+    if (!(await requireChair())) return;
+    const on = ctx.sync.peers?.togglePeerIsolation(el.dataset.peer);
+    toast(on ? "🔇 Connection isolated — no data flows." : "Connection released.");
+  },
+
+  /** Chair grants or removes one member's talkie permission. */
+  async "toggle-talk"(store, el) {
+    if (!(await requireChair())) return;
+    const memberId = el.dataset.member;
+    const member = select.member(store.state, memberId);
+    if (!member) return;
+    store.dispatch("member.presence", { memberId, canTalk: !member.canTalk });
+    toast(member.canTalk ? `Talkie taken from ${member.name}.` : `Talkie given to ${member.name}. 📻`);
+  },
+
+  /**
+   * Retire every entity the shipped demo snapshot created. Tombstones rather
+   * than deletions, so the clearing itself replicates to cousins who are
+   * offline right now instead of quietly coming back when they reconnect.
+   */
+  async "clear-demo"(store, el) {
+    if (el.dataset.confirmed !== "true") {
+      el.dataset.confirmed = "true";
+      el.textContent = "Really clear the example data?";
+      setTimeout(() => {
+        el.dataset.confirmed = "false";
+        el.textContent = "Clear the example data";
+      }, 5000);
+      return;
+    }
+    if (!(await requireChair())) return;
+
+    const state = store.state;
+    const RETRACTIONS = [
+      ["members", "member.retract"],
+      ["votes", "vote.retract"],
+      ["bills", "bill.retract"],
+      ["news", "news.retract"],
+      ["docket", "docket.remove"],
+      ["statuses", "status.retract"],
+      ["comments", "comment.retract"],
+      ["amendments", "amendment.withdraw"],
+    ];
+
+    let cleared = 0;
+    for (const [table, opType] of RETRACTIONS) {
+      for (const record of Object.values(state[table] || {})) {
+        if (!record?.demo || record._deleted) continue;
+        store.dispatch(opType, { id: record.id });
+        cleared += 1;
+      }
+    }
+    // Ballots and cosponsors hang off retracted parents, so they fall out of
+    // every selector on their own once the parent carries a tombstone.
+    store.dispatch("session.set", { demo: false, sitting: 1 });
+
+    if (store.identity.memberId?.startsWith("m-demo-")) {
+      store.setIdentity({ memberId: null, displayName: "" });
+    }
+    toast(
+      cleared
+        ? `Cleared ${cleared} example ${cleared === 1 ? "entry" : "entries"}. The chamber is yours now.`
+        : "There was no example data left to clear."
+    );
+  },
+
   copy(store, el) {
     const source = qs(el.dataset.copyFrom);
     if (source) copyText(source.value ?? source.textContent ?? "");
@@ -381,12 +583,20 @@ const FORM_ACTIONS = {
     return true;
   },
 
-  /** Enroll a new cousin. Chair only. */
+  /**
+   * Enroll a new cousin. Chair only. The Chair can set each moderatable
+   * feature at creation time, and the last choices are remembered on the
+   * session so the next new member inherits them — set your policy once.
+   */
   async "add-member"(store, form, values) {
     if (!(await requireChair())) return false;
     const name = String(values.name || "").trim();
     if (!name) return false;
     const count = select.members(store.state).length;
+
+    const canChat = values.canChat === "on";
+    const canTalk = values.canTalk !== undefined ? values.canTalk === "on" : true;
+
     store.dispatch("member.upsert", {
       id: newId("m"),
       name,
@@ -395,8 +605,33 @@ const FORM_ACTIONS = {
       role: "Representative",
       presence: "away",
       seniority: count + 1,
+      canChat,
+      canTalk,
     });
+
+    // Remember these toggles as the defaults for the next new member.
+    store.dispatch("session.set", { memberDefaults: { canChat, canTalk } });
     toast(`${values.icon || "🪑"} ${name} is enrolled! They'll pick their password when they first sit down.`);
+    return true;
+  },
+
+  /** Send a chamber chat message. Needs a seat and chat permission. */
+  "chat-send"(store, form, values) {
+    const memberId = requireSeat(store);
+    if (!memberId) return false;
+    if (!store.select.canChat(memberId)) {
+      toast("The Chair hasn't switched chat on for your seat yet.", "warn");
+      return false;
+    }
+    const text = String(values.text || "").trim();
+    if (!text) return false;
+    store.dispatch("chat.post", {
+      id: newId("msg"),
+      memberId,
+      name: select.member(store.state, memberId)?.name || "A cousin",
+      icon: select.member(store.state, memberId)?.icon || "🪑",
+      text,
+    });
     return true;
   },
 
@@ -448,6 +683,48 @@ const FORM_ACTIONS = {
       note: values.note || undefined,
     });
     toast("Added to the docket.");
+    return true;
+  },
+
+  /**
+   * A chamber-wide announcement. Reaches every connected device, seated or
+   * not — the one message that does not need a claimed seat to be heard.
+   */
+  async "post-announcement"(store, form, values) {
+    if (!(await requireChair())) return false;
+    const minutes = Number(values.minutes) || 0;
+    store.dispatch("announce.post", {
+      id: newId("ann"),
+      text: values.text,
+      tone: values.tone || "info",
+      icon: values.icon || "📣",
+      by: store.identity.displayName || "The Chair",
+      until: minutes ? new Date(Date.now() + minutes * 60000).toISOString() : null,
+    });
+    toast("📣 Announced to every device in the chamber.");
+    return true;
+  },
+
+  /**
+   * A member's own note in the newsroom. Unlike an official dispatch this needs
+   * only a claimed seat, not the gavel — it is the cousins' own bulletin board.
+   * Flagged as a note so the newsroom can set it apart from Chair dispatches.
+   */
+  "post-note"(store, form, values) {
+    const memberId = requireSeat(store);
+    if (!memberId) return false;
+    store.dispatch("news.post", {
+      id: newId("note"),
+      title: values.title,
+      category: "Cousin note",
+      excerpt: values.excerpt || values.body?.slice(0, 140),
+      body: values.body,
+      author: select.member(store.state, memberId)?.name || "A cousin",
+      authorId: memberId,
+      memberNote: true,
+      published: new Date().toISOString(),
+    });
+    toast("📝 Your note is on the newsroom board.");
     return true;
   },
 

@@ -1,0 +1,247 @@
+/* ==========================================================================
+   emoji.css — the badge picker. Sized for the youngest member of the House:
+   every target clears 44px, the selected badge is loud enough to spot from
+   across the sofa, and the whole grid is one tab stop with a visible ring.
+   State comes from the ARIA attributes the picker already has to set, so
+   nothing here needs a second class to be kept in sync.
+   ========================================================================== */
+
+.emoji-picker {
+  --swatch: 56px; /* well over the 44px floor; thumbs, not cursors */
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Search bar
+   -------------------------------------------------------------------------- */
+
+.emoji-picker__bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.emoji-picker__input {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-size: var(--fs-md);
+  min-height: 44px;
+}
+
+/* Safari draws its own clear button inside type="search"; ours would collide. */
+.emoji-picker__input::-webkit-search-decoration,
+.emoji-picker__input::-webkit-search-results-button {
+  display: none;
+}
+
+.emoji-picker__surprise {
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+
+/* --------------------------------------------------------------------------
+   Group shortcuts
+   -------------------------------------------------------------------------- */
+
+.emoji-picker__jumps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.emoji-picker__jump {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 1.35rem;
+  line-height: 1;
+  border: 2px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color var(--dur-2) var(--ease-out), scale var(--dur-2) var(--ease-spring);
+}
+
+.emoji-picker__jump:hover {
+  border-color: var(--accent);
+  scale: 1.1;
+}
+
+.emoji-picker__jump:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   The scrolling catalogue
+   -------------------------------------------------------------------------- */
+
+.emoji-picker__scroll {
+  position: relative;
+  max-height: min(52vh, 26rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  scroll-behavior: smooth;
+}
+
+.emoji-picker__list {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.emoji-picker__section {
+  display: grid;
+  gap: var(--sp-2);
+  scroll-margin-top: var(--sp-2);
+}
+
+/* Sticky so a child scrolling fast always knows which shelf they are on. */
+.emoji-picker__heading {
+  position: sticky;
+  top: calc(var(--sp-2) * -1);
+  z-index: 1;
+  margin: 0;
+  padding: var(--sp-2) var(--sp-1);
+  font-family: var(--font-body);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg-sunken);
+}
+
+.emoji-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--swatch), 1fr));
+  gap: var(--sp-1);
+}
+
+/* --------------------------------------------------------------------------
+   One badge
+   -------------------------------------------------------------------------- */
+
+.emoji-picker__option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: var(--swatch);
+  border: 2px solid transparent;
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out),
+    scale var(--dur-2) var(--ease-spring);
+}
+
+.emoji-picker__glyph {
+  font-family: var(--font-body);
+  font-size: 1.85rem;
+  line-height: 1;
+  /* The glyph is the whole point; never let a long emoji font fall back to
+     something that reflows the grid. */
+  pointer-events: none;
+}
+
+.emoji-picker__option:hover {
+  border-color: var(--line-strong);
+  scale: 1.12;
+}
+
+.emoji-picker__option:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  scale: 1.12;
+}
+
+.emoji-picker__option:active {
+  scale: 0.96;
+}
+
+/* Selected state. Border, fill, size and a tick — a child spotting only one of
+   the four still spots it, and the tick survives a high-contrast mode that
+   flattens the fill. */
+.emoji-picker__option[aria-selected="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  scale: 1.08;
+}
+
+.emoji-picker__option[aria-selected="true"]::after {
+  content: "✓";
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 1.15em;
+  height: 1.15em;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Empty state and the live region
+   -------------------------------------------------------------------------- */
+
+.emoji-picker__empty {
+  margin: 0;
+  padding: var(--sp-6) var(--sp-4);
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.emoji-picker__status {
+  margin: 0;
+  min-height: 1.2em;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+/* --------------------------------------------------------------------------
+   Small screens: more badges per row rather than bigger scroll
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 30rem) {
+  .emoji-picker {
+    --swatch: 48px;
+  }
+  .emoji-picker__glyph {
+    font-size: 1.6rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .emoji-picker__scroll {
+    scroll-behavior: auto;
+  }
+  .emoji-picker__option,
+  .emoji-picker__jump {
+    transition: none;
+  }
+  .emoji-picker__option:hover,
+  .emoji-picker__option:focus-visible,
+  .emoji-picker__option:active,
+  .emoji-picker__jump:hover,
+  .emoji-picker__option[aria-selected="true"] {
+    scale: 1;
+  }
+}

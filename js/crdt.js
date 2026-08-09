@@ -14,7 +14,24 @@
  *
  * Deletes are tombstones, never removals — a removal cannot be replicated to
  * a peer that has not yet seen the thing being removed.
+ *
+ * Authorisation rides on the same fold. Every privileged op is checked against
+ * authz.js before its reducer runs, using the AUTHENTICATED signer (op.kid) and
+ * the key bindings held in state — never the payload's own claims. Because the
+ * check is a pure function of the total-ordered log, every replica reaches the
+ * same verdict, so an unauthorised op folds into the log (staying convergent
+ * and auditable) but changes nothing.
  */
+
+import {
+  authorize,
+  hasChair,
+  isChairKey,
+  chairKeysOf,
+  memberKeysOf,
+  ownsMember,
+  memberOwned,
+} from "./authz.js";
 
 /* ==========================================================================
    Hybrid logical clock
@@ -22,6 +39,16 @@
 
 const PAD_MS = 15;
 const PAD_CT = 5;
+const COUNT_CAP = 10 ** PAD_CT; // counter rolls into ms before it overflows its field
+/**
+ * How far ahead of our own wall clock we will let a peer's timestamp move us.
+ * Without this cap a single op carrying a near-maximum `ms` would poison our
+ * clock so that our OWN subsequent stamps overflow the wire format and are
+ * dropped by every peer — a silent, persistent, chamber-wide write-partition
+ * from one message. A day is generous for honest clock drift and astronomically
+ * short of the attack.
+ */
+const MAX_CLOCK_SKEW_MS = 24 * 60 * 60 * 1000;
 
 const pad = (n, w) => String(n).padStart(w, "0");
 
@@ -47,6 +74,7 @@ export class Clock {
     } else {
       this.count += 1;
     }
+    this.#normalize();
     return this.pack();
   }
 
@@ -59,15 +87,30 @@ export class Clock {
     const remote = Clock.parse(stamp);
     if (!remote) return;
     const wall = Date.now();
-    if (remote.ms > this.ms) {
-      this.ms = remote.ms;
-      this.count = remote.count + 1;
-    } else if (remote.ms === this.ms) {
-      this.count = Math.max(this.count, remote.count) + 1;
+    // Never adopt a timestamp more than a bounded skew ahead of our wall clock:
+    // that is the clock-poison defence. Counts are likewise bounded so a huge
+    // remote counter cannot overflow our fixed-width field.
+    const ceil = wall + MAX_CLOCK_SKEW_MS;
+    const remoteMs = Math.min(remote.ms, ceil);
+    const remoteCount = Math.min(remote.count, COUNT_CAP - 1);
+    if (remoteMs > this.ms) {
+      this.ms = remoteMs;
+      this.count = remoteCount + 1;
+    } else if (remoteMs === this.ms) {
+      this.count = Math.max(this.count, remoteCount) + 1;
     }
     if (wall > this.ms) {
       this.ms = wall;
       this.count = 0;
+    }
+    this.#normalize();
+  }
+
+  /** Keep the counter inside its field width by rolling overflow into ms. */
+  #normalize() {
+    while (this.count >= COUNT_CAP) {
+      this.ms += 1;
+      this.count -= COUNT_CAP;
     }
   }
 
@@ -186,6 +229,9 @@ export const emptyState = () => ({
   docket: {},
   proxies: {}, // memberId -> delegation
   statuses: {}, // statusId -> floor status update (append-only feed)
+  announcements: {}, // chamber-wide notices, shown even to unseated devices
+  shares: {}, // live scoped read-grants for guests, revocable
+  chat: {}, // chamber chat messages (Chair enables per member)
 });
 
 /** Shallow last-writer-wins merge into a keyed entity table. */
@@ -207,7 +253,88 @@ function put(table, key, patch, op) {
  */
 const REDUCERS = {
   "session.set": (s, op) => {
-    s.session = { ...s.session, ...op.payload, _hlc: op.hlc };
+    // chairKeys / chairRequests are managed only by their own binding ops, so a
+    // session.set can never smuggle a chair key in through a wholesale merge.
+    const { chairKeys, chairRequests, ...rest } = op.payload || {};
+    s.session = { ...s.session, ...rest, _hlc: op.hlc };
+  },
+
+  /* --- trust bindings (see authz.js) ------------------------------------- */
+
+  /** Bind the signing key as a chair device. First-writer-wins: authz.js only
+   *  lets this run for the founder (no chair yet) or an existing chair. */
+  "chair.claim": (s, op) => {
+    const kid = op.payload?.kid || op.kid;
+    if (!kid) return;
+    s.session = {
+      ...s.session,
+      chairKeys: { ...(s.session.chairKeys || {}), [kid]: { actor: op.actor, at: op.hlc } },
+    };
+  },
+
+  /** An established chair enrols another device as a chair, clearing any
+   *  pending request from that device. */
+  "chair.enroll": (s, op) => {
+    const kid = op.payload?.kid;
+    if (!kid) return;
+    const requests = { ...(s.session.chairRequests || {}) };
+    delete requests[kid];
+    s.session = {
+      ...s.session,
+      chairKeys: {
+        ...(s.session.chairKeys || {}),
+        [kid]: { actor: op.payload.actor || op.actor, at: op.hlc },
+      },
+      chairRequests: requests,
+    };
+  },
+
+  /** A device asks to be enrolled as a chair. Grants nothing on its own; the
+   *  chair sees it and may approve with chair.enroll. */
+  "chair.request": (s, op) => {
+    const kid = op.payload?.kid || op.kid;
+    if (!kid) return;
+    s.session = {
+      ...s.session,
+      chairRequests: {
+        ...(s.session.chairRequests || {}),
+        [kid]: { actor: op.actor, name: op.payload?.name || "", at: op.hlc },
+      },
+    };
+  },
+
+  /** Bind the signing key as authorised to act as a member (seat claim). */
+  "member.claimKey": (s, op) => {
+    const memberId = op.payload?.memberId;
+    const kid = op.payload?.kid || op.kid;
+    const member = s.members[memberId];
+    if (!member || !kid) return;
+    s.members[memberId] = {
+      ...member,
+      keys: { ...(member.keys || {}), [kid]: { actor: op.actor, at: op.hlc } },
+      _hlc: op.hlc,
+      _actor: op.actor,
+    };
+  },
+
+  /** The chair enrols an additional device onto a seat. */
+  "member.enrollKey": (s, op) => {
+    const { memberId, kid } = op.payload || {};
+    const member = s.members[memberId];
+    if (!member || !kid) return;
+    s.members[memberId] = {
+      ...member,
+      keys: { ...(member.keys || {}), [kid]: { actor: op.payload.actor || op.actor, at: op.hlc } },
+      _hlc: op.hlc,
+    };
+  },
+
+  /** The chair clears a seat's keys so a new device can re-claim it (recovery
+   *  for a lost or replaced device). */
+  "member.resetKeys": (s, op) => {
+    const member = s.members[op.payload?.memberId];
+    if (!member) return;
+    s.members[op.payload.memberId] = { ...member, keys: {}, _hlc: op.hlc };
   },
 
   "member.upsert": (s, op) => put(s.members, op.payload.id, op.payload, op),
@@ -273,6 +400,27 @@ const REDUCERS = {
   "news.post": (s, op) => put(s.news, op.payload.id, op.payload, op),
   "news.retract": (s, op) => put(s.news, op.payload.id, { _deleted: true }, op),
 
+  /**
+   * Chamber-wide announcement. Reaches every connected device regardless of
+   * whether anyone has claimed a seat on it, which is the point: the gallery
+   * should hear "we're starting in five minutes" without having to log in.
+   */
+  "announce.post": (s, op) => put(s.announcements, op.payload.id, op.payload, op),
+  "announce.retract": (s, op) => put(s.announcements, op.payload.id, { _deleted: true }, op),
+
+  /**
+   * A live share grant: permission for a guest to read ONE item over a scoped
+   * connection. The grant is a first-class, replicated record so that any
+   * device serving the guest — and the Chair, from anywhere — can see it and
+   * revoke it. Revocation is just a later op; the record is append-only.
+   */
+  "share.grant": (s, op) => put(s.shares, op.payload.id, { revoked: false, ...op.payload }, op),
+  "share.revoke": (s, op) => put(s.shares, op.payload.id, { revoked: true, revokedBy: op.payload.by }, op),
+
+  /** Chamber chat. Enabled per member by the Chair (see canChat). */
+  "chat.post": (s, op) => put(s.chat, op.payload.id, op.payload, op),
+  "chat.retract": (s, op) => put(s.chat, op.payload.id, { _deleted: true }, op),
+
   "docket.add": (s, op) => put(s.docket, op.payload.id, op.payload, op),
   "docket.remove": (s, op) => put(s.docket, op.payload.id, { _deleted: true }, op),
 
@@ -284,10 +432,11 @@ const REDUCERS = {
 export const KNOWN_OP_TYPES = Object.freeze(Object.keys(REDUCERS));
 
 /** Apply one op. Unknown types are kept in the log but ignored when folding,
- *  so an older client never loses data written by a newer one. */
+ *  so an older client never loses data written by a newer one. An op that fails
+ *  authorisation is likewise kept but folds to no effect. */
 export function applyOp(state, op) {
   const reducer = REDUCERS[op.type];
-  if (reducer) reducer(state, op);
+  if (reducer && authorize(state, op)) reducer(state, op);
   return state;
 }
 
@@ -369,6 +518,34 @@ export class Log {
   /** Everything a peer with `remote` is missing. */
   delta(remote) {
     return VV.missing(this.ordered, remote || {});
+  }
+
+  /**
+   * The version vector we ADVERTISE to peers — the highest per-actor seq with no
+   * gap beneath it, i.e. what we can actually answer a delta for.
+   *
+   * `this.vv` tracks the max seq seen (right for dedup and ordering), but a max
+   * hides a missing middle op: receive seqs 0,1,5 for an actor and `vv` reads 5,
+   * so a peer computing our delta thinks we already hold 2–4 and never resends
+   * them — the gap is permanent. Advertising the CONTIGUOUS frontier (here, 1)
+   * instead makes the peer resend from the gap; the ops we already have dedupe on
+   * arrival. It can only ever cause more resends, never fewer, so it cannot break
+   * convergence — and for a gapless log (the normal case) it equals `this.vv`.
+   */
+  advertisedVv() {
+    const seqs = new Map();
+    for (const op of this.ordered) {
+      let set = seqs.get(op.actor);
+      if (!set) seqs.set(op.actor, (set = new Set()));
+      set.add(op.seq);
+    }
+    const out = {};
+    for (const [actor, set] of seqs) {
+      let frontier = -1;
+      while (set.has(frontier + 1)) frontier += 1;
+      out[actor] = frontier;
+    }
+    return out;
   }
 
   /**
@@ -522,6 +699,84 @@ export const select = {
       .slice(0, limit),
 
   committees: (s) => listOf(s.committees),
+
+  announcements: (s, limit = 10) =>
+    listOf(s.announcements)
+      .filter((a) => !a.until || new Date(a.until).getTime() > Date.now())
+      .sort((a, b) => String(b._hlc).localeCompare(String(a._hlc)))
+      .slice(0, limit),
+
+  /** Live share grants this device authored or holds the gavel over. */
+  shares: (s) =>
+    listOf(s.shares).sort((a, b) => String(b._hlc).localeCompare(String(a._hlc))),
+
+  /** Is a share still good? Unknown, revoked, or expired all mean no. */
+  shareLive(s, shareId) {
+    const grant = s.shares[shareId];
+    if (!grant || grant._deleted || grant.revoked) return false;
+    if (grant.expiresAt && new Date(grant.expiresAt).getTime() < Date.now()) return false;
+    return true;
+  },
+
+  share: (s, shareId) => s.shares[shareId] || null,
+
+  /**
+   * May this member use the walkie-talkie? Two policies: "all" (the default —
+   * anyone seated can talk) or "chair-picks", where only members the Chair has
+   * explicitly granted the talkie may transmit.
+   */
+  canTalk(s, memberId) {
+    if (!memberId) return false;
+    if (select.member(s, memberId)?.frozen) return false;
+    const policy = s.session?.talkiePolicy || "all";
+    if (policy === "all") return true;
+    const member = select.member(s, memberId);
+    return Boolean(member?.canTalk);
+  },
+
+  /**
+   * May this member use the text chat? Chat is OFF for everyone by default —
+   * the Chair grants it per member — so the policy defaults to "chair-picks".
+   * A Chair who wants it open for all can flip the policy to "all".
+   */
+  canChat(s, memberId) {
+    if (!memberId) return false;
+    if (select.member(s, memberId)?.frozen) return false;
+    const policy = s.session?.chatPolicy || "chair-picks";
+    if (policy === "all") return true;
+    return Boolean(select.member(s, memberId)?.canChat);
+  },
+
+  chat: (s, limit = 100) =>
+    listOf(s.chat)
+      .sort((a, b) => String(a._hlc).localeCompare(String(b._hlc)))
+      .slice(-limit),
+
+  /** Chamber-wide moderation state, all Chair-controlled. */
+  locked: (s) => Boolean(s.session?.locked),
+  frozenMembers: (s) => listOf(s.members).filter((m) => m.frozen),
+
+  /* --- authority (key bindings, see authz.js) --------------------------- */
+
+  /** Has any device claimed the chair yet? */
+  chairEstablished: (s) => hasChair(s),
+  /** Is this key an enrolled chair device? */
+  isChairDevice: (s, kid) => isChairKey(s, kid),
+  /** Enrolled chair devices, for the Chair's dashboard. */
+  chairDevices: (s) =>
+    Object.entries(chairKeysOf(s)).map(([kid, meta]) => ({ kid, ...meta })),
+  /** Devices asking to be enrolled as a chair, awaiting approval. */
+  chairRequests: (s) =>
+    Object.entries(s.session?.chairRequests || {})
+      .filter(([kid]) => !chairKeysOf(s)[kid])
+      .map(([kid, meta]) => ({ kid, ...meta })),
+  /** Is this key authorised to act as the given member? */
+  ownsSeat: (s, memberId, kid) => ownsMember(s, memberId, kid),
+  /** Has anyone claimed this seat with a key yet? */
+  seatClaimed: (s, memberId) => memberOwned(s, memberId),
+  /** Devices enrolled on a seat, for the Chair's dashboard. */
+  seatDevices: (s, memberId) =>
+    Object.entries(memberKeysOf(s, memberId)).map(([kid, meta]) => ({ kid, ...meta })),
 
   /** Per-member participation record used by the scorecards. */
   scorecard(s, memberId) {

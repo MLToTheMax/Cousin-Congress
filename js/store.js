@@ -11,6 +11,9 @@
 
 import CONFIG from "./config.js";
 import { Clock, Log, VV, isValidOp, select } from "./crdt.js";
+import { SCHEMA_VERSION, versionOf, validateEnvelope, LIMITS } from "./schema.js";
+import { migrations } from "./migrate.js";
+import { verifyOp, verifyIdentityOp, macOp, verifyOpMac } from "./crypto.js";
 
 const DB_NAME = "cousin-congress";
 const DB_VERSION = 1;
@@ -268,6 +271,21 @@ export class Store extends EventTarget {
     this.ready = false;
     /** Set by the sync coordinator; receives locally originated ops. */
     this.onOutbound = null;
+    /** Set by the coordinator once crypto is up. Signs outbound, verifies inbound. */
+    this.identitySigner = null;
+    this.verifier = null;
+    /** Room MAC key (HMAC CryptoKey). Set by the coordinator from the room PSK.
+     *  Proves an op came from inside the room, which a hostile relay cannot. */
+    this.roomKey = null;
+    /** A scoped guest joined with a per-share secret, not the room secret, so it
+     *  cannot hold the room MAC key. Its single uplink is the sharer's encrypted
+     *  channel and its reads are scope-filtered, so it is exempt from the gate. */
+    this.guestMode = false;
+    /** The one item id a scoped guest is allowed to fold. Enforced INSIDE ingest
+     *  so every path — including the server HTTP pull — inherits it, not just the
+     *  peer-message handler. */
+    this.guestScopeId = null;
+    this.quarantine = null;
   }
 
   get state() {
@@ -278,8 +296,19 @@ export class Store extends EventTarget {
     return this.log.vv;
   }
 
+  /** The gap-free version vector to advertise to peers (see Log.advertisedVv). */
+  get advertisedVv() {
+    return this.log.advertisedVv();
+  }
+
   get actorId() {
     return this.replicaId;
+  }
+
+  /** This device's signing-key fingerprint, once crypto has provisioned. Used
+   *  to bind the key to a seat or to the chair when claiming either. */
+  get myFingerprint() {
+    return this.identitySigner?.fingerprint || null;
   }
 
   /* --- lifecycle -------------------------------------------------------- */
@@ -341,6 +370,15 @@ export class Store extends EventTarget {
    * plus replication happen behind it.
    */
   dispatch(type, payload = {}) {
+    // A frozen member is isolated: the connection stays up so the Chair can
+    // still reach them, but this device authors nothing. The exception is the
+    // acts of stepping down, so a frozen cousin is never trapped in their seat.
+    const me = this.me;
+    if (me?.frozen && !type.startsWith("member.presence") && type !== "member.auth") {
+      this.#emit("frozen", { by: me.frozenBy || "the Chair" });
+      return null;
+    }
+
     this.seq += 1;
     const op = {
       actor: this.replicaId,
@@ -348,16 +386,47 @@ export class Store extends EventTarget {
       hlc: this.clock.tick(),
       type,
       payload,
+      v: SCHEMA_VERSION,
     };
 
     const accepted = this.log.insert([op]);
     if (!accepted.length) return null;
 
+    // Paint and persist immediately; the signature is attached behind the UI
+    // so a device with no signing key yet (identity still provisioning) never
+    // blocks a vote. The op is only released to the network once signed.
     this.#emit("change", { reason: "local", ops: accepted });
-    this.#persist(accepted);
-    this.onOutbound?.(accepted);
+
+    if (this.identitySigner) {
+      this.#signAndRelease(op);
+    } else {
+      this.#persist(accepted);
+      this.onOutbound?.(accepted);
+    }
     this.#maybeCompact();
     return op;
+  }
+
+  async #signAndRelease(op) {
+    try {
+      const signed = await this.identitySigner.signOp(op);
+      op.sig = signed.sig;
+      op.kid = signed.kid;
+    } catch {
+      // Signing failed (no WebCrypto?) — the op still replicates unsigned and
+      // is marked as such by verifiers rather than being lost.
+    }
+    // Room MAC proves this op originated inside the room. It travels alongside
+    // the signature; peers refuse to fold any network op that lacks a valid one.
+    if (this.roomKey) {
+      try {
+        op.rmac = await macOp(this.roomKey, op);
+      } catch {
+        /* no room key material — same graceful degradation as signing */
+      }
+    }
+    this.#persist([op]);
+    this.onOutbound?.([op]);
   }
 
   /**
@@ -365,19 +434,172 @@ export class Store extends EventTarget {
    * exactly the set worth gossiping onward — a peer mesh with cycles relies on
    * this to terminate.
    */
-  ingest(ops, source = "remote") {
-    const incoming = Array.isArray(ops) ? ops.filter(isValidOp) : [];
-    if (!incoming.length) return [];
+  /**
+   * Accept ops from a transport — the security choke point.
+   *
+   * Every op is authenticated before it is folded into state. This is the fix
+   * for the whole point of signing ops: without verification here, a hostile
+   * relay (which carries ops in the clear) could forge or rewrite anything —
+   * flip a vote, seize the gavel, impersonate a cousin. So:
+   *
+   *   - `id.announce` ops are self-authenticating (signed by the key they
+   *     carry) and teach the directory who an actor is.
+   *   - Genesis ops are NEVER accepted from the network; the shipped seed is
+   *     trusted only because we derived it locally. A network "genesis" op is
+   *     an impersonation of the seed and is dropped.
+   *   - Every other op is verified against the directory. A forgery (bad
+   *     signature, wrong key) is dropped loudly. An op from an author we do
+   *     not yet have a key for is QUARANTINED — kept and replicated so it is
+   *     never lost, but not folded into state until its identity arrives.
+   *
+   * Verification is skipped only when no verifier is wired (unit tests, and the
+   * brief window before the identity provisions), never for network input once
+   * security is up.
+   */
+  async ingest(ops, source = "remote") {
+    // A user restoring their own exported log is trusted; everything else is
+    // treated as hostile network input until proven otherwise.
+    const trusted = source === "import" || source === "local";
 
-    for (const op of incoming) this.clock.observe(op.hlc);
+    // Structural validation FIRST, with the full envelope limits (op size, key
+    // count, nesting, and — critically — that the HLC's actor component matches
+    // the op's actor, so a peer cannot borrow another identity for tie-breaking
+    // while signing as itself). Anything malformed is dropped, never folded.
+    let raw = Array.isArray(ops) ? ops.filter((op) => isValidOp(op) && validateEnvelope(op) === null) : [];
 
-    const accepted = this.log.insert(incoming);
+    // Bound the work a single ingest call can be made to do. Honest deltas are
+    // chunked well under this; a hostile server pull returning a giant array
+    // (each op forcing a signature/MAC verification) is capped here, and any
+    // genuinely missing tail is re-requested by the next anti-entropy sweep.
+    if (raw.length > LIMITS.opsPerMessage) raw = raw.slice(0, LIMITS.opsPerMessage);
+
+    // A scoped guest may only ever fold its ONE granted item, whatever the
+    // source. Enforcing it HERE (not only in the peer-message handler) means the
+    // server HTTP-pull path and every other ingest route inherit the scope — so
+    // a hostile relay cannot feed a guest anything outside its grant even though
+    // guests are exempt from the room-MAC gate.
+    if (this.guestMode) {
+      raw = this.guestScopeId ? raw.filter((op) => op?.payload?.id === this.guestScopeId) : [];
+    }
+    if (!raw.length) return [];
+
+    // Convert anything not in our schema version (older upgraded, future kept).
+    const incoming = raw.map((op) => {
+      if (versionOf(op) === SCHEMA_VERSION) return op;
+      const result = migrations.convert(op, SCHEMA_VERSION);
+      return result.ok ? { ...result.op, sig: op.sig, kid: op.kid, rmac: op.rmac } : op;
+    });
+
+    const toFold = [];
+    for (const op of incoming) {
+      if (op.actor === "genesis") continue; // never trust a networked seed
+
+      // A scoped guest is room-MAC-exempt (it holds no room secret), so an
+      // `id.announce` is the one op that could otherwise teach it an attacker's
+      // key and let a relay forge scoped content. A guest never needs to learn
+      // keys over the network — the sharer's key is pinned during the guest
+      // handshake — so identity announcements are simply refused in guest mode.
+      if (this.guestMode && op.type === "id.announce") continue;
+
+      // Room-membership gate. A network op must carry a valid room MAC, which
+      // only a holder of the room secret can produce. A hostile relay never
+      // learned the secret, so its injected ops — including forged identity
+      // announcements — are dropped here, before any signature work runs and
+      // before it can teach us a throwaway key. Skipped for trusted imports and
+      // when no room key is configured (unit tests with no crypto context).
+      if (!trusted && !this.guestMode && this.roomKey) {
+        if (!(await verifyOpMac(this.roomKey, op))) {
+          this.#emit("foreign", { op: { actor: op.actor, type: op.type }, source });
+          continue;
+        }
+      }
+
+      if (op.type === "id.announce") {
+        const ident = await verifyIdentityOp(op);
+        if (ident && ident.fingerprint === op.kid) {
+          await this.verifier?.learn(op.actor, ident.spki);
+          toFold.push(op); // harmless to fold; keeps it replicating
+        }
+        continue;
+      }
+
+      if (!this.verifier) {
+        // No crypto context. For a trusted import (or a unit test with no
+        // transports) accept structurally. For genuine network input this can
+        // only be the provisioning window — the coordinator wires the verifier
+        // before any transport can deliver — so hold it rather than fold it.
+        if (trusted) toFold.push(op);
+        else this.#quarantine(op);
+        continue;
+      }
+
+      const verdict = await verifyOp(op, this.verifier);
+      if (verdict.ok) toFold.push(op);
+      else if (verdict.reason === "unknown-author") this.#quarantine(op);
+      else this.#emit("forgery", { op: { actor: op.actor, type: op.type }, reason: verdict.reason, source });
+    }
+
+    if (!toFold.length) return [];
+    for (const op of toFold) this.clock.observe(op.hlc);
+
+    const accepted = this.log.insert(toFold);
     if (!accepted.length) return [];
 
     this.#emit("change", { reason: "remote", source, ops: accepted });
     this.#persist(accepted);
     this.#maybeCompact();
+
+    // A freshly learned identity may release ops that were waiting on it.
+    // Awaited so callers see a settled state before they read it.
+    if (accepted.some((op) => op.type === "id.announce")) await this.#drainQuarantine();
+
     return accepted;
+  }
+
+  /** Hold an op we cannot yet authenticate. It still replicates (so it is not
+   *  lost) but does not touch state until its author's key arrives. */
+  #quarantine(op) {
+    this.quarantine ||= new Map();
+    this.quarantine.set(`${op.actor}:${op.seq}`, op);
+    // Bound the buffer so a flood of unauthenticated ops cannot exhaust memory.
+    if (this.quarantine.size > 5000) {
+      const oldest = this.quarantine.keys().next().value;
+      this.quarantine.delete(oldest);
+    }
+  }
+
+  /** Ops the mesh should still receive even though we have not folded them. */
+  quarantinedOps() {
+    return this.quarantine ? [...this.quarantine.values()] : [];
+  }
+
+  async #drainQuarantine() {
+    if (!this.quarantine?.size || !this.verifier) return;
+    const released = [];
+    for (const [key, op] of this.quarantine) {
+      // Re-apply the room-membership gate: anything held before the room key
+      // was available (the provisioning window) is checked now, so a relay op
+      // that slipped into quarantine cannot be released unauthenticated.
+      if (this.roomKey && !(await verifyOpMac(this.roomKey, op))) {
+        this.quarantine.delete(key);
+        continue;
+      }
+      const verdict = await verifyOp(op, this.verifier);
+      if (verdict.ok) {
+        released.push(op);
+        this.quarantine.delete(key);
+      } else if (verdict.reason !== "unknown-author") {
+        this.quarantine.delete(key); // it was a forgery all along
+      }
+    }
+    if (released.length) {
+      for (const op of released) this.clock.observe(op.hlc);
+      const accepted = this.log.insert(released);
+      if (accepted.length) {
+        this.#emit("change", { reason: "remote", source: "quarantine", ops: accepted });
+        this.#persist(accepted);
+      }
+    }
   }
 
   /** Ops a peer advertising `remote` has not seen. */
@@ -441,7 +663,7 @@ export class Store extends EventTarget {
     const parsed = typeof json === "string" ? JSON.parse(json) : json;
     const ops = Array.isArray(parsed) ? parsed : parsed.ops;
     if (!Array.isArray(ops)) throw new Error("No ops in file");
-    const accepted = this.ingest(ops, "import");
+    const accepted = await this.ingest(ops, "import");
     return accepted.length;
   }
 

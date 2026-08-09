@@ -13,10 +13,17 @@ import SyncCoordinator from "./sync.js";
 import initCursor from "./cursor.js";
 import initActions from "./actions.js";
 import renderAll from "./views.js";
-import { initClock, initFilters, initReveal, initTheme, qs, qsa, esc, h, raw } from "./ui.js";
+import { initClock, initFilters, initReveal, initTheme, qs, qsa, esc, h, raw, toast } from "./ui.js";
 import { select } from "./crdt.js";
+import { LOGO_MARK } from "./logo.js";
+import { Notifier } from "./notify.js";
+import { Watchdog } from "./watchdog.js";
+import { addressAllowed } from "./netrules.js";
 
 document.documentElement.classList.add("js");
+
+/* Drop the playful primary-shape mark into every masthead slot. */
+for (const slot of qsa("[data-logo]")) slot.innerHTML = LOGO_MARK;
 
 /* --------------------------------------------------------------------------
    Chrome that does not depend on data
@@ -187,12 +194,197 @@ async function boot() {
 
   sync.start();
 
+  // Expose the store for the console before wiring the extras, so the extras
+  // can extend the global rather than race the base assignment.
+  window.CousinCongress = { store, sync, select, config: CONFIG };
+
+  await wireExtras(sync);
+
   // Deep links into a single bill re-render just that region.
   addEventListener("hashchange", () => schedulePaint(sync));
+}
 
-  // Expose the store for the console — genuinely useful for a chamber that
-  // runs on its own log, and harmless since everything here is local anyway.
-  window.CousinCongress = { store, sync, select, config: CONFIG };
+/* --------------------------------------------------------------------------
+   Everything the newer subsystems need wired: connection chrome, gating,
+   notifications, the login watchdog, moderation alerts, and page controllers.
+   Kept in one place so boot() stays legible.
+   -------------------------------------------------------------------------- */
+
+async function wireExtras(sync) {
+  /* Connect-first gating: the primary calls to action change once at least one
+     other device is on the mesh, so a newcomer is pointed at pairing before
+     they can act on demo data they think is real. */
+  const paintGate = () => {
+    const connected = (sync.status.peers || []).some((p) => p.state === "secure" || p.state === "open");
+    for (const el of qsa("[data-when='connected']")) el.hidden = !connected;
+    for (const el of qsa("[data-when='disconnected']")) el.hidden = connected;
+  };
+  sync.addEventListener("status", paintGate);
+  paintGate();
+
+  /* The always-present connection banner + the connect-page controllers. */
+  const connect = await import("./connect.js");
+  connect.mountLinkBanner(sync);
+  connect.mountConnect(sync);
+  connect.mountWalkie(sync.walkie);
+  connect.mountEventLog(store, sync);
+
+  /* The chamber chat (present only on pages that include its hooks). */
+  const chair = await import("./chair.js");
+  chair.mountChat(store);
+
+  /* Notifications: a per-device unread list and an optional browser nudge. */
+  const notifier = new Notifier(store);
+  let firstNotifyBuild = true;
+  const refreshNotifs = () => {
+    notifier.rebuild();
+    notifier.nudgeNew(firstNotifyBuild);
+    firstNotifyBuild = false;
+    for (const bell of qsa("[data-notif-count]")) {
+      const n = notifier.unread;
+      bell.textContent = n > 99 ? "99+" : String(n);
+      bell.hidden = n === 0;
+    }
+    const panel = qs("[data-render='notifications']");
+    if (panel) paintNotifications(panel, notifier);
+  };
+  store.addEventListener("change", refreshNotifs);
+  refreshNotifs();
+  qs("[data-action='notif-read-all']")?.addEventListener("click", () => {
+    notifier.markAllRead();
+    refreshNotifs();
+  });
+  qs("[data-action='notif-enable']")?.addEventListener("click", async () => {
+    const perm = await notifier.requestWebPermission();
+    toast(perm === "granted" ? "Notifications on." : "Notifications stay off — that's fine.");
+  });
+
+  /* The login watchdog: classify each connection, flag the odd ones, and apply
+     the Chair's address rules by dropping a peer whose IP is blocked. */
+  const watchdog = new Watchdog();
+  watchdog.seed({
+    fingerprints: sync.directory.list().map((k) => k.fingerprint),
+  });
+  sync.peers?.security && (sync.peers.security.onAddress = (actor, ip) => {
+    const rules = store.state.session?.ipRules || [];
+    const member = memberForActor(actor);
+    return addressAllowed(rules, ip, member?.id || null);
+  });
+  sync.peers?.addEventListener("address", (e) => {
+    const { actor, ip } = e.detail;
+    const member = memberForActor(actor);
+    watchdog.observe({ actor, ip, fingerprint: fpForActor(sync, actor), memberId: member?.id, guest: Boolean(sync.peers.peerScope(actor)) }, Date.now());
+  });
+  watchdog.addEventListener("flag", (e) => {
+    // The Chair is alerted; everyone else is reassured this is being watched.
+    if (isChairHere()) toast(`🔎 Unusual login: ${e.detail.reasons[0] || "looks off"} — check the Chair dashboard.`, "warn");
+    schedulePaint(sync);
+  });
+  window.CousinCongress = { ...window.CousinCongress, notifier, watchdog };
+  // Actions need the watchdog + a per-item resolver for share links.
+  sync.__watchdog = watchdog;
+
+  /* Security alerts: a detected forgery/tamper is the loud one. Warn THIS user
+     plainly and tell them to contact the Chair; log it for the dashboard. */
+  const securityLog = [];
+  store.addEventListener("forgery", (e) => {
+    securityLog.unshift({ ...e.detail, at: Date.now() });
+    showSecurityBanner();
+    schedulePaint(sync);
+  });
+  window.CousinCongress.securityLog = securityLog;
+
+  /* Now that the watchdog and security log exist, mount the Chair dashboard. */
+  chair.mountChairDashboard(store, sync, { watchdog, securityLog });
+
+  /* Frozen overlay: if the Chair has frozen this seat, lock the screen. */
+  const paintFrozen = () => {
+    const me = store.me;
+    let overlay = qs("#cc-frozen");
+    if (me?.frozen) {
+      if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "cc-frozen";
+        overlay.className = "frozen-overlay";
+        overlay.innerHTML =
+          `<div class="frozen-overlay__card"><div class="frozen-overlay__icon">❄️</div>` +
+          `<h2>You've been paused by the Chair</h2>` +
+          `<p>Your seat is frozen, so actions are locked for now. Please contact the Chair to be let back in.</p></div>`;
+        document.body.append(overlay);
+      }
+    } else {
+      overlay?.remove();
+    }
+  };
+  store.addEventListener("change", paintFrozen);
+  store.addEventListener("frozen", () => toast("You're frozen — contact the Chair.", "err"));
+  paintFrozen();
+
+  /* If we joined as a scoped guest and get revoked, wipe the screen. */
+  sync.addEventListener("revoked", () => {
+    for (const region of qsa("[data-render]")) region.innerHTML =
+      `<div class="empty">🔒 Access to this item was ended by the Chair.</div>`;
+    toast("Your access was revoked.", "warn");
+  });
+}
+
+/* --- small helpers the wiring needs --------------------------------------- */
+
+function memberForActor(actor) {
+  // A device announces its member when it claims a seat; until then, unknown.
+  // The base id (before the tab suffix) is the stable actor for a device.
+  const base = String(actor).split(".")[0];
+  return select.members(store.state).find((m) => m.deviceActor === base || m.id === actor) || null;
+}
+
+function fpForActor(sync, actor) {
+  return sync.directory.get(actor)?.fingerprint || null;
+}
+
+function isChairHere() {
+  try {
+    return sessionStorage.getItem("cc.chair") === (store.state.session?.chairAuth?.hash || " ");
+  } catch {
+    return false;
+  }
+}
+
+let securityBannerShown = false;
+function showSecurityBanner() {
+  if (securityBannerShown) return;
+  securityBannerShown = true;
+  const bar = document.createElement("div");
+  bar.className = "security-banner";
+  bar.setAttribute("role", "alert");
+  bar.innerHTML =
+    `<span>⚠️ Something unexpected is happening on the network — a message failed its security check. ` +
+    `This can be harmless, but if it keeps happening, please contact your Chair.</span>` +
+    `<button aria-label="Dismiss">×</button>`;
+  bar.querySelector("button").addEventListener("click", () => {
+    bar.remove();
+    securityBannerShown = false;
+  });
+  document.body.prepend(bar);
+  setTimeout(() => {
+    bar.remove();
+    securityBannerShown = false;
+  }, 15000);
+}
+
+function paintNotifications(panel, notifier) {
+  const items = notifier.items;
+  if (!items.length) {
+    panel.innerHTML = `<p class="empty">Nothing new yet. When votes open or bills move, you'll see it here.</p>`;
+    return;
+  }
+  panel.innerHTML = items
+    .map(
+      (n) =>
+        `<a class="notif ${notifier.readIds.has(n.id) ? "" : "notif--unread"}" href="${esc(n.href || "#")}">` +
+        `<span class="notif__icon">${esc(n.icon || "•")}</span>` +
+        `<span class="notif__body"><strong>${esc(n.title)}</strong><span>${esc(n.body || "")}</span></span></a>`
+    )
+    .join("");
 }
 
 boot().catch((error) => {

@@ -82,6 +82,28 @@ export async function makeAuth(pin) {
 const ATTEMPTS = 3;
 
 /**
+ * Register THIS device's signing key as authorised to act as the seat. This is
+ * what turns a password (a local check anyone reading the code could fake) into
+ * cryptographic authority the rest of the mesh enforces: from here on, only a
+ * key bound to the seat — or the Chair — may cast its ballots or speak for it.
+ * First device to a fresh seat binds it; a second device on an already-claimed
+ * seat is refused by the mesh until the Chair enrols it (see authz.js).
+ */
+function bindSeatKey(memberId) {
+  const kid = store.myFingerprint;
+  if (!kid) return; // crypto not up (or unavailable) — seat stays unbound
+  store.dispatch("member.claimKey", { memberId, kid });
+}
+
+/** True if the seat is already bound to a device that is not this one. */
+function claimedByAnotherDevice(memberId) {
+  const kid = store.myFingerprint;
+  return Boolean(
+    kid && select.seatClaimed(store.state, memberId) && !select.ownsSeat(store.state, memberId, kid)
+  );
+}
+
+/**
  * Bind this device to a member's seat. A seat with no password yet asks its
  * first claimant to invent one — that op replicates, and from then on every
  * device honours it.
@@ -97,16 +119,12 @@ export async function claimSeat(memberId) {
     const pin = await askDialog({
       icon: "✨",
       title: `Pick a secret password for ${member.name}`,
-      hint: "Three or more letters. Capitals and spaces don't matter. You'll use it to sit here on any device — don't lose it, or the Chair will have to reset it!",
+      hint: "Anything you'll remember. Capitals and spaces don't matter. You'll use it to sit here on any device — don't lose it, or the Chair will have to reset it!",
       placeholder: "your secret word",
       confirmLabel: "Save my password",
-      minLength: 3,
     });
-    if (!pin) return false;
-    if (normalize(pin).length < 3) {
-      toast("A password needs at least three letters.", "warn");
-      return false;
-    }
+    if (!pin || !normalize(pin)) return false;
+    bindSeatKey(memberId); // register this device's key as the seat's own
     store.dispatch("member.auth", { memberId, auth: await makeAuth(pin) });
     store.setIdentity({ memberId, displayName: member.name });
     toast(`Password saved. Welcome to the floor, ${member.name}! 🎉`);
@@ -126,8 +144,17 @@ export async function claimSeat(memberId) {
     });
     if (pin === null) return false;
     if (await verifyPin(pin, member.auth)) {
+      const otherDevice = claimedByAnotherDevice(memberId);
+      bindSeatKey(memberId);
       store.setIdentity({ memberId, displayName: member.name });
-      toast(`Welcome back to the floor, ${member.name}! 🎉`);
+      if (otherDevice) {
+        toast(
+          `Seated as ${member.name} on this device. This seat is already registered to another device, so ask the Chair to add this one (Chair's Office → Seats) for your votes to count everywhere.`,
+          "warn"
+        );
+      } else {
+        toast(`Welcome back to the floor, ${member.name}! 🎉`);
+      }
       return true;
     }
   }
@@ -165,6 +192,31 @@ export function isChair() {
 }
 
 /**
+ * Register THIS device's key as a chair device, or — if the chair has already
+ * been founded by someone else — ask to be enrolled rather than seizing it.
+ * The founder (first to take the gavel) binds the root chair key; every other
+ * chair device must be approved by an existing one, so the gavel cannot be
+ * grabbed over the wire by anyone who merely learned the password.
+ */
+function claimChairKey() {
+  const kid = store.myFingerprint;
+  if (!kid) return;
+  if (select.chairEstablished(store.state) && !select.isChairDevice(store.state, kid)) {
+    store.dispatch("chair.request", { kid, name: store.identity.displayName || "" });
+  } else {
+    store.dispatch("chair.claim", { kid });
+  }
+}
+
+/** True if the gavel exists but this device's key is not a chair device yet. */
+function chairUnenrolled() {
+  const kid = store.myFingerprint;
+  return Boolean(
+    kid && select.chairEstablished(store.state) && !select.isChairDevice(store.state, kid)
+  );
+}
+
+/**
  * Gate for everything only the gavel may do: calling and closing votes,
  * editing the docket, publishing dispatches, and provisioning members.
  * The very first use anywhere in the chamber sets the Chair's password —
@@ -181,13 +233,9 @@ export async function requireChair() {
       hint: "No Chair password exists yet, so you get to invent it. Whoever knows it holds the gavel: they can add members, call votes, and run the chamber. Share it wisely!",
       placeholder: "the gavel's secret word",
       confirmLabel: "Take the gavel",
-      minLength: 3,
     });
-    if (!pin) return false;
-    if (normalize(pin).length < 3) {
-      toast("The gavel deserves at least three letters.", "warn");
-      return false;
-    }
+    if (!pin || !normalize(pin)) return false;
+    claimChairKey(); // bind this device as the founding chair key first
     store.dispatch("session.set", { chairAuth: await makeAuth(pin) });
     rememberChairUnlock();
     toast("You hold the gavel. 🔨 Rule justly.");
@@ -208,7 +256,15 @@ export async function requireChair() {
     if (pin === null) return false;
     if (await verifyPin(pin, auth)) {
       rememberChairUnlock();
-      toast("Gavel unlocked for this tab. 🔨");
+      if (chairUnenrolled()) {
+        claimChairKey(); // files a chair.request for the founder to approve
+        toast(
+          "Gavel unlocked on this tab. This device isn't a registered Chair device yet — your Chair actions apply here but won't reach everyone until the main Chair device approves it (Chair's Office → Chair devices).",
+          "warn"
+        );
+      } else {
+        toast("Gavel unlocked for this tab. 🔨");
+      }
       return true;
     }
   }
@@ -226,9 +282,8 @@ export async function changeChairPin() {
     hint: "Replaces the old one everywhere, on every device, as soon as they sync.",
     placeholder: "new secret word",
     confirmLabel: "Change it",
-    minLength: 3,
   });
-  if (!pin) return false;
+  if (!pin || !normalize(pin)) return false;
   store.dispatch("session.set", { chairAuth: await makeAuth(pin) });
   rememberChairUnlock();
   toast("Chair's password changed.");

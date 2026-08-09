@@ -7,14 +7,18 @@
   <meta name="description" content="Live presence on the chamber floor: who is here, where they are, the seating chart, quorum, and the running order of business.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#0b1c4a">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ccircle%20cx='36'%20cy='40'%20r='28'%20fill='%231b3fd8'/%3E%3Crect%20x='46'%20y='38'%20width='40'%20height='40'%20rx='7'%20fill='%23ffc21a'/%3E%3Cpath%20d='M28%2094%2050%2058%2072%2094z'%20fill='%23e0243c'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2040%22%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2224.8%22%20r%3D%2212.5%22%20fill%3D%22%231b3fd8%22%2F%3E%3Cpath%20d%3D%22M11%2C15.3A9%2C9%200%200%201%2029%2C15.3Z%22%20fill%3D%22%23ffc21a%22%2F%3E%3Cpath%20d%3D%22M20%2C2.8L24%2C8.8L16%2C8.8Z%22%20fill%3D%22%23e0243c%22%2F%3E%3C%2Fsvg%3E">
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/features.css">
+  <link rel="stylesheet" href="css/connect.css">
+  <link rel="stylesheet" href="css/logo.css">
   <link rel="stylesheet" href="css/pages.css">
   <link rel="stylesheet" href="css/motion.css">
+  <link rel="stylesheet" href="css/emoji.css">
+  <link rel="stylesheet" href="css/moderation.css">
   <link rel="stylesheet" href="css/cursor.css">
   <script type="module" src="js/app.js"></script>
 </head>
@@ -27,7 +31,7 @@
   <header class="masthead">
     <div class="shell shell--wide masthead__inner">
       <a class="brand" href="index.html" aria-label="Cousin Congress home">
-        <span class="brand__seal" aria-hidden="true">CC</span>
+        <span class="brand__mark" data-logo></span>
         <span class="brand__wordmark">
           <span class="brand__name">Cousin Congress</span>
           <span class="brand__sub">The People's Living Room</span>
@@ -40,13 +44,7 @@
 
       <nav class="nav" aria-label="Primary">
         <a class="nav__link" href="floor.html" aria-current="page">🪑 The Floor</a>
-        <div class="nav__group">
-          <a class="nav__link" href="voting.html">🙋 Votes</a>
-          <ul class="nav__menu">
-            <li><a href="voting.html">Voting <small>Cast and call roll calls</small></a></li>
-            <li><a href="results.html">Results <small>The roll-call archive</small></a></li>
-          </ul>
-        </div>
+        <a class="nav__link" href="voting.html">🙋 Votes</a>
         <div class="nav__group">
           <a class="nav__link" href="bills.html">📜 Bills</a>
           <ul class="nav__menu">
@@ -58,9 +56,9 @@
         <a class="nav__link" href="news.html">📰 Newsroom</a>
         <a class="nav__link" href="members.html">👥 Members</a>
         <a class="nav__link" href="about.html">🧭 About</a>
-        <a class="conn nav__link" data-conn="static" href="sync.html" title="Replication status — chamber devices">
-          <span data-conn-label>Local</span>
-        </a>
+        <a class="nav__link" href="connect.html">🔗 Connect</a>
+        <a class="nav__link" href="connect.html#talkie">📻 Talkie</a>
+        <a class="nav__link notif-bell" href="connect.html#notifications" aria-label="Notifications">🔔<span data-notif-count hidden>0</span></a>
         <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
       </nav>
     </div>
@@ -80,6 +78,15 @@
       </div>
     </div>
 
+    <div class="link-banner" data-link-banner>
+      <span class="link-banner__dot"></span>
+      <span class="link-banner__count" data-link-count>0</span>
+      <span class="link-banner__text" data-link-text>not connected</span>
+      <a class="link-banner__cta" data-link-cta href="connect.html">Connect</a>
+    </div>
+
+    <div class="shell announce-rail" data-render="announcements"></div>
+
     <main id="main">
       <header class="page-head">
         <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
@@ -98,6 +105,99 @@
           </div>
         </div>
       </header>
+
+      <!-- The current vote, front and centre on the floor -->
+      <section class="section section--tight">
+        <div class="shell">
+          <header class="section__head">
+            <p class="section__eyebrow u-caps" data-reveal>Happening now</p>
+            <h2 data-reveal>On the floor right now</h2>
+          </header>
+          <div class="stack stack--lg" data-render="openVotes">
+            <div class="skeleton" style="height:12rem"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Propose: one editor, a toggle between a quick Motion and a full Bill -->
+      <section class="section section--sunken">
+        <div class="shell">
+          <header class="section__head">
+            <p class="section__eyebrow u-caps" data-reveal>Propose something</p>
+            <h2 data-reveal>Start a motion or a bill</h2>
+            <p class="u-muted" data-reveal>A <strong>motion</strong> is a quick yes/no question for
+              the chamber. A <strong>bill</strong> is a written rule that moves through the pipeline.
+              Same desk — just flip the switch.</p>
+          </header>
+
+          <div class="switcher" data-reveal>
+            <input class="switcher__radio" type="radio" name="propose" id="propose-motion" checked>
+            <input class="switcher__radio" type="radio" name="propose" id="propose-bill">
+            <div class="switcher__tabs" role="tablist">
+              <label class="switcher__tab" for="propose-motion">🙋 Quick motion</label>
+              <label class="switcher__tab" for="propose-bill">📜 Write a bill</label>
+            </div>
+            <div class="switcher__panels">
+              <!-- Motion -->
+              <div class="switcher__panel">
+                <form class="panel stack" data-action="open-vote">
+                  <p class="u-muted" style="font-size:var(--fs-sm)">🔨 Calling a vote needs the
+                    Chair's password. It appears on every device at once.</p>
+                  <div class="field">
+                    <label class="field__label" for="m-title">The question</label>
+                    <input class="input" id="m-title" name="title" required maxlength="140"
+                           placeholder="Shall we order pizza tonight?">
+                  </div>
+                  <div class="form-grid form-grid--2">
+                    <div class="field">
+                      <label class="field__label" for="m-threshold">Passes with</label>
+                      <select class="select" id="m-threshold" name="threshold">
+                        <option value="majority" selected>More than half</option>
+                        <option value="twothirds">Two-thirds</option>
+                        <option value="unanimous">Everyone</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="m-minutes">Open for</label>
+                      <select class="select" id="m-minutes" name="minutes">
+                        <option value="">Until closed</option>
+                        <option value="10">10 minutes</option>
+                        <option value="60">1 hour</option>
+                        <option value="1440">1 day</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button class="btn btn--danger" type="submit">🔨 Put the question</button>
+                </form>
+              </div>
+              <!-- Bill -->
+              <div class="switcher__panel">
+                <form class="panel stack" data-action="submit-bill">
+                  <div class="field">
+                    <label class="field__label" for="b-title">Short title</label>
+                    <input class="input" id="b-title" name="title" required maxlength="120"
+                           placeholder="The Backyard Campout Act">
+                  </div>
+                  <div class="field">
+                    <label class="field__label" for="b-summary">What it does</label>
+                    <input class="input" id="b-summary" name="summary" required maxlength="280"
+                           placeholder="One line for the tracker.">
+                  </div>
+                  <div class="field">
+                    <label class="field__label" for="b-text">The rule itself</label>
+                    <textarea class="textarea" id="b-text" name="text" required style="min-height:8rem"
+                              placeholder="SECTION 1. …"></textarea>
+                  </div>
+                  <p class="field__hint" data-me="seat">Claim your seat below to sponsor a bill.</p>
+                  <button class="btn" type="submit">📜 Introduce the bill</button>
+                  <p class="field__hint">Want the full studio with a live parchment preview?
+                    <a href="draft.html">Open the drafting studio →</a></p>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- Quorum + seating -->
       <section class="section">
@@ -208,9 +308,8 @@
                 <h3 style="font-size:var(--fs-md);font-family:var(--font-body);font-weight:700">Take the floor</h3>
                 <div class="field">
                   <label class="field__label" for="status-text">Your update</label>
-                  <textarea class="textarea" id="status-text" name="text" required minlength="3" maxlength="240"
+                  <textarea class="textarea" id="status-text" name="text" required maxlength="240"
                             placeholder="The snack hearing is moving to the porch…" style="min-height:6rem"></textarea>
-                  <p class="field__error">Say at least a few words.</p>
                 </div>
                 <div class="composer__row composer__row--split">
                   <div class="field">
@@ -260,8 +359,7 @@
             <h2 class="colophon__title">The chamber</h2>
             <ul class="colophon__list">
               <li><a href="floor.html">The floor & presence</a></li>
-              <li><a href="voting.html">Voting</a></li>
-              <li><a href="results.html">Roll-call results</a></li>
+              <li><a href="voting.html">Voting & results</a></li>
               <li><a href="docket.html">Docket & calendar</a></li>
             </ul>
           </div>
@@ -278,7 +376,8 @@
             <ul class="colophon__list">
               <li><a href="members.html">Member directory</a></li>
               <li><a href="about.html">Rules & about</a></li>
-              <li><a href="sync.html">Chamber devices</a></li>
+              <li><a href="connect.html">Connect your devices</a></li>
+              <li><a href="connect.html#talkie">Walkie-talkie</a></li>
             </ul>
           </div>
           <div>

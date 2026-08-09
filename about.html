@@ -7,14 +7,18 @@
   <meta name="description" content="What the Cousin Congress is, the standing rules of the chamber, how the local-first record works, and how to reach the clerk.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#0b1c4a">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ccircle%20cx='36'%20cy='40'%20r='28'%20fill='%231b3fd8'/%3E%3Crect%20x='46'%20y='38'%20width='40'%20height='40'%20rx='7'%20fill='%23ffc21a'/%3E%3Cpath%20d='M28%2094%2050%2058%2072%2094z'%20fill='%23e0243c'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2040%22%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2224.8%22%20r%3D%2212.5%22%20fill%3D%22%231b3fd8%22%2F%3E%3Cpath%20d%3D%22M11%2C15.3A9%2C9%200%200%201%2029%2C15.3Z%22%20fill%3D%22%23ffc21a%22%2F%3E%3Cpath%20d%3D%22M20%2C2.8L24%2C8.8L16%2C8.8Z%22%20fill%3D%22%23e0243c%22%2F%3E%3C%2Fsvg%3E">
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/features.css">
+  <link rel="stylesheet" href="css/connect.css">
+  <link rel="stylesheet" href="css/logo.css">
   <link rel="stylesheet" href="css/pages.css">
   <link rel="stylesheet" href="css/motion.css">
+  <link rel="stylesheet" href="css/emoji.css">
+  <link rel="stylesheet" href="css/moderation.css">
   <link rel="stylesheet" href="css/cursor.css">
   <script type="module" src="js/app.js"></script>
 </head>
@@ -27,7 +31,7 @@
   <header class="masthead">
     <div class="shell shell--wide masthead__inner">
       <a class="brand" href="index.html" aria-label="Cousin Congress home">
-        <span class="brand__seal" aria-hidden="true">CC</span>
+        <span class="brand__mark" data-logo></span>
         <span class="brand__wordmark">
           <span class="brand__name">Cousin Congress</span>
           <span class="brand__sub">The People's Living Room</span>
@@ -40,13 +44,7 @@
 
       <nav class="nav" aria-label="Primary">
         <a class="nav__link" href="floor.html">🪑 The Floor</a>
-        <div class="nav__group">
-          <a class="nav__link" href="voting.html">🙋 Votes</a>
-          <ul class="nav__menu">
-            <li><a href="voting.html">Voting <small>Cast and call roll calls</small></a></li>
-            <li><a href="results.html">Results <small>The roll-call archive</small></a></li>
-          </ul>
-        </div>
+        <a class="nav__link" href="voting.html">🙋 Votes</a>
         <div class="nav__group">
           <a class="nav__link" href="bills.html">📜 Bills</a>
           <ul class="nav__menu">
@@ -58,9 +56,9 @@
         <a class="nav__link" href="news.html">📰 Newsroom</a>
         <a class="nav__link" href="members.html">👥 Members</a>
         <a class="nav__link" href="about.html" aria-current="page">🧭 About</a>
-        <a class="conn nav__link" data-conn="static" href="sync.html" title="Replication status — chamber devices">
-          <span data-conn-label>Local</span>
-        </a>
+        <a class="nav__link" href="connect.html">🔗 Connect</a>
+        <a class="nav__link" href="connect.html#talkie">📻 Talkie</a>
+        <a class="nav__link notif-bell" href="connect.html#notifications" aria-label="Notifications">🔔<span data-notif-count hidden>0</span></a>
         <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
       </nav>
     </div>
@@ -79,6 +77,15 @@
         </span>
       </div>
     </div>
+
+    <div class="link-banner" data-link-banner>
+      <span class="link-banner__dot"></span>
+      <span class="link-banner__count" data-link-count>0</span>
+      <span class="link-banner__text" data-link-text>not connected</span>
+      <a class="link-banner__cta" data-link-cta href="connect.html">Connect</a>
+    </div>
+
+    <div class="shell announce-rail" data-render="announcements"></div>
 
     <main id="main">
       <header class="page-head">
@@ -156,7 +163,7 @@
             </div>
           </div>
           <p style="margin-top:var(--sp-5)" data-reveal>
-            <a class="link-arrow" href="sync.html">Open the replication console</a>
+            <a class="link-arrow" href="connect.html">Open the connect page</a>
           </p>
         </div>
       </section>
@@ -274,9 +281,8 @@
               </div>
               <div class="field">
                 <label class="field__label" for="ct-body">Message</label>
-                <textarea class="textarea" id="ct-body" name="body" required minlength="10" maxlength="2000"
+                <textarea class="textarea" id="ct-body" name="body" required maxlength="2000"
                           style="font-family:var(--font-body)"></textarea>
-                <p class="field__error">Ten characters minimum — the Clerk has standards.</p>
               </div>
               <button class="btn" type="submit">Deliver to the clerk's office</button>
             </form>
@@ -292,8 +298,7 @@
             <h2 class="colophon__title">The chamber</h2>
             <ul class="colophon__list">
               <li><a href="floor.html">The floor & presence</a></li>
-              <li><a href="voting.html">Voting</a></li>
-              <li><a href="results.html">Roll-call results</a></li>
+              <li><a href="voting.html">Voting & results</a></li>
               <li><a href="docket.html">Docket & calendar</a></li>
             </ul>
           </div>
@@ -310,7 +315,8 @@
             <ul class="colophon__list">
               <li><a href="members.html">Member directory</a></li>
               <li><a href="about.html">Rules & about</a></li>
-              <li><a href="sync.html">Chamber devices</a></li>
+              <li><a href="connect.html">Connect your devices</a></li>
+              <li><a href="connect.html#talkie">Walkie-talkie</a></li>
             </ul>
           </div>
           <div>
