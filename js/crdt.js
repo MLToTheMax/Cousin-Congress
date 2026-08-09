@@ -526,7 +526,15 @@ export class Log {
 
     if (needsRefold) {
       this.ordered = [...this.byId.values()].sort(compareOps);
-      this.state = fold(this.ordered, this.snapshot?.state);
+      // Refold from EMPTY, never over the snapshot: the snapshot is a checkpoint
+      // of the whole retained log, so folding the log on top of it double-applies
+      // every pre-snapshot op. That is invisible for pure LWW, but authorisation
+      // is order-sensitive — an op that was unauthorised at its real position
+      // (before the op that bound its key) would see that binding already baked
+      // into the snapshot base and wrongly take effect, and replicas that
+      // compacted at different points would diverge. The full log is retained, so
+      // a from-scratch fold is correct and deterministic.
+      this.state = fold(this.ordered);
     } else {
       accepted.sort(compareOps);
       for (const op of accepted) {

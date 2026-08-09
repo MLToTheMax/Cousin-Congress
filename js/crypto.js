@@ -325,7 +325,15 @@ export async function verifyIdentityOp(op) {
   } catch {
     return null;
   }
-  const ok = await verifyWith(key, unb64(op.sig), opSigningInput(op));
+  // Decode the signature defensively — a malformed base64 sig must return null,
+  // not throw, or one crafted id.announce would take down the whole ingest loop.
+  let sig;
+  try {
+    sig = unb64(op.sig);
+  } catch {
+    return null;
+  }
+  const ok = await verifyWith(key, sig, opSigningInput(op));
   return ok ? { spki, fingerprint: fp } : null;
 }
 
