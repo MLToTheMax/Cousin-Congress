@@ -263,7 +263,7 @@ export class SyncCoordinator extends EventTarget {
    */
   sweep() {
     this.tabs?.resetPeers();
-    this.#broadcast({ t: "vv", actor: this.actor, vv: this.store.vv });
+    this.#broadcast({ t: "vv", actor: this.actor, vv: this.store.advertisedVv });
     if (this.server?.mode === "http") this.#pullFromServer();
     this.#emitStatus();
   }
@@ -271,7 +271,10 @@ export class SyncCoordinator extends EventTarget {
   /* --- protocol ----------------------------------------------------------- */
 
   #hello() {
-    return { t: "hello", actor: this.actor, room: CONFIG.room, vv: this.store.vv };
+    // Advertise the gap-free frontier, not the raw max, so a peer resends any op
+    // we are missing in the middle of an actor's sequence rather than assuming
+    // we already hold it.
+    return { t: "hello", actor: this.actor, room: CONFIG.room, vv: this.store.advertisedVv };
   }
 
   #broadcast(msg, except) {
@@ -289,7 +292,7 @@ export class SyncCoordinator extends EventTarget {
         // Answer with what they are missing, then advertise our own position
         // so they can close the gap in the other direction.
         this.#sendDelta(transport, msg.vv, peer);
-        transport.send({ t: "vv", actor: this.actor, vv: this.store.vv }, peer);
+        transport.send({ t: "vv", actor: this.actor, vv: this.store.advertisedVv }, peer);
         this.#emitStatus();
         break;
       }
@@ -411,7 +414,7 @@ export class SyncCoordinator extends EventTarget {
 
   async #pullFromServer() {
     if (!this.server) return;
-    const ops = await this.server.pull(this.store.vv);
+    const ops = await this.server.pull(this.store.advertisedVv);
     if (ops.length) await this.store.ingest(ops, "server");
   }
 

@@ -521,6 +521,34 @@ export class Log {
   }
 
   /**
+   * The version vector we ADVERTISE to peers — the highest per-actor seq with no
+   * gap beneath it, i.e. what we can actually answer a delta for.
+   *
+   * `this.vv` tracks the max seq seen (right for dedup and ordering), but a max
+   * hides a missing middle op: receive seqs 0,1,5 for an actor and `vv` reads 5,
+   * so a peer computing our delta thinks we already hold 2–4 and never resends
+   * them — the gap is permanent. Advertising the CONTIGUOUS frontier (here, 1)
+   * instead makes the peer resend from the gap; the ops we already have dedupe on
+   * arrival. It can only ever cause more resends, never fewer, so it cannot break
+   * convergence — and for a gapless log (the normal case) it equals `this.vv`.
+   */
+  advertisedVv() {
+    const seqs = new Map();
+    for (const op of this.ordered) {
+      let set = seqs.get(op.actor);
+      if (!set) seqs.set(op.actor, (set = new Set()));
+      set.add(op.seq);
+    }
+    const out = {};
+    for (const [actor, set] of seqs) {
+      let frontier = -1;
+      while (set.has(frontier + 1)) frontier += 1;
+      out[actor] = frontier;
+    }
+    return out;
+  }
+
+  /**
    * Compact: fold everything into a checkpoint and keep the log. The ops are
    * deliberately retained — a peer joining with an empty vector must still be
    * able to receive the full history, and a snapshot alone cannot answer an

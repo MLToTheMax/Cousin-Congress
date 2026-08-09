@@ -296,6 +296,11 @@ export class Store extends EventTarget {
     return this.log.vv;
   }
 
+  /** The gap-free version vector to advertise to peers (see Log.advertisedVv). */
+  get advertisedVv() {
+    return this.log.advertisedVv();
+  }
+
   get actorId() {
     return this.replicaId;
   }

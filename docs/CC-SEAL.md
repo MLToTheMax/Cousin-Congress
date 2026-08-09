@@ -469,6 +469,16 @@ Also hardened in the same pass: the per-call ingest batch is capped at
 signature work), and `comment.retract` is now Chair-only moderation rather than
 open to any member.
 
+A **fourth verification pass** confirmed the above are airtight and found no new
+integrity break; it did surface one availability weakness, now fixed
+(`tests/vv-frontier.test.mjs`): the version vector we advertised tracked the
+*max* seq seen, so a lossy or hostile transport that delivered a later op before
+an earlier one left a permanent mid-sequence gap that anti-entropy never healed
+(the advertised vector claimed ops we didn't hold). We now advertise the
+**gap-free frontier** (`Log.advertisedVv`), so a peer resends from the gap and
+already-held ops dedupe on arrival — it can only cause more resends, never fewer,
+so convergence is unaffected, and for a gapless log it equals the old value.
+
 ### Residual risk — stated plainly
 
 - **Same-room founding races.** First-writer-wins is ordered by the HLC, which a
