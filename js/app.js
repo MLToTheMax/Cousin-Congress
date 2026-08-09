@@ -222,6 +222,42 @@ async function wireExtras(sync) {
   sync.addEventListener("status", paintGate);
   paintGate();
 
+  /* Access gating: a feature a member can't use renders as a greyed "ask the
+     Chair" card instead of dead controls. Two body classes drive the CSS —
+     is-seated (a seat is claimed) and is-chair (the gavel is unlocked here). */
+  const paintAccess = () => {
+    document.body.classList.toggle("is-seated", Boolean(store.identity.memberId));
+    document.body.classList.toggle("is-chair", isChairHere());
+  };
+  store.addEventListener("change", paintAccess);
+  store.addEventListener("identity", paintAccess);
+  // The gavel unlock lives in sessionStorage; re-check shortly after any click.
+  document.addEventListener("click", () => setTimeout(paintAccess, 60), true);
+  paintAccess();
+
+  /* The three-emoji congress seal, derived from the room secret so everyone in
+     the same congress sees the same three and an outsider's differs at a glance. */
+  const CONGRESS_EMOJI = [
+    "🦊", "🐻", "🐼", "🦁", "🐯", "🐨", "🐸", "🐵", "🦉", "🦄",
+    "🐢", "🐙", "🦋", "🐝", "🐬", "🦕", "🌵", "🌻", "🍁", "🍄",
+    "⭐", "🌈", "🔥", "❄️", "⚡", "🌊", "🌙", "☀️", "🍎", "🍋",
+    "🍉", "🍇", "🍕", "🍔", "🍩", "🍪", "🧁", "🎈", "🎸", "🚀",
+    "⚽", "🏀", "🎲", "🧩", "🎁", "🔔", "🗝️", "🧭", "⛵", "🏰",
+  ];
+  const paintCongress = async () => {
+    try {
+      const secret = sync.roomSecret;
+      if (!secret) return;
+      const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", secret));
+      const seal = [0, 1, 2].map((i) => CONGRESS_EMOJI[digest[i] % CONGRESS_EMOJI.length]).join(" ");
+      for (const el of qsa("[data-congress-code]")) el.textContent = seal;
+    } catch {
+      /* no WebCrypto — leave the placeholder dots */
+    }
+  };
+  paintCongress();
+  sync.addEventListener("status", paintCongress);
+
   /* The always-present connection banner + the connect-page controllers. */
   const connect = await import("./connect.js");
   connect.mountLinkBanner(sync);

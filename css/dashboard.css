@@ -1,0 +1,164 @@
+/**
+ * dashboard.css — the single-page unified app shell.
+ *
+ * One page, four tabs (Floor / Newsroom / Members / Connect), two icon drawers
+ * (notifications, settings). Tabs and drawers are pure CSS: radio inputs and
+ * checkboxes toggle sibling panels, so switching costs no JS and no navigation.
+ * Access-gated features that a member can't use render as greyed "ask the Chair"
+ * cards rather than showing controls that would do nothing.
+ */
+
+/* --- app frame ----------------------------------------------------------- */
+.app { min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); }
+
+.appbar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.appbar__brand { display: inline-flex; align-items: center; gap: var(--sp-2); font-family: var(--font-display); font-weight: 800; }
+.appbar__brand [data-logo] { width: 1.9rem; height: 1.9rem; display: inline-block; }
+.appbar__brand small { display: block; font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); font-family: var(--font-body); }
+
+.appbar__congress {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3); border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  font-size: var(--fs-xs);
+}
+.appbar__congress-label { color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-size: var(--fs-2xs); }
+.appbar__congress-code { font-size: 1.1rem; letter-spacing: .15em; }
+
+.appbar__spacer { flex: 1; }
+
+.appbar__icon {
+  position: relative; cursor: pointer;
+  display: inline-grid; place-items: center;
+  width: 2.4rem; height: 2.4rem; border-radius: 50%;
+  font-size: 1.15rem; background: var(--surface-2); border: 1px solid var(--line);
+  user-select: none;
+}
+.appbar__icon:hover { background: var(--surface-3, var(--surface-2)); }
+.appbar__icon [data-notif-count] {
+  position: absolute; top: -3px; right: -3px; min-width: 1.1rem; height: 1.1rem;
+  padding: 0 3px; border-radius: 999px; background: var(--c-red-500); color: #fff;
+  font-size: var(--fs-2xs); display: grid; place-items: center; font-weight: 700;
+}
+
+/* connection pill inside the bar */
+.appbar .link-banner { position: static; margin: 0; padding: var(--sp-1) var(--sp-3); border-radius: 999px; box-shadow: none; }
+
+/* --- tab bar ------------------------------------------------------------- */
+.tabin { position: absolute; opacity: 0; pointer-events: none; }
+.tabbar {
+  position: sticky; top: calc(2.4rem + var(--sp-3) * 2 + 1px); z-index: 30;
+  display: flex; gap: var(--sp-1); padding: var(--sp-2) var(--sp-4);
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+  backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+  overflow-x: auto; scrollbar-width: none;
+}
+.tabbar::-webkit-scrollbar { display: none; }
+.tabbar label {
+  cursor: pointer; white-space: nowrap; user-select: none;
+  padding: var(--sp-2) var(--sp-4); border-radius: 999px;
+  font-weight: 700; color: var(--muted); border: 1px solid transparent;
+}
+.tabbar label:hover { color: var(--ink); background: var(--surface-2); }
+
+#tab-floor:checked   ~ .tabbar label[for="tab-floor"],
+#tab-news:checked    ~ .tabbar label[for="tab-news"],
+#tab-members:checked ~ .tabbar label[for="tab-members"],
+#tab-connect:checked ~ .tabbar label[for="tab-connect"] {
+  color: var(--c-blue-700, #123); background: var(--surface); border-color: var(--line);
+  box-shadow: 0 1px 0 var(--c-blue-500) inset, var(--shadow-sm, 0 1px 3px rgba(0,0,0,.08));
+}
+
+.tabpanel { display: none; }
+#tab-floor:checked   ~ .app__main .tabpanel[data-tab="floor"],
+#tab-news:checked    ~ .app__main .tabpanel[data-tab="news"],
+#tab-members:checked ~ .app__main .tabpanel[data-tab="members"],
+#tab-connect:checked ~ .app__main .tabpanel[data-tab="connect"] { display: block; animation: tab-in .25s ease both; }
+@media (prefers-reduced-motion: reduce) { .tabpanel { animation: none !important; } }
+@keyframes tab-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.app__main { flex: 1; }
+.app__main .shell { padding-top: var(--sp-6); padding-bottom: var(--sp-7); }
+
+/* --- intro over the dashboard -------------------------------------------- */
+.app-intro { padding: var(--sp-6) var(--sp-4) var(--sp-2); }
+.app-intro h1 { font-family: var(--font-display); font-size: clamp(1.6rem, 4vw, 2.4rem); }
+.app-intro p { max-width: 62ch; color: var(--muted); }
+
+/* --- Floor dashboard grid ------------------------------------------------ */
+.floor-grid { display: grid; gap: var(--sp-5); grid-template-columns: 1fr; }
+@media (min-width: 60rem) { .floor-grid { grid-template-columns: 1.6fr 1fr; align-items: start; } }
+.floor-aside { display: grid; gap: var(--sp-4); position: sticky; top: 8rem; }
+
+/* Propose side panel: motion/bill switcher lives here */
+.propose { border: 1px solid var(--line); border-radius: var(--radius-lg, 14px); background: var(--surface); padding: var(--sp-4); }
+
+/* Docket mode toggle: a CSS switch between "floor" and "calendar" views */
+#mode-floor, #mode-cal { position: absolute; opacity: 0; pointer-events: none; }
+.mode-switch { display: inline-flex; gap: var(--sp-1); background: var(--surface-2); border-radius: 999px; padding: 3px; }
+.mode-switch label { cursor: pointer; padding: var(--sp-1) var(--sp-3); border-radius: 999px; font-size: var(--fs-sm); font-weight: 700; color: var(--muted); }
+.section:has(#mode-floor:checked) .mode-switch label[for="mode-floor"],
+.section:has(#mode-cal:checked)   .mode-switch label[for="mode-cal"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,.08)); }
+.mode-pane { display: none; }
+#mode-floor:checked ~ .mode-body .mode-pane[data-mode="floor"],
+#mode-cal:checked   ~ .mode-body .mode-pane[data-mode="cal"] { display: block; }
+
+/* --- presence "map" ------------------------------------------------------ */
+.presence-map {
+  position: relative; border: 1px solid var(--line); border-radius: var(--radius-lg, 14px);
+  background:
+    radial-gradient(circle at 30% 30%, color-mix(in oklab, var(--c-blue-500) 12%, transparent), transparent 60%),
+    radial-gradient(circle at 75% 65%, color-mix(in oklab, var(--c-yellow-500) 12%, transparent), transparent 55%),
+    var(--surface);
+  min-height: 12rem; padding: var(--sp-4);
+  display: flex; flex-wrap: wrap; gap: var(--sp-3); align-content: center; justify-content: center;
+}
+.presence-pin { display: grid; justify-items: center; gap: 3px; font-size: var(--fs-2xs); color: var(--muted); width: 4.5rem; text-align: center; }
+.presence-pin__dot { width: 2.6rem; height: 2.6rem; border-radius: 50%; display: grid; place-items: center; font-size: 1.3rem; background: var(--surface-2); border: 2px solid var(--line); }
+.presence-pin[data-presence="present"] .presence-pin__dot { border-color: var(--c-green-500); }
+.presence-pin[data-presence="voting"]  .presence-pin__dot { border-color: var(--c-blue-600); }
+.presence-pin[data-presence="remote"]  .presence-pin__dot { border-color: var(--c-yellow-500); }
+.presence-pin[data-presence="away"]    .presence-pin__dot { opacity: .5; }
+
+/* --- drawers (notifications + settings) ---------------------------------- */
+.drawerin { position: absolute; opacity: 0; pointer-events: none; }
+.drawer {
+  position: fixed; top: 0; right: 0; z-index: 60; height: 100dvh; width: min(420px, 92vw);
+  background: var(--surface); border-left: 1px solid var(--line);
+  box-shadow: -12px 0 40px rgba(0,0,0,.18);
+  transform: translateX(100%); transition: transform .25s ease; overflow-y: auto;
+  padding: var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-4);
+}
+#drawer-notif:checked ~ .drawer--notif,
+#drawer-settings:checked ~ .drawer--settings { transform: none; }
+.drawer__head { display: flex; align-items: center; justify-content: space-between; }
+.drawer__close { cursor: pointer; font-size: 1.3rem; width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 50%; }
+.drawer__close:hover { background: var(--surface-2); }
+.drawer-scrim { position: fixed; inset: 0; z-index: 55; background: rgba(6,12,30,.4); opacity: 0; pointer-events: none; transition: opacity .2s; }
+#drawer-notif:checked ~ .drawer-scrim,
+#drawer-settings:checked ~ .drawer-scrim { opacity: 1; pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
+
+/* --- access-gated greyed cards ------------------------------------------- */
+.gated-card {
+  border: 1px dashed var(--line); border-radius: var(--radius-lg, 14px);
+  background: repeating-linear-gradient(135deg, var(--surface-2), var(--surface-2) 10px, var(--surface) 10px, var(--surface) 20px);
+  padding: var(--sp-5); text-align: center; color: var(--muted);
+  display: grid; gap: var(--sp-2); justify-items: center; opacity: .85;
+}
+.gated-card__icon { font-size: 1.8rem; filter: grayscale(1); opacity: .7; }
+.gated-card strong { color: var(--ink); }
+.gated-card__hint { font-size: var(--fs-xs); }
+
+/* Show real UI only to those with access; show the greyed card to those without. */
+body:not(.is-chair)  [data-chair-only] { display: none !important; }
+body.is-chair        [data-chair-locked] { display: none !important; }
+body:not(.is-seated) [data-seat-only]  { display: none !important; }
+body.is-seated       [data-seat-locked] { display: none !important; }
