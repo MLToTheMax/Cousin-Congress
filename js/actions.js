@@ -289,6 +289,14 @@ const CLICK_ACTIONS = {
     toast("✅ Approved — that device now holds the gavel too.");
   },
 
+  /** Chair approves a device asking to be enrolled onto a seat. */
+  async "approve-seat"(store, el) {
+    if (!(await requireChair())) return;
+    const member = select.member(store.state, el.dataset.member);
+    store.dispatch("member.enrollKey", { memberId: el.dataset.member, kid: el.dataset.kid });
+    toast(`✅ Approved — that device can now vote as ${member?.name || "that seat"}.`);
+  },
+
   /** Chair clears a seat's registered devices so a new one can re-claim it.
    *  This is the recovery path for a lost, replaced, or shared device. */
   async "reset-seat"(store, el) {

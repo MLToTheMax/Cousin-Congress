@@ -95,6 +95,15 @@ function bindSeatKey(memberId) {
   store.dispatch("member.claimKey", { memberId, kid });
 }
 
+/** Ask the Chair to enrol THIS device onto an already-claimed seat. Grants
+ *  nothing until the Chair approves (member.enrollKey); it just lets them see
+ *  the request in the Chair's Office. */
+function requestSeatKey(memberId, name) {
+  const kid = store.myFingerprint;
+  if (!kid) return;
+  store.dispatch("member.requestKey", { memberId, kid, name: name || "" });
+}
+
 /** True if the seat is already bound to a device that is not this one. */
 function claimedByAnotherDevice(memberId) {
   const kid = store.myFingerprint;
@@ -145,14 +154,18 @@ export async function claimSeat(memberId) {
     if (pin === null) return false;
     if (await verifyPin(pin, member.auth)) {
       const otherDevice = claimedByAnotherDevice(memberId);
-      bindSeatKey(memberId);
       store.setIdentity({ memberId, displayName: member.name });
       if (otherDevice) {
+        // The seat is already bound to another device. Don't silently bind a
+        // second key (the mesh would reject its votes anyway) — file a request
+        // the Chair can approve, and say so plainly.
+        requestSeatKey(memberId, member.name);
         toast(
-          `Seated as ${member.name} on this device. This seat is already registered to another device, so ask the Chair to add this one (Chair's Office → Seats) for your votes to count everywhere.`,
+          `Seated as ${member.name} on this device. This seat is already registered to another device — I've asked the Chair to add this one (Chair's Office → Seats). Your votes count everywhere once they approve it. 🪑`,
           "warn"
         );
       } else {
+        bindSeatKey(memberId);
         toast(`Welcome back to the floor, ${member.name}! 🎉`);
       }
       return true;

@@ -107,6 +107,7 @@ export function authorize(state, op) {
       return chair; // administering others' keys is the chair's alone
 
     case "chair.request":
+    case "member.requestKey":
       return true; // a request grants nothing; the chair must still approve
 
     case "member.claimKey": {
