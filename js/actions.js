@@ -459,7 +459,7 @@ const CLICK_ACTIONS = {
     try {
       const joinBadge = qs("#join-badge");
       if (joinBadge) joinBadge.textContent = await iconFingerprint(input.value.trim());
-      output.value = await ctx.sync.acceptInvite(input.value);
+      output.value = (await ctx.sync.acceptInvite(input.value)).code;
       const badge = qs("#answer-badge");
       if (badge) badge.textContent = await iconFingerprint(output.value);
       wrap.hidden = false;

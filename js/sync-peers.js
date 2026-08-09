@@ -51,12 +51,25 @@ async function gunzip(bytes) {
   return new Response(stream).text();
 }
 
+/**
+ * Encode a pairing ticket two ways from the SAME compressed bytes:
+ *   - `code`    the emoji "picture code", for humans to copy/paste or photograph;
+ *   - `compact` a short base64 string, for the QR and Seal Card.
+ *
+ * The QR must use `compact`, NOT `code`: each byte of the picture code is a
+ * multi-byte emoji, so QR-encoding the emoji string inflates the payload ~4x and
+ * blows past the QR capacity (a ~780-byte ticket becomes ~3100 bytes). Both
+ * forms round-trip through decodePayload — emoji via its icon branch, `compact`
+ * via its `z.`/`p.` branch.
+ */
 async function encodePayload(obj) {
   const raw = new TextEncoder().encode(JSON.stringify(obj));
-  if (typeof CompressionStream === "undefined") return emojiEncode(concatBytes(2, raw));
+  if (typeof CompressionStream === "undefined") {
+    return { code: emojiEncode(concatBytes(2, raw)), compact: `p.${b64(raw)}` };
+  }
   const stream = new Blob([raw]).stream().pipeThrough(new CompressionStream("gzip"));
   const packed = new Uint8Array(await new Response(stream).arrayBuffer());
-  return emojiEncode(concatBytes(1, packed));
+  return { code: emojiEncode(concatBytes(1, packed)), compact: `z.${b64(packed)}` };
 }
 
 async function decodePayload(code) {
@@ -561,10 +574,8 @@ export class PeerTransport extends EventTarget {
     await link.pc.setLocalDescription(offer);
     await this.#gatherIce(link.pc);
 
-    return {
-      id: inviteId,
-      code: await encodePayload(await this.#ticket("offer", inviteId, link.pc.localDescription.sdp, scope)),
-    };
+    const enc = await encodePayload(await this.#ticket("offer", inviteId, link.pc.localDescription.sdp, scope));
+    return { id: inviteId, code: enc.code, compact: enc.compact };
   }
 
   /** A guest invite: the recipient can read only the one shared item. The
