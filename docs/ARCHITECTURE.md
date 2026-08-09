@@ -127,7 +127,22 @@ Op types (namespace.verb): `session.set`, `member.upsert/presence/auth/retract`,
 `bill.upsert/stage/retract`, `cosponsor.add/remove`, `amendment.file/withdraw`,
 `comment.post/retract`, `news.post/retract`, `docket.add/remove`,
 `proxy.delegate/revoke`, `status.post/retract`, `announce.post/retract`,
-`share.grant/revoke`, `chat.post/retract`, `id.announce`.
+`share.grant/revoke`, `chat.post/retract`, `id.announce`, and the trust-binding
+ops `chair.claim/enroll/request`, `member.claimKey/enrollKey/resetKeys`.
+
+### 2.6 Authorisation at fold (`authz.js`)
+
+Signatures say *who authored* an op; they do not say *whether they may act on
+the target*. `applyOp` therefore consults `authorize(state, op)` — a **pure**
+function of the folded-so-far state — before running any reducer, so an
+unauthorised op folds into the log (staying convergent and auditable) but
+changes nothing. Authority lives in replicated state: `session.chairKeys` and
+each `members[id].keys` map authorised device fingerprints (`op.kid`) to what
+they may do. Ballots require a key bound to that seat; chamber governance
+requires a chair key; binding is first-writer-wins and Chair-recoverable. Doing
+this **at fold** (not at ingest) is what keeps the verdict a deterministic
+function of the total-ordered log, so replicas never diverge on it. See
+docs/CC-SEAL.md §15.
 
 ---
 
@@ -146,17 +161,24 @@ Op types (namespace.verb): `session.set`, `member.upsert/presence/auth/retract`,
 
 ## 5. Identity, auth, and the Chair
 
-Three distinct layers, do not conflate them:
+Four distinct layers, do not conflate them:
 
-1. **Cryptographic identity** (`crypto.js`): a per-device non-extractable
-   ECDSA‑P384 keypair. Signs every op. This is the real authenticity layer.
-2. **Seat passwords** (`auth.js`): a member claims a seat with a secret word.
+1. **Cryptographic identity** (`crypto.js`): a per-**replica** non-extractable
+   ECDSA‑P384 keypair (stored per replica id so tabs don't clobber each other).
+   Signs every op. This is the real authenticity layer.
+2. **Key bindings** (`authz.js`): claiming a seat or the gavel registers the
+   device's key as authorised for it (`member.claimKey`, `chair.claim`), and
+   `authorize()` enforces that binding at fold. This is what makes the seat/Chair
+   distinctions a real security boundary against an in-room peer, not just UX.
+3. **Seat passwords** (`auth.js`): a member claims a seat with a secret word.
    Salted-SHA-256 hashed **client-side**; the hash lives in the replicated
-   record. A *UX latch* to stop a younger cousin voting as an older one — not a
-   security boundary. Case/space-insensitive, visible text, 3 retries.
-3. **The Chair** 🔨: a chamber-wide password (`session.chairAuth`). Gates all
-   privileged actions. First chair action sets it; unlock is per-tab
-   (sessionStorage).
+   record. The *local latch* that gates claiming (and stops a younger cousin
+   voting as an older one); the cryptographic enforcement is layer 2.
+   Case/space-insensitive, visible text, 3 retries.
+4. **The Chair** 🔨: a chamber-wide password (`session.chairAuth`) unlocks the UI
+   per tab (sessionStorage); the founding device's key is bound as the root chair
+   key, and additional chair devices are enrolled by an existing one
+   (`chair.request` → `chair.enroll`).
 
 **Chair-gated actions:** call/close votes, advance a bill's stage, docket
 entries, news dispatches, announcements, enroll/reset/retire members, all
@@ -185,9 +207,13 @@ through a chain when it can't connect to the origin directly.
 **Persistent sessions:** a keepalive ping every 25s keeps NAT bindings and the
 relay socket warm; reconnect on `online`/`visibilitychange`.
 
-**Ingest is the security choke point** (`store.ingest`): every op is verified
-against the key directory before folding — forgery dropped, unknown author
-quarantined until its self-signed `id.announce` arrives, genesis refused.
+**Ingest is the security choke point** (`store.ingest`), in order: envelope
+validation (size/limits, HLC-actor match) → **room MAC gate** (a network op must
+carry a valid `rmac` keyed by the room PSK, so a non-member relay is dropped
+before any signature work) → signature verify against the key directory (forgery
+dropped, unknown author quarantined until its `id.announce` arrives, genesis
+refused). **Authorisation** is then applied at fold (`authz.js`, §2.6), not here,
+so it stays a deterministic function of the log.
 
 ---
 
@@ -331,11 +357,12 @@ css/                       tokens, base, layout, components, features, pages,
                            connect, logo, emoji, moderation, motion, cursor
 js/
   config.js                deployment config (apiBase, room, roomSecret, ICE, endpoints)
-  crdt.js                  HLC, version vectors, reducers, Log, selectors
+  crdt.js                  HLC, version vectors, reducers (+ trust bindings), Log, selectors
+  authz.js                 fold-time authorization policy + key-binding accessors
   schema.js                op envelope validation, limits, versioning
   migrate.js               declarative runtime converters
-  store.js                 IndexedDB persistence, identity, ingest (verify), quarantine
-  crypto.js                identity, handshake, seal/open, signOp/verifyOp, KeyDirectory
+  store.js                 IndexedDB persistence, identity, ingest (envelope + room MAC + verify + authz), quarantine
+  crypto.js                identity, handshake, seal/open, signOp/verifyOp, room MAC, KeyDirectory
   chacha.js                ChaCha20/XChaCha20-Poly1305 (RFC 8439)
   sync.js                  coordinator: protocol, mesh, relay, shares, walkie, migrations
   sync-tabs/-server/-peers.js   the three transports
@@ -368,15 +395,19 @@ docs/ARCHITECTURE.md       this file
 ## 14. Rebuild checklist
 
 1. CRDT core (`crdt.js`) + tests — get convergence right first.
-2. Persistence (`store.js`) + genesis seeding.
+2. Persistence (`store.js`) + genesis seeding. Store the signing key PER replica
+   id (shared IndexedDB across tabs must not clobber it — `tests/identity-persist`).
 3. Crypto (`chacha.js` against RFC vectors, then `crypto.js`) + tests.
-4. Ingest verification (the security choke point) + `tests/ingest-auth`.
-5. Transports + coordinator; prove two-tab then two-browser sync.
-6. Views + actions + pages (static-first, enhance with JS).
-7. Pairing (QR/emoji/sealcard) + the mesh.
-8. Features: voting, bills, docket, news, members, floor.
-9. Chair layer: auth, moderation, dashboard, watchdog, netmap.
-10. Shares, walkie, chat, notifications.
-11. Polish: logo, cursor, motion, kid-friendly copy.
-12. Adversarially pentest; fix; document (CC-SEAL).
+4. Ingest choke point + tests: envelope validation, the room MAC gate
+   (`tests/transport-authz`), signature verify + quarantine (`tests/ingest-auth`).
+5. Authorisation (`authz.js`) enforced at fold, order-independent
+   (`tests/authz-fold`); wire seat/gavel claims to emit the binding ops.
+6. Transports + coordinator; prove two-tab then two-browser sync.
+7. Views + actions + pages (static-first, enhance with JS).
+8. Pairing (QR/emoji/sealcard) + the mesh.
+9. Features: voting, bills, docket, news, members, floor.
+10. Chair layer: auth, moderation, dashboard (incl. device enrolment), watchdog, netmap.
+11. Shares, walkie, chat, notifications.
+12. Polish: logo, cursor, motion, kid-friendly copy.
+13. Adversarially pentest; fix; document (CC-SEAL, incl. §15 authorisation).
 ```

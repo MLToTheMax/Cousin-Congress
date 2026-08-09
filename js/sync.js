@@ -21,7 +21,7 @@ import { VV } from "./crdt.js";
 import TabTransport from "./sync-tabs.js";
 import ServerTransport from "./sync-server.js";
 import PeerTransport from "./sync-peers.js";
-import { Identity, KeyDirectory, newPairingSecret } from "./crypto.js";
+import { Identity, KeyDirectory, newPairingSecret, deriveRoomKey } from "./crypto.js";
 import { unb64, b64 } from "./crypto.js";
 import WalkieTalkie from "./walkie.js";
 import { migrations } from "./migrate.js";
@@ -107,6 +107,13 @@ export class SyncCoordinator extends EventTarget {
     if (!(secret instanceof Uint8Array) || secret.length !== 32) return;
     this.roomSecret = secret;
     if (this.peers) this.peers.security.roomSecret = secret;
+    // Re-derive the room MAC key for the room we just joined, so our ops carry
+    // a MAC this room accepts and we can authenticate theirs.
+    deriveRoomKey(secret)
+      .then((key) => {
+        this.store.roomKey = key;
+      })
+      .catch(() => {});
     try {
       localStorage.setItem(ROOM_SECRET_KEY, b64(secret));
     } catch {
@@ -125,6 +132,15 @@ export class SyncCoordinator extends EventTarget {
     this.identity = await Identity.load(this.actor, this.store.storage);
     await this.directory.learn(this.actor, this.identity.spki, { pinned: true });
     if (this.peers) this.peers.security.identity = this.identity;
+
+    // Derive the room MAC key from the shared PSK and hand it to the store
+    // BEFORE anything is signed or announced, so our very first op (the identity
+    // announcement) already carries a room MAC and is accepted by peers.
+    try {
+      this.store.roomKey = await deriveRoomKey(this.roomSecret);
+    } catch {
+      /* no room secret material — degrade like the rest of the crypto path */
+    }
     this.store.identitySigner = this.identity; // store signs ops with it
     this.store.verifier = this.directory; // and verifies incoming ops against it
 
@@ -140,8 +156,12 @@ export class SyncCoordinator extends EventTarget {
     if (this.started) return this;
     this.started = true;
 
-    // Bring the crypto identity up, then the mesh. Peers can't hand-shake
-    // until the identity exists, so this must resolve before pairing.
+    // Bring the crypto identity and room key up. The provisioning window it
+    // opens is sealed at the ingest layer, not here: until store.verifier is
+    // set, ingest QUARANTINES every network op instead of folding it, and once
+    // the room key lands the quarantine is re-checked against it. So the mesh
+    // can start immediately — which keeps our identity announcement propagating
+    // promptly — without a window in which unauthenticated ops could be folded.
     this.provision().catch((err) => console.error("[cousin-congress] identity", err));
 
     // Fetch any schema converters this deployment points at, so an op from a
@@ -162,6 +182,15 @@ export class SyncCoordinator extends EventTarget {
       this.#emitStatus();
     });
     this.peers?.addEventListener("peerclose", () => this.#emitStatus());
+
+    // If this device becomes a scoped guest, it holds only a per-share secret,
+    // never the room secret — so it cannot MAC or verify room ops. Exempt it
+    // from the room-membership gate; its reads are already scope-filtered and
+    // arrive over the sharer's encrypted uplink.
+    this.peers?.addEventListener("guest", () => {
+      this.store.guestMode = true;
+      this.store.roomKey = null;
+    });
 
     this.server?.addEventListener("open", () => this.#broadcast(this.#hello()));
     this.server?.addEventListener("poll", () => this.#pullFromServer());

@@ -39,6 +39,7 @@ export function mountChairDashboard(store, sync, ctx) {
         ${policyPanel(session)}
         ${trafficPanel(sync, traffic)}
         ${membersPanel(members, session)}
+        ${devicesPanel(store)}
         ${connectionsPanel(traffic, sync)}
         ${securityPanel(flags, security)}
         ${historyPanel(log)}
@@ -96,19 +97,57 @@ function membersPanel(members, session) {
   if (!members.length) return `<section class="dash__panel"><h3>👥 Members</h3><p class="empty">None yet.</p></section>`;
   const rows = members
     .map((m) => {
+      const devices = Object.keys(m.keys || {}).length;
+      const dot = devices === 0 ? "unclaimed" : `${devices} device${devices === 1 ? "" : "s"}`;
       return `<div class="toggle-row">
         <div><strong>${esc(m.icon || "🪑")} ${esc(m.name)}</strong>
           ${m.frozen ? '<span class="conn-row__badge conn-row__badge--guest">frozen</span>' : ""}
+          <br><span class="u-muted" style="font-size:var(--fs-2xs)">🔑 ${dot}</span>
         </div>
         <div class="cluster" style="gap:var(--sp-1)">
           <button class="btn btn--ghost btn--sm" data-action="toggle-talk" data-member="${esc(m.id)}" title="Walkie">📻 ${m.canTalk ? "on" : "off"}</button>
           <button class="btn btn--ghost btn--sm" data-action="toggle-chat" data-member="${esc(m.id)}" title="Chat">💬 ${m.canChat ? "on" : "off"}</button>
           <button class="btn btn--ghost btn--sm" data-action="toggle-freeze" data-member="${esc(m.id)}">${m.frozen ? "Thaw" : "Freeze"}</button>
+          ${devices ? `<button class="btn btn--ghost btn--sm" data-action="reset-seat" data-member="${esc(m.id)}" title="Unregister this seat's devices for recovery">Reset devices</button>` : ""}
         </div>
       </div>`;
     })
     .join("");
   return `<section class="dash__panel"><h3>👥 Members &amp; permissions</h3>${rows}</section>`;
+}
+
+/**
+ * Device registration: who holds the gavel, and who is asking to. This is the
+ * human side of the authorisation model — the Chair approves a new Chair device
+ * here, and resets a seat's devices from the Members panel above.
+ */
+function devicesPanel(store) {
+  const requests = store.select.chairRequests();
+  const chairs = store.select.chairDevices();
+  const short = (kid) => `${String(kid || "").slice(0, 10)}…`;
+
+  const requestRows = requests.length
+    ? requests
+        .map((r) => `
+          <div class="toggle-row">
+            <div><strong>🙋 A device wants the gavel</strong><br>
+              <span class="u-mono u-muted" style="font-size:var(--fs-2xs)">${esc(short(r.kid))}${r.name ? ` · ${esc(r.name)}` : ""}</span></div>
+            <button class="btn btn--sm" data-action="approve-chair" data-kid="${esc(r.kid)}" data-actor="${esc(r.actor || "")}">Approve</button>
+          </div>`)
+        .join("")
+    : `<p class="u-muted" style="font-size:var(--fs-xs)">No devices are waiting for approval.</p>`;
+
+  const chairRows = chairs.length
+    ? `<p class="u-muted" style="font-size:var(--fs-xs);margin-top:var(--sp-3)">Chair devices: ${chairs
+        .map((c) => `<span class="u-mono">${esc(short(c.kid))}</span>`)
+        .join(", ")}</p>`
+    : `<p class="u-muted" style="font-size:var(--fs-xs);margin-top:var(--sp-3)">No Chair device is registered yet — the first to take the gavel becomes the root.</p>`;
+
+  return `<section class="dash__panel">
+      <h3>🔐 Chair devices</h3>
+      ${requestRows}
+      ${chairRows}
+    </section>`;
 }
 
 function connectionsPanel(traffic, sync) {

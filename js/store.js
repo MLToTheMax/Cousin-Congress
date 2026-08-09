@@ -11,9 +11,9 @@
 
 import CONFIG from "./config.js";
 import { Clock, Log, VV, isValidOp, select } from "./crdt.js";
-import { SCHEMA_VERSION, versionOf } from "./schema.js";
+import { SCHEMA_VERSION, versionOf, validateEnvelope } from "./schema.js";
 import { migrations } from "./migrate.js";
-import { verifyOp, verifyIdentityOp } from "./crypto.js";
+import { verifyOp, verifyIdentityOp, macOp, verifyOpMac } from "./crypto.js";
 
 const DB_NAME = "cousin-congress";
 const DB_VERSION = 1;
@@ -274,6 +274,13 @@ export class Store extends EventTarget {
     /** Set by the coordinator once crypto is up. Signs outbound, verifies inbound. */
     this.identitySigner = null;
     this.verifier = null;
+    /** Room MAC key (HMAC CryptoKey). Set by the coordinator from the room PSK.
+     *  Proves an op came from inside the room, which a hostile relay cannot. */
+    this.roomKey = null;
+    /** A scoped guest joined with a per-share secret, not the room secret, so it
+     *  cannot hold the room MAC key. Its single uplink is the sharer's encrypted
+     *  channel and its reads are scope-filtered, so it is exempt from the gate. */
+    this.guestMode = false;
     this.quarantine = null;
   }
 
@@ -287,6 +294,12 @@ export class Store extends EventTarget {
 
   get actorId() {
     return this.replicaId;
+  }
+
+  /** This device's signing-key fingerprint, once crypto has provisioned. Used
+   *  to bind the key to a seat or to the chair when claiming either. */
+  get myFingerprint() {
+    return this.identitySigner?.fingerprint || null;
   }
 
   /* --- lifecycle -------------------------------------------------------- */
@@ -394,6 +407,15 @@ export class Store extends EventTarget {
       // Signing failed (no WebCrypto?) — the op still replicates unsigned and
       // is marked as such by verifiers rather than being lost.
     }
+    // Room MAC proves this op originated inside the room. It travels alongside
+    // the signature; peers refuse to fold any network op that lacks a valid one.
+    if (this.roomKey) {
+      try {
+        op.rmac = await macOp(this.roomKey, op);
+      } catch {
+        /* no room key material — same graceful degradation as signing */
+      }
+    }
     this.#persist([op]);
     this.onOutbound?.([op]);
   }
@@ -426,19 +448,40 @@ export class Store extends EventTarget {
    * security is up.
    */
   async ingest(ops, source = "remote") {
-    const raw = Array.isArray(ops) ? ops.filter(isValidOp) : [];
+    // A user restoring their own exported log is trusted; everything else is
+    // treated as hostile network input until proven otherwise.
+    const trusted = source === "import" || source === "local";
+
+    // Structural validation FIRST, with the full envelope limits (op size, key
+    // count, nesting, and — critically — that the HLC's actor component matches
+    // the op's actor, so a peer cannot borrow another identity for tie-breaking
+    // while signing as itself). Anything malformed is dropped, never folded.
+    const raw = Array.isArray(ops) ? ops.filter((op) => isValidOp(op) && validateEnvelope(op) === null) : [];
     if (!raw.length) return [];
 
     // Convert anything not in our schema version (older upgraded, future kept).
     const incoming = raw.map((op) => {
       if (versionOf(op) === SCHEMA_VERSION) return op;
       const result = migrations.convert(op, SCHEMA_VERSION);
-      return result.ok ? { ...result.op, sig: op.sig, kid: op.kid } : op;
+      return result.ok ? { ...result.op, sig: op.sig, kid: op.kid, rmac: op.rmac } : op;
     });
 
     const toFold = [];
     for (const op of incoming) {
       if (op.actor === "genesis") continue; // never trust a networked seed
+
+      // Room-membership gate. A network op must carry a valid room MAC, which
+      // only a holder of the room secret can produce. A hostile relay never
+      // learned the secret, so its injected ops — including forged identity
+      // announcements — are dropped here, before any signature work runs and
+      // before it can teach us a throwaway key. Skipped for trusted imports and
+      // when no room key is configured (unit tests with no crypto context).
+      if (!trusted && !this.guestMode && this.roomKey) {
+        if (!(await verifyOpMac(this.roomKey, op))) {
+          this.#emit("foreign", { op: { actor: op.actor, type: op.type }, source });
+          continue;
+        }
+      }
 
       if (op.type === "id.announce") {
         const ident = await verifyIdentityOp(op);
@@ -450,7 +493,12 @@ export class Store extends EventTarget {
       }
 
       if (!this.verifier) {
-        toFold.push(op); // no crypto context (tests) — accept structurally
+        // No crypto context. For a trusted import (or a unit test with no
+        // transports) accept structurally. For genuine network input this can
+        // only be the provisioning window — the coordinator wires the verifier
+        // before any transport can deliver — so hold it rather than fold it.
+        if (trusted) toFold.push(op);
+        else this.#quarantine(op);
         continue;
       }
 
@@ -498,6 +546,13 @@ export class Store extends EventTarget {
     if (!this.quarantine?.size || !this.verifier) return;
     const released = [];
     for (const [key, op] of this.quarantine) {
+      // Re-apply the room-membership gate: anything held before the room key
+      // was available (the provisioning window) is checked now, so a relay op
+      // that slipped into quarantine cannot be released unauthenticated.
+      if (this.roomKey && !(await verifyOpMac(this.roomKey, op))) {
+        this.quarantine.delete(key);
+        continue;
+      }
       const verdict = await verifyOp(op, this.verifier);
       if (verdict.ok) {
         released.push(op);

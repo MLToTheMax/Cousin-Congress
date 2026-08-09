@@ -14,7 +14,24 @@
  *
  * Deletes are tombstones, never removals — a removal cannot be replicated to
  * a peer that has not yet seen the thing being removed.
+ *
+ * Authorisation rides on the same fold. Every privileged op is checked against
+ * authz.js before its reducer runs, using the AUTHENTICATED signer (op.kid) and
+ * the key bindings held in state — never the payload's own claims. Because the
+ * check is a pure function of the total-ordered log, every replica reaches the
+ * same verdict, so an unauthorised op folds into the log (staying convergent
+ * and auditable) but changes nothing.
  */
+
+import {
+  authorize,
+  hasChair,
+  isChairKey,
+  chairKeysOf,
+  memberKeysOf,
+  ownsMember,
+  memberOwned,
+} from "./authz.js";
 
 /* ==========================================================================
    Hybrid logical clock
@@ -210,7 +227,88 @@ function put(table, key, patch, op) {
  */
 const REDUCERS = {
   "session.set": (s, op) => {
-    s.session = { ...s.session, ...op.payload, _hlc: op.hlc };
+    // chairKeys / chairRequests are managed only by their own binding ops, so a
+    // session.set can never smuggle a chair key in through a wholesale merge.
+    const { chairKeys, chairRequests, ...rest } = op.payload || {};
+    s.session = { ...s.session, ...rest, _hlc: op.hlc };
+  },
+
+  /* --- trust bindings (see authz.js) ------------------------------------- */
+
+  /** Bind the signing key as a chair device. First-writer-wins: authz.js only
+   *  lets this run for the founder (no chair yet) or an existing chair. */
+  "chair.claim": (s, op) => {
+    const kid = op.payload?.kid || op.kid;
+    if (!kid) return;
+    s.session = {
+      ...s.session,
+      chairKeys: { ...(s.session.chairKeys || {}), [kid]: { actor: op.actor, at: op.hlc } },
+    };
+  },
+
+  /** An established chair enrols another device as a chair, clearing any
+   *  pending request from that device. */
+  "chair.enroll": (s, op) => {
+    const kid = op.payload?.kid;
+    if (!kid) return;
+    const requests = { ...(s.session.chairRequests || {}) };
+    delete requests[kid];
+    s.session = {
+      ...s.session,
+      chairKeys: {
+        ...(s.session.chairKeys || {}),
+        [kid]: { actor: op.payload.actor || op.actor, at: op.hlc },
+      },
+      chairRequests: requests,
+    };
+  },
+
+  /** A device asks to be enrolled as a chair. Grants nothing on its own; the
+   *  chair sees it and may approve with chair.enroll. */
+  "chair.request": (s, op) => {
+    const kid = op.payload?.kid || op.kid;
+    if (!kid) return;
+    s.session = {
+      ...s.session,
+      chairRequests: {
+        ...(s.session.chairRequests || {}),
+        [kid]: { actor: op.actor, name: op.payload?.name || "", at: op.hlc },
+      },
+    };
+  },
+
+  /** Bind the signing key as authorised to act as a member (seat claim). */
+  "member.claimKey": (s, op) => {
+    const memberId = op.payload?.memberId;
+    const kid = op.payload?.kid || op.kid;
+    const member = s.members[memberId];
+    if (!member || !kid) return;
+    s.members[memberId] = {
+      ...member,
+      keys: { ...(member.keys || {}), [kid]: { actor: op.actor, at: op.hlc } },
+      _hlc: op.hlc,
+      _actor: op.actor,
+    };
+  },
+
+  /** The chair enrols an additional device onto a seat. */
+  "member.enrollKey": (s, op) => {
+    const { memberId, kid } = op.payload || {};
+    const member = s.members[memberId];
+    if (!member || !kid) return;
+    s.members[memberId] = {
+      ...member,
+      keys: { ...(member.keys || {}), [kid]: { actor: op.payload.actor || op.actor, at: op.hlc } },
+      _hlc: op.hlc,
+    };
+  },
+
+  /** The chair clears a seat's keys so a new device can re-claim it (recovery
+   *  for a lost or replaced device). */
+  "member.resetKeys": (s, op) => {
+    const member = s.members[op.payload?.memberId];
+    if (!member) return;
+    s.members[op.payload.memberId] = { ...member, keys: {}, _hlc: op.hlc };
   },
 
   "member.upsert": (s, op) => put(s.members, op.payload.id, op.payload, op),
@@ -308,10 +406,11 @@ const REDUCERS = {
 export const KNOWN_OP_TYPES = Object.freeze(Object.keys(REDUCERS));
 
 /** Apply one op. Unknown types are kept in the log but ignored when folding,
- *  so an older client never loses data written by a newer one. */
+ *  so an older client never loses data written by a newer one. An op that fails
+ *  authorisation is likewise kept but folds to no effect. */
 export function applyOp(state, op) {
   const reducer = REDUCERS[op.type];
-  if (reducer) reducer(state, op);
+  if (reducer && authorize(state, op)) reducer(state, op);
   return state;
 }
 
@@ -602,6 +701,28 @@ export const select = {
   /** Chamber-wide moderation state, all Chair-controlled. */
   locked: (s) => Boolean(s.session?.locked),
   frozenMembers: (s) => listOf(s.members).filter((m) => m.frozen),
+
+  /* --- authority (key bindings, see authz.js) --------------------------- */
+
+  /** Has any device claimed the chair yet? */
+  chairEstablished: (s) => hasChair(s),
+  /** Is this key an enrolled chair device? */
+  isChairDevice: (s, kid) => isChairKey(s, kid),
+  /** Enrolled chair devices, for the Chair's dashboard. */
+  chairDevices: (s) =>
+    Object.entries(chairKeysOf(s)).map(([kid, meta]) => ({ kid, ...meta })),
+  /** Devices asking to be enrolled as a chair, awaiting approval. */
+  chairRequests: (s) =>
+    Object.entries(s.session?.chairRequests || {})
+      .filter(([kid]) => !chairKeysOf(s)[kid])
+      .map(([kid, meta]) => ({ kid, ...meta })),
+  /** Is this key authorised to act as the given member? */
+  ownsSeat: (s, memberId, kid) => ownsMember(s, memberId, kid),
+  /** Has anyone claimed this seat with a key yet? */
+  seatClaimed: (s, memberId) => memberOwned(s, memberId),
+  /** Devices enrolled on a seat, for the Chair's dashboard. */
+  seatDevices: (s, memberId) =>
+    Object.entries(memberKeysOf(s, memberId)).map(([kid, meta]) => ({ kid, ...meta })),
 
   /** Per-member participation record used by the scorecards. */
   scorecard(s, memberId) {

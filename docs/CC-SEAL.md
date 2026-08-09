@@ -379,9 +379,95 @@ through an untrusted relay, as §8 claims.
   post-quantum *authentication*. A versioned op-envelope bump (§10).
 - Both roll out through the runtime converter system without a redeploy.
 
+## 15. The second red team, and the authorisation fix
+
+A follow-up adversarial pass accepted §13's signature fix and then made a
+sharper point: **verifying *who signed* an op is not the same as checking
+*whether they may do what it does*.** Two concrete defeats followed, both
+reproduced against the real `store.ingest`:
+
+> **A. The relay mints an identity.** `id.announce` is self-authenticating and
+> needs no prior trust, so a hostile relay could self-announce a throwaway key,
+> then author perfectly-signed ops with it. Signatures were satisfied; the ops
+> were still forged.
+>
+> **B. The confused deputy.** Reducers keyed privileged writes off the
+> *payload* — a ballot on `payload.memberId`, the gavel on a wholesale
+> `session.set` merge — not off the authenticated signer. So any authenticated
+> author could cast *another* member's ballot or overwrite the Chair's password
+> simply by naming them in the payload.
+
+The fix is two layers, and both are regression-tested (`tests/transport-authz.test.mjs`,
+`tests/authz-fold.test.mjs`).
+
+**Layer 1 — room membership (a symmetric gate the relay cannot pass).** Every
+op folded from the network must carry `rmac`, an HMAC‑SHA‑384 over the exact
+bytes the signature covers, keyed by a secret **derived from the room PSK**
+(`deriveRoomKey`, `HKDF(roomSecret, …, "cousin-congress/v2/op-mac")`). Only a
+device that holds the room secret — an actual member — can produce it. The relay
+never learned the PSK, so **its ops (including the identity announcement it needs
+to bootstrap) are dropped at ingest before signature work even runs.** This
+closes defeat A wholesale, and with it the specific PoCs the red team ran (flip a
+vote, seize the gavel, impersonate a cousin from the relay).
+
+**Layer 2 — authorisation bound to keys, checked at fold (`js/authz.js`).**
+Authority lives in replicated state — `session.chairKeys` and each
+`members[id].keys` — and every privileged op is checked against the
+**authenticated signer (`op.kid`)**, never the payload:
+
+- A **ballot** counts only if signed by a key bound to that seat (or the Chair).
+- **Chamber governance** (open/close votes, lock, moderation, dispatches, the
+  docket, the gavel password) requires a **chair key**.
+- Binding is **first-writer-wins**: the first key to take the gavel founds the
+  chair; the first to claim an unclaimed seat binds it. After that only that key
+  — or the Chair — may rebind. Recovery is Chair-driven (`member.resetKeys`,
+  `chair.enroll`).
+
+The check runs **at fold time**, as a pure function of the total-ordered log, so
+every replica reaches the same verdict and the mesh stays convergent; an
+unauthorised op still lives in the log (auditable) but changes nothing. This
+closes defeat B for the common case and makes an attempt visible and
+Chair-recoverable.
+
+**Three supporting fixes from the same pass:**
+
+- **Key rebind refused.** `KeyDirectory.learn` now keeps the *first* key seen
+  for an actor; an unpinned network "rebind" is refused (only a stronger,
+  out-of-band **pairing pin** may correct a network-learned key). Silent
+  last-writer-wins was an impersonation/DoS primitive.
+- **Provisioning window sealed.** Until the verifier is wired, ingest
+  **quarantines** network ops instead of folding them structurally, and
+  re-checks them against the room MAC once it lands.
+- **Envelope limits enforced on ingest.** `validateEnvelope` now runs on the
+  fold path (op-size cap, and the HLC's actor component must match the op's
+  actor — no borrowing another identity for tie-breaking).
+
+While verifying the fix, a **latent identity-churn bug** surfaced and was fixed:
+the long-term key was stored under one fixed IndexedDB slot, so two tabs (shared
+DB) clobbered each other's identity and a reload regenerated a fresh key —
+silently breaking any binding tied to it. Keys are now stored per replica
+(`tests/identity-persist.test.mjs`).
+
+### Residual risk — stated plainly
+
+- **Same-room founding races.** First-writer-wins is ordered by the HLC, which a
+  *same-room* adversary (one who already holds the room PSK — the "family latch"
+  tier of §2) could backdate to contest a founding claim **before** the
+  legitimate Chair/seat is established. It cannot rewrite an already-established
+  binding without being visible and Chair-recoverable, and it does not apply to
+  the relay (Layer 1 stops non-members entirely). The specced hardening is to
+  **pin the founding Chair fingerprint out-of-band in the invite**, anchoring the
+  root to the same channel that already carries the room secret; it is the
+  recommended next step.
+- **Multi-device / multi-tab seats.** Because authority is per key, a second
+  device (or a second browser tab, which is a distinct replica) on an
+  already-claimed seat is refused by the mesh until the Chair enrols it
+  (Chair's Office → Seats / Chair devices). This is the deliberate cost of
+  binding votes to keys instead of to a shared password.
+
 ---
 
-## 13. The single highest-value hardening available today
+## 16. The single highest-value hardening available today
 
 Compare pairing **safety words** out loud, every time you pair a new device. It
 is four emoji, it takes three seconds, and it closes the one gap the pairing

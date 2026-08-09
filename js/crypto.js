@@ -154,13 +154,20 @@ export class Identity {
   }
 
   static async load(actorId, db) {
-    const stored = await db?.getMeta?.(IDENTITY_STORE);
+    // The key is stored PER replica id. Tabs share one IndexedDB, so a fixed
+    // storage slot would let each tab clobber the others' identity — and then a
+    // tab that reloads or navigates would find a stranger's record, regenerate,
+    // and churn its own signing key. That churn silently breaks every binding
+    // tied to the key (a claimed seat, the gavel), so the slot must be stable
+    // for the lifetime of the replica.
+    const slot = `${IDENTITY_STORE}:${actorId}`;
+    const stored = (await db?.getMeta?.(slot)) || (await db?.getMeta?.(IDENTITY_STORE));
     if (stored?.privateKey && stored?.publicKey && stored.actorId === actorId) {
       const spki = new Uint8Array(await crypto.subtle.exportKey("spki", stored.publicKey));
       return new Identity(actorId, stored, spki, await fingerprint(spki));
     }
     const identity = await Identity.generate(actorId);
-    await db?.setMeta?.(IDENTITY_STORE, {
+    await db?.setMeta?.(slot, {
       actorId,
       privateKey: identity.keyPair.privateKey,
       publicKey: identity.keyPair.publicKey,
@@ -241,6 +248,57 @@ export async function verifyOp(op, directory) {
   return ok ? { ok: true } : { ok: false, reason: "bad-signature" };
 }
 
+/* --------------------------------------------------------------------------
+   Room authentication — a symmetric gate the relay cannot pass
+   --------------------------------------------------------------------------
+
+   Signatures answer "who wrote this op". They do NOT answer "did this come
+   from inside the room", because anyone — including a hostile relay — can mint
+   an identity and self-announce it. The relay carries `{t:"ops"}` frames in the
+   clear, so without a second gate it could inject fully-signed ops authored by
+   a throwaway identity and have them folded.
+
+   The room MAC closes that. Every op that is folded from the network must carry
+   `rmac`, an HMAC over the same bytes the signature covers, keyed by a secret
+   derived from the room PSK. Only a device that holds the room secret — i.e.
+   an actual member — can produce it. A relay that never learned the PSK cannot,
+   so its injected ops are dropped before verification even runs. The signature
+   still binds authorship on top of this; the MAC binds membership.            */
+
+/** Derive the room's op-authentication key from the shared PSK. */
+export async function deriveRoomKey(roomSecret) {
+  const bytes = roomSecret instanceof Uint8Array ? roomSecret : unb64(roomSecret);
+  const raw = await hkdf(bytes, te.encode(SUITE), "cousin-congress/v2/op-mac", 32);
+  return crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: HKDF_HASH }, false, [
+    "sign",
+    "verify",
+  ]);
+}
+
+/** Tag an op with the room MAC, over the exact bytes the signature covers. */
+export async function macOp(roomKey, op) {
+  const mac = await crypto.subtle.sign("HMAC", roomKey, opSigningInput(op));
+  return b64(new Uint8Array(mac));
+}
+
+/** True iff `op.rmac` is a valid room MAC. Never throws on hostile input. */
+export async function verifyOpMac(roomKey, op) {
+  if (!op?.rmac || typeof op.rmac !== "string") return false;
+  let given;
+  try {
+    given = unb64(op.rmac);
+  } catch {
+    return false;
+  }
+  if (given.length < 16 || given.length > 64) return false;
+  try {
+    // crypto.subtle.verify is constant-time for HMAC.
+    return await crypto.subtle.verify("HMAC", roomKey, given, opSigningInput(op));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * A self-authenticating identity announcement: an op that carries its own
  * public key and is signed by the matching private key. Anyone can verify it
@@ -309,12 +367,25 @@ export class KeyDirectory extends EventTarget {
         if (pinned && !existing.pinned) existing.pinned = true;
         return existing;
       }
-      // A pinned key came from a pairing code and is never overridden by
-      // something a peer merely asserted over the network.
-      const conflict = { actor, had: existing.fingerprint, got: fp, at: Date.now() };
+      // A key that changes for an actor we already know is what an impersonation
+      // attempt looks like, so it is always surfaced as a conflict for a human
+      // to compare out of band.
+      const conflict = { actor, had: existing.fingerprint, got: fp, pinnedAttempt: pinned, at: Date.now() };
       this.conflicts.push(conflict);
       this.dispatchEvent(new CustomEvent("conflict", { detail: conflict }));
-      if (existing.pinned) return existing;
+
+      // Who wins the conflict is the security-critical decision:
+      //   - existing pinned  -> a pairing-code key is authoritative; never let
+      //     anything override it (a network assertion certainly cannot).
+      //   - existing unpinned, new pinned -> a pairing code is stronger out-of-
+      //     band evidence than a gossip-learned key, so let it correct it.
+      //   - existing unpinned, new unpinned -> KEEP FIRST-SEEN. Silently taking
+      //     the newer key (last-writer-wins) is precisely how a hostile peer
+      //     rebinds a gossip-learned cousin to its own key and then forges as
+      //     them. First-writer-wins turns that takeover into a mere conflict
+      //     event plus a denial of the rebind.
+      if (existing.pinned || !pinned) return existing;
+      // else: fall through and adopt the pinned key over the unpinned one.
     }
 
     const entry = {

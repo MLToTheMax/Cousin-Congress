@@ -282,6 +282,32 @@ const CLICK_ACTIONS = {
     toast("Access revoked — their screen has been cleared.");
   },
 
+  /** Chair approves a device asking to hold the gavel. */
+  async "approve-chair"(store, el) {
+    if (!(await requireChair())) return;
+    store.dispatch("chair.enroll", { kid: el.dataset.kid, actor: el.dataset.actor || undefined });
+    toast("✅ Approved — that device now holds the gavel too.");
+  },
+
+  /** Chair clears a seat's registered devices so a new one can re-claim it.
+   *  This is the recovery path for a lost, replaced, or shared device. */
+  async "reset-seat"(store, el) {
+    if (el.dataset.confirmed !== "true") {
+      el.dataset.confirmed = "true";
+      el.textContent = "Really unregister their devices?";
+      setTimeout(() => {
+        el.dataset.confirmed = "false";
+        el.textContent = "Reset devices";
+      }, 5000);
+      return;
+    }
+    if (!(await requireChair())) return;
+    const member = select.member(store.state, el.dataset.member);
+    if (!member) return;
+    store.dispatch("member.resetKeys", { memberId: member.id });
+    toast(`${member.name}'s devices are cleared — the next device to enter their password takes the seat.`);
+  },
+
   /** Chair verdict on a watchdog flag — teaches the classifier. */
   "watchdog-verdict"(store, el, ctx) {
     ctx.sync.__watchdog?.update({ fingerprint: el.dataset.fp, ip: el.dataset.ip }, el.dataset.verdict);
