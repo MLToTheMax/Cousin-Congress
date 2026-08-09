@@ -382,18 +382,23 @@ export class KeyDirectory extends EventTarget {
       this.conflicts.push(conflict);
       this.dispatchEvent(new CustomEvent("conflict", { detail: conflict }));
 
-      // Who wins the conflict is the security-critical decision:
-      //   - existing pinned  -> a pairing-code key is authoritative; never let
-      //     anything override it (a network assertion certainly cannot).
-      //   - existing unpinned, new pinned -> a pairing code is stronger out-of-
-      //     band evidence than a gossip-learned key, so let it correct it.
-      //   - existing unpinned, new unpinned -> KEEP FIRST-SEEN. Silently taking
-      //     the newer key (last-writer-wins) is precisely how a hostile peer
-      //     rebinds a gossip-learned cousin to its own key and then forges as
-      //     them. First-writer-wins turns that takeover into a mere conflict
-      //     event plus a denial of the rebind.
-      if (existing.pinned || !pinned) return existing;
-      // else: fall through and adopt the pinned key over the unpinned one.
+      // STRICT first-writer-wins: the first key we ever saw for an actor is the
+      // only key we will ever accept for it. No exceptions, including a pinned
+      // pairing learn.
+      //
+      // Allowing "pinned beats unpinned" seemed reasonable — a code scanned by a
+      // human is stronger evidence than a key overheard on the wire — but it was
+      // a critical impersonation hole. A pairing ticket's `actor` label is chosen
+      // by whoever wrote the ticket and was never bound to the key it carries, so
+      // a hostile member could publish an invite claiming to be someone else
+      // (say, the Chair) while carrying their OWN key. A cousin who scanned it
+      // pinned Chair -> attacker-key, permanently overriding the Chair's real
+      // key, and every op the attacker then signed as the Chair verified.
+      //
+      // So a differing key is now always refused and surfaced as a conflict. A
+      // genuine key change (a cousin who wiped their device) is handled where it
+      // belongs: the Chair clears the seat's keys and the cousin re-claims it.
+      return existing;
     }
 
     const entry = {

@@ -82,8 +82,17 @@ function recordScoped(s, table, id, field, kid) {
  */
 function createScoped(s, table, id, ownerField, claimedAuthor, kid) {
   const rec = s[table] && s[table][id];
-  if (rec) return memberScoped(s, rec[ownerField], kid);
-  return memberScoped(s, claimedAuthor, kid);
+  if (!rec) return memberScoped(s, claimedAuthor, kid); // brand-new id
+  // OVERWRITING an existing record. Authority is the existing owner — and this
+  // must fail CLOSED when that owner is not a claimable member id. memberScoped
+  // treats an unowned/unknown member as open (so a fresh seat can be claimed),
+  // which is right for a seat but catastrophic here: an official Chair dispatch
+  // has no member owner at all, so the lenient path let any member overwrite it
+  // by reusing its id. Likewise a share owned by a display name or actor id.
+  if (isChairKey(s, kid)) return true;
+  const owner = rec[ownerField];
+  if (!owner || !s.members[owner]) return false; // unowned/opaque -> chair only
+  return ownsMember(s, owner, kid);
 }
 
 /* --- the policy ----------------------------------------------------------- */
@@ -185,13 +194,22 @@ export function authorize(state, op) {
     case "amendment.withdraw":
       return recordScoped(state, "amendments", p.id, "author", kid);
 
-    case "share.grant":
-      // A NEW grant is the granter's; RE-granting an existing id (which would
-      // clear `revoked`) requires the original granter or the chair, so a
-      // stranger cannot resurrect a revoked read-capability by reusing its id.
-      return createScoped(state, "shares", p.id, "by", p.by, kid);
-    case "share.revoke":
-      return recordScoped(state, "shares", p.id, "by", kid);
+    // Share authority is bound to the granting KEY, not to a member/actor string.
+    // `by` was only ever a label (it can hold a memberId, an actorId, or a display
+    // name), and memberScoped treats an unrecognised owner as unowned — so binding
+    // to it let an unrelated member revoke someone else's live share, or resurrect
+    // a revoked one by re-granting its id. `byKid` is the granter's fingerprint,
+    // recorded by the reducer from the authenticated signer.
+    case "share.grant": {
+      const existing = state.shares[p.id];
+      if (!existing) return memberScoped(state, p.by, kid); // a brand-new grant
+      return isChairKey(state, kid) || existing.byKid === kid;
+    }
+    case "share.revoke": {
+      const grant = state.shares[p.id];
+      if (!grant) return true; // nothing to protect yet
+      return isChairKey(state, kid) || grant.byKid === kid;
+    }
 
     case "news.post":
       // A member's newsroom note is theirs; an official dispatch is the chair's.

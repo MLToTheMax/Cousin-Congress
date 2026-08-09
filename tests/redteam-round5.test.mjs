@@ -145,5 +145,49 @@ const play = (ops) => { const l = new Log(); l.insert(ops); return l; };
   assert("with a verifier wired, the announcement is learned", Boolean(store.verifier.get("newbie.bbbb")));
 }
 
+/* ========================================================================= */
+/* E. Round-6: official dispatches and shares are bound to owners/keys       */
+/* ========================================================================= */
+{
+  reset();
+  const base = [
+    op("chairK", "chair.claim", { kid: "chairK" }, 1),
+    op("chairK", "member.upsert", { id: "m-al", name: "Al" }, 2),
+    op("alK", "member.claimKey", { memberId: "m-al", kid: "alK" }, 3),
+    // The chair publishes an OFFICIAL dispatch (no member owner at all).
+    op("chairK", "news.post", { id: "n1", title: "Official dispatch", category: "notice" }, 4),
+  ];
+  // Al tries to overwrite it by reusing its id under the memberNote branch.
+  const s = play([...base, op("alK", "news.post", { id: "n1", memberNote: true, authorId: "m-al", title: "HIJACKED" }, 5)]).state;
+  assert("a member note cannot overwrite the chair's official dispatch", s.news.n1.title === "Official dispatch", s.news.n1.title);
+
+  // Share authority is bound to the granting KEY, not a label.
+  reset();
+  const shareBase = [
+    op("chairK", "chair.claim", { kid: "chairK" }, 1),
+    op("chairK", "member.upsert", { id: "m-al", name: "Al" }, 2),
+    op("chairK", "member.upsert", { id: "m-bo", name: "Bo" }, 3),
+    op("alK", "member.claimKey", { memberId: "m-al", kid: "alK" }, 4),
+    op("boK", "member.claimKey", { memberId: "m-bo", kid: "boK" }, 5),
+    op("alK", "share.grant", { id: "sh1", by: "m-al", itemType: "news", itemId: "n1" }, 6),
+  ];
+  const stamped = play(shareBase).state;
+  assert("a grant records the granter's key (byKid)", stamped.shares.sh1.byKid === "alK");
+
+  // Bo (an unrelated member) can neither revoke nor resurrect Al's share.
+  const boRevoke = play([...shareBase, op("boK", "share.revoke", { id: "sh1", by: "m-bo" }, 7)]).state;
+  assert("an unrelated member cannot revoke another's share", boRevoke.shares.sh1.revoked === false);
+
+  const revoked = [...shareBase, op("alK", "share.revoke", { id: "sh1", by: "m-al" }, 7)];
+  const boRegrant = play([...revoked, op("boK", "share.grant", { id: "sh1", by: "m-bo" }, 8)]).state;
+  assert("an unrelated member cannot resurrect a revoked share", boRegrant.shares.sh1.revoked === true);
+
+  // The granter and the chair still can.
+  const alRegrant = play([...revoked, op("alK", "share.grant", { id: "sh1", by: "m-al" }, 8)]).state;
+  assert("the original granter can re-grant", alRegrant.shares.sh1.revoked === false);
+  const chairRevoke = play([...shareBase, op("chairK", "share.revoke", { id: "sh1", by: "chair" }, 7)]).state;
+  assert("the chair can revoke any share", chairRevoke.shares.sh1.revoked === true);
+}
+
 console.log(failures ? `\n${failures} FAILURES` : "\nredteam-round5: compaction converges, id-collisions refused, id.announce DoS-safe and window-gated");
 process.exit(failures ? 1 : 0);

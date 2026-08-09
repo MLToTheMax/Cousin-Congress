@@ -438,7 +438,10 @@ const REDUCERS = {
    * device serving the guest — and the Chair, from anywhere — can see it and
    * revoke it. Revocation is just a later op; the record is append-only.
    */
-  "share.grant": (s, op) => put(s.shares, op.payload.id, { revoked: false, ...op.payload }, op),
+  // `byKid` is stamped from the AUTHENTICATED signer, never from the payload, so
+  // re-grant/revoke authority can be bound to a key instead of a mutable label.
+  "share.grant": (s, op) =>
+    put(s.shares, op.payload.id, { revoked: false, ...op.payload, byKid: op.kid || null }, op),
   "share.revoke": (s, op) => put(s.shares, op.payload.id, { revoked: true, revokedBy: op.payload.by }, op),
 
   /** Chamber chat. Enabled per member by the Chair (see canChat). */

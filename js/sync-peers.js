@@ -662,6 +662,10 @@ export class PeerTransport extends EventTarget {
     await this.#absorbTicket(t, { adoptSecret: false });
 
     const { link, channel } = pending;
+    // Every send path (#raw, #sealTo) writes to link.channel, so without this the
+    // inviter could never send its hello/confirm and serverless QR / picture-code
+    // pairing would open a data channel that then sat mute forever.
+    link.channel = channel;
     link.remoteFp = t.dtls;
     this.peers.set(t.actor, link);
     channel.onopen = () => {

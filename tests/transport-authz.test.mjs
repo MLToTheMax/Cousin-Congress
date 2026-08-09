@@ -142,7 +142,7 @@ async function freshStore(roomKey) {
 }
 
 /* ========================================================================= */
-/* 4. Unpinned key rebind is refused (PoC 3); pinning can still correct       */
+/* 4. Key rebind is refused — STRICT first-writer-wins                       */
 /* ========================================================================= */
 {
   const dir = new KeyDirectory();
@@ -155,14 +155,30 @@ async function freshStore(roomKey) {
   assert("unpinned rebind is refused (first-seen kept)", dir.get("cousin-jo").fingerprint === jo.fingerprint);
   assert("the rebind is surfaced as a conflict", dir.conflicts.length === 1);
 
-  // A pinned key came from a pairing code (strong OOB) — it may correct a
-  // weak network-learned entry, but not another pinned one.
+  // A PINNED pairing learn must not override a known key either. This used to be
+  // allowed ("a code you scanned beats a key you overheard") and was a critical
+  // impersonation hole: a pairing ticket's `actor` label is written by whoever
+  // made the ticket and was never bound to the key inside it, so a hostile member
+  // could publish an invite claiming to BE the Chair while carrying their own
+  // key. Anyone who scanned it pinned Chair -> attacker, permanently.
   const dir2 = new KeyDirectory();
-  await dir2.learn("cousin-al", jo.spki); // unpinned network entry
-  await dir2.learn("cousin-al", evil.spki, { pinned: true }); // pairing correction
-  assert("a pairing pin corrects an unpinned network key", dir2.get("cousin-al").fingerprint === evil.fingerprint);
-  await dir2.learn("cousin-al", jo.spki, { pinned: true }); // cannot re-pin to a different key
-  assert("a pinned key cannot be overridden", dir2.get("cousin-al").fingerprint === evil.fingerprint);
+  await dir2.learn("cousin-al", jo.spki); // network-learned entry
+  await dir2.learn("cousin-al", evil.spki, { pinned: true }); // hostile ticket
+  assert("a pinned pairing learn cannot override a known key", dir2.get("cousin-al").fingerprint === jo.fingerprint);
+  assert("the override attempt is surfaced as a conflict", dir2.conflicts.length === 1);
+
+  // Pinning is still meaningful: it upgrades the SAME key, and a pinned entry is
+  // likewise immune to any later rebind.
+  const dir3 = new KeyDirectory();
+  await dir3.learn("cousin-bo", jo.spki);
+  await dir3.learn("cousin-bo", jo.spki, { pinned: true });
+  assert("pinning the same key upgrades the entry", dir3.get("cousin-bo").pinned === true);
+  await dir3.learn("cousin-bo", evil.spki, { pinned: true });
+  assert("a pinned key cannot be overridden", dir3.get("cousin-bo").fingerprint === jo.fingerprint);
+
+  // An actor we have never seen is still learnable (normal first pairing).
+  await dir3.learn("cousin-new", evil.spki, { pinned: true });
+  assert("a brand-new actor is still learned normally", dir3.get("cousin-new").fingerprint === evil.fingerprint);
 }
 
 /* ========================================================================= */
