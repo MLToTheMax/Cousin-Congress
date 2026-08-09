@@ -26,6 +26,9 @@
 <body class="app">
   <a class="u-skip" href="#main">Skip to content</a>
 
+  <!-- toggle for the "how to connect" popover on the congress seal -->
+  <input type="checkbox" id="congress-help" class="drawerin">
+
   <!-- ===== Top bar ===== -->
   <header class="appbar">
     <a class="appbar__brand" href="index.html" aria-label="Cousin Congress home">
@@ -33,10 +36,12 @@
       <span>Cousin Congress<small>The People's Living Room</small></span>
     </a>
 
-    <span class="appbar__congress" title="The three-emoji seal of the congress you're connected to. Everyone in the same congress sees the same three.">
+    <label class="appbar__congress" for="congress-help" role="button" tabindex="0"
+           title="Your congress's three-emoji seal — tap for how to connect.">
       <span class="appbar__congress-label">Congress</span>
       <span class="appbar__congress-code" data-congress-code aria-label="Congress seal">· · ·</span>
-    </span>
+      <span class="appbar__congress-caret" aria-hidden="true">▾</span>
+    </label>
 
     <span class="appbar__spacer"></span>
 
@@ -467,6 +472,30 @@
       </div>
     </details>
   </aside>
+
+  <!-- ===== "How to connect" popover, anchored to the congress seal ===== -->
+  <label class="drawer-scrim congress-scrim" for="congress-help" aria-hidden="true"></label>
+  <div class="congress-pop" role="dialog" aria-label="How to connect to a congress">
+    <div class="congress-pop__head">
+      <strong>Your congress <span class="appbar__congress-code" data-congress-code>· · ·</span></strong>
+      <label class="drawer__close" for="congress-help" aria-label="Close">✕</label>
+    </div>
+    <p>Those three emoji are your congress's <strong>secret handshake</strong>. Everyone
+       connected to the same congress sees the <strong>same three</strong> — that's how you
+       know you're all in the same room.</p>
+    <ol class="congress-pop__steps">
+      <li>Open the <strong>🔗 Connect</strong> tab.</li>
+      <li>One cousin taps <strong>Show my code</strong>; the other taps <strong>Scan a code</strong>
+          (or pastes it in).</li>
+      <li>Send the <strong>reply code</strong> back the same way to finish.</li>
+      <li>Once you're linked, you'll <strong>both show the same three emoji</strong> up here. 🎉</li>
+    </ol>
+    <p class="u-muted" style="font-size:var(--fs-xs)">
+      Different emoji after connecting? You joined <em>different</em> congresses — re-pair using
+      <em>one</em> person's code so everyone lands in the same one.
+    </p>
+    <label class="btn btn--sm" for="tab-connect">🔗 Take me to Connect</label>
+  </div>
 
   <div class="cursor" aria-hidden="true">
     <div class="cursor__lag">
