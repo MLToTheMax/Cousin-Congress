@@ -293,6 +293,17 @@ async function fileToImageData(file) {
  * showed (we complete it). We try to tell which from its role and act.
  */
 async function consumeScannedCode(sync, text) {
+  // A seat code from the Chair ("here is your seat") is not a pairing ticket —
+  // it says who this device is. Handle it first, since it is the flow most
+  // cousins will use: scan the code the Chair gave you and you are seated.
+  const { readSeatCode } = await import("./seatcode.js");
+  const seat = readSeatCode(text);
+  if (seat) {
+    const { redeemSeatCode } = await import("./auth.js");
+    await redeemSeatCode(seat, sync);
+    return;
+  }
+
   try {
     const { code, compact } = await sync.acceptInvite(text);
     const box = qs("[data-answer-out]");

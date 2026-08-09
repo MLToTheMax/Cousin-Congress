@@ -258,6 +258,22 @@ async function wireExtras(sync) {
   paintCongress();
   sync.addEventListener("status", paintCongress);
 
+  /* A seat code the Chair handed out: the cousin scanned it with their phone's
+     ordinary camera, the deep link opened the site, and the payload is sitting
+     in the fragment. Take the seat, then scrub it from the address bar so a
+     screenshot of the page cannot pass the credential on. */
+  try {
+    const seatcode = await import("./seatcode.js");
+    const seat = seatcode.seatCodeFromLocation();
+    if (seat) {
+      seatcode.clearSeatCodeFromLocation();
+      const { redeemSeatCode } = await import("./auth.js");
+      await redeemSeatCode(seat, sync);
+    }
+  } catch (error) {
+    console.warn("[cousin-congress] seat code", error);
+  }
+
   /* The always-present connection banner + the connect-page controllers. */
   const connect = await import("./connect.js");
   connect.mountLinkBanner(sync);

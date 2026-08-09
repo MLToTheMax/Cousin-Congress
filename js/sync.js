@@ -121,6 +121,19 @@ export class SyncCoordinator extends EventTarget {
     }
   }
 
+  /**
+   * Adopt a room secret carried by a seat code (base64url). Same validated path
+   * a pairing code uses, so the MAC key is re-derived and the length is checked.
+   */
+  adoptRoomSecretFromCode(psk) {
+    this.#adoptRoomSecret(unb64(psk));
+  }
+
+  /** The room secret this device is currently in, for minting seat codes. */
+  get currentRoomSecret() {
+    return this.roomSecret;
+  }
+
   /* --- lifecycle ---------------------------------------------------------- */
 
   /**

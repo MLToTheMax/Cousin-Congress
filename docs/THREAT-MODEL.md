@@ -114,6 +114,30 @@ Three switches move the boundary, each an explicit, documented choice:
 
 ---
 
+## 5b. Seat codes ("here is your seat")
+
+The Chair can hand a cousin a **seat code** — a deep link (`…/index.html#s=…`)
+rendered as a QR — that seats the scanning device as that member and prompts for
+a password. It is the ordinary way a family gets onto their phones, so its
+properties matter:
+
+- **It is a credential.** It carries the room secret (so the scanner joins the
+  right chamber) and names a member, so whoever holds it can enter as that
+  cousin. Same honest trade as a pairing code: *the code IS the credential.*
+  Show it to one cousin; don't post it publicly.
+- **First scanner wins.** Redeeming binds that device's signing key to the seat
+  (`member.claimKey`), and the authorisation rules give an unclaimed seat to the
+  first key that claims it. A code that leaks *after* the cousin has used it does
+  not hand the seat over — a second device is refused until the Chair enrols it
+  (Chair's Office → Members → Reset devices to re-issue).
+- **The payload never reaches a server.** It lives in the URL *fragment*, which
+  browsers do not transmit, so even a hosted deployment never sees it. The app
+  scrubs it from the address bar immediately after redeeming, so a screenshot of
+  the opened page cannot pass it on.
+- **It does not weaken the perimeter.** A seat code is issued by the Chair from
+  inside the room; it moves someone from outsider to member deliberately, exactly
+  as handing them a pairing code does. It grants no chair authority.
+
 ## 6. Residual risks (stated plainly)
 
 Carried from CC-SEAL §15, in decreasing order of concern for a real family deployment:

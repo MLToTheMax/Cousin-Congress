@@ -150,6 +150,57 @@ let askHost = null;
  * cousins, so the input is visible text by default — young kids need to see
  * what they typed.
  */
+/**
+ * A dialog that SHOWS something rather than asking for it — a QR to hold up, a
+ * code to copy. `bodyHtml` is trusted markup the caller built (an SVG we
+ * generated), never user text; anything from a member must be escaped first.
+ */
+export function showDialog({
+  icon = "📣",
+  title,
+  hint = "",
+  bodyHtml = "",
+  copyText = "",
+  confirmLabel = "Done",
+} = {}) {
+  return new Promise((resolve) => {
+    if (!askHost) {
+      askHost = document.createElement("dialog");
+      askHost.className = "ask";
+      document.body.append(askHost);
+    }
+
+    askHost.innerHTML = h`
+      <form method="dialog" class="ask__form">
+        <div class="ask__icon" aria-hidden="true">${icon}</div>
+        <h2 class="ask__title">${title}</h2>
+        ${raw(hint ? h`<p class="ask__hint">${hint}</p>` : "")}
+        ${raw(bodyHtml)}
+        <div class="ask__actions">
+          ${raw(copyText ? `<button class="btn btn--ghost" value="copy" formnovalidate>Copy link</button>` : "")}
+          <button class="btn" value="ok">${confirmLabel}</button>
+        </div>
+      </form>`;
+
+    askHost.returnValue = "ok";
+    const onClose = () => {
+      if (askHost.returnValue === "copy" && copyText) {
+        copyText && navigator.clipboard?.writeText(copyText).then(
+          () => toast("Link copied — send it to them however you like."),
+          () => toast("Couldn't copy automatically; long-press the code instead.", "warn")
+        );
+        // Re-open so the Chair can still show the code after copying it.
+        askHost.showModal();
+        askHost.addEventListener("close", onClose, { once: true });
+        return;
+      }
+      resolve(true);
+    };
+    askHost.addEventListener("close", onClose, { once: true });
+    askHost.showModal();
+  });
+}
+
 export function askDialog({
   icon = "🔑",
   title,

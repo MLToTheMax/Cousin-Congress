@@ -177,6 +177,72 @@ export async function claimSeat(memberId) {
 }
 
 /* --------------------------------------------------------------------------
+   Seat codes — "here is your seat", from the Chair
+   -------------------------------------------------------------------------- */
+
+/**
+ * Redeem a seat code: become that cousin on this device, then invent a password.
+ *
+ * The Chair hands this out (on screen, printed, in a chat) and the first device
+ * to scan it takes the seat. Claiming binds this device's key, so a code that
+ * leaks afterwards cannot steal the seat back — a second device needs the Chair
+ * to enrol it. The password is set right after, because a seat with no password
+ * is a seat anyone in the room could claim on their next device.
+ */
+export async function redeemSeatCode(body, sync) {
+  const member = select.member(store.state, body.memberId);
+  const label = member?.name || body.name || "your seat";
+
+  // Adopt the room the Chair invited us into, so we are in the same chamber.
+  if (body.psk && sync?.adoptRoomSecretFromCode) {
+    try {
+      sync.adoptRoomSecretFromCode(body.psk);
+    } catch {
+      /* a malformed secret just means pairing has to happen the usual way */
+    }
+  }
+
+  if (!member) {
+    // The roster has not reached this device yet. Take the identity anyway; the
+    // record arrives with the first sync and the seat is already ours.
+    store.setIdentity({ memberId: body.memberId, displayName: body.name || "" });
+    toast(`Welcome! You're seated as ${label}. Connect to a cousin to see the chamber. 🎉`);
+    return true;
+  }
+
+  if (claimedByAnotherDevice(body.memberId)) {
+    toast(
+      `${label} is already registered to another device. Ask the Chair to add this one (Chair's Office → Members → Reset devices).`,
+      "warn"
+    );
+    return false;
+  }
+
+  bindSeatKey(body.memberId);
+  store.setIdentity({ memberId: body.memberId, displayName: member.name });
+
+  if (!member.auth) {
+    const pin = await askDialog({
+      icon: "✨",
+      title: `Welcome, ${member.name}! Pick a secret password`,
+      hint: "You'll use it to sit in your seat on any device. Capitals and spaces don't matter — just don't forget it!",
+      placeholder: "your secret word",
+      confirmLabel: "Save my password",
+    });
+    if (pin && normalize(pin)) {
+      store.dispatch("member.auth", { memberId: body.memberId, auth: await makeAuth(pin) });
+      toast(`Password saved. You're on the floor, ${member.name}! 🎉`);
+      return true;
+    }
+    toast(`You're seated as ${member.name}. You can set a password any time from Members.`, "warn");
+    return true;
+  }
+
+  toast(`Welcome back, ${member.name}! You're seated on this device. 🎉`);
+  return true;
+}
+
+/* --------------------------------------------------------------------------
    The Chair
    -------------------------------------------------------------------------- */
 

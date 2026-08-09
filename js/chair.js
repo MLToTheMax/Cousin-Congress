@@ -107,6 +107,7 @@ function membersPanel(members, session) {
         <div class="cluster" style="gap:var(--sp-1)">
           <button class="btn btn--ghost btn--sm" data-action="toggle-talk" data-member="${esc(m.id)}" title="Walkie">📻 ${m.canTalk ? "on" : "off"}</button>
           <button class="btn btn--ghost btn--sm" data-action="toggle-chat" data-member="${esc(m.id)}" title="Chat">💬 ${m.canChat ? "on" : "off"}</button>
+          <button class="btn btn--ghost btn--sm" data-action="seat-qr" data-member="${esc(m.id)}" title="Show a sign-in code they can scan">🎟️ Sign-in code</button>
           <button class="btn btn--ghost btn--sm" data-action="toggle-freeze" data-member="${esc(m.id)}">${m.frozen ? "Thaw" : "Freeze"}</button>
           ${devices ? `<button class="btn btn--ghost btn--sm" data-action="reset-seat" data-member="${esc(m.id)}" title="Unregister this seat's devices for recovery">Reset devices</button>` : ""}
         </div>

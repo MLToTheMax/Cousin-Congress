@@ -481,3 +481,9 @@
   max-height: 20rem;
   overflow: auto;
 }
+
+/* Scanning is the default way in, so its card leads visually. */
+.connect-card--primary {
+  border-color: var(--c-blue-600);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--c-blue-600) 14%, transparent);
+}
