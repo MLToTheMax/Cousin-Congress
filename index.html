@@ -51,6 +51,10 @@
       <span class="link-banner__text" data-link-text>on their own</span>
     </span>
 
+    <!-- Chair-only: a gavel button that appears in the bar only once the gavel
+         is unlocked on this device, opening the Chair's command center. -->
+    <label class="appbar__icon appbar__icon--gavel" data-chair-only for="drawer-chair"
+           title="Chair tools" aria-label="Chair tools">🔨</label>
     <label class="appbar__icon" for="drawer-notif" title="Notifications" aria-label="Notifications">🔔<span data-notif-count hidden>0</span></label>
     <label class="appbar__icon" for="drawer-settings" title="Settings" aria-label="Settings">⚙️</label>
   </header>
@@ -447,9 +451,11 @@
       <button class="btn btn--sm" data-action="chair-pin">🔨 Unlock / change the Chair's password</button>
     </div>
 
-    <!-- Chair dashboard: only the Chair sees the real thing -->
-    <div data-chair-only>
-      <div data-chair-dashboard></div>
+    <!-- Chair sees a shortcut to their command center (the 🔨 drawer). -->
+    <div class="panel stack" data-chair-only>
+      <h3 style="font-size:var(--fs-md)">🔨 Chair tools</h3>
+      <p class="field__hint">Your command center — moderation, live connections, security, data. Also on the 🔨 button up top.</p>
+      <label class="btn btn--sm" for="drawer-chair">Open Chair tools</label>
     </div>
     <div class="gated-card" data-chair-locked>
       <span class="gated-card__icon">🔒</span>
@@ -471,6 +477,18 @@
         </div>
       </div>
     </details>
+  </aside>
+
+  <!-- ===== Chair command center (opens from the 🔨 button, Chair only) ===== -->
+  <input type="checkbox" id="drawer-chair" class="drawerin">
+  <label class="drawer-scrim" for="drawer-chair" aria-hidden="true"></label>
+  <aside class="drawer drawer--chair" aria-label="Chair tools">
+    <div class="drawer__head">
+      <h2 style="font-size:var(--fs-lg)">🔨 Chair tools</h2>
+      <label class="drawer__close" for="drawer-chair" aria-label="Close">✕</label>
+    </div>
+    <p class="u-muted" style="font-size:var(--fs-sm)">Everything only the Chair can do — running the chamber, moderating cousins, watching connections, and pruning the record.</p>
+    <div data-chair-dashboard></div>
   </aside>
 
   <!-- ===== "How to connect" popover, anchored to the congress seal ===== -->
