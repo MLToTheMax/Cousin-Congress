@@ -198,7 +198,13 @@ export function authorize(state, op) {
       return true;
 
     default:
-      return true; // unknown types have no reducer; folding them is a no-op
+      // Fail closed. applyOp only consults authorize() when a reducer EXISTS for
+      // the type, so reaching here means a privileged reducer was added without
+      // an authorisation rule — deny it rather than let it inherit a silent
+      // allow. (Unknown future types have no reducer and never reach here; they
+      // are kept in the log unfolded for forward-compatibility.) The invariant
+      // is pinned by tests/authz-coverage.test.mjs.
+      return false;
   }
 }
 

@@ -187,9 +187,10 @@ export class SyncCoordinator extends EventTarget {
     // never the room secret — so it cannot MAC or verify room ops. Exempt it
     // from the room-membership gate; its reads are already scope-filtered and
     // arrive over the sharer's encrypted uplink.
-    this.peers?.addEventListener("guest", () => {
+    this.peers?.addEventListener("guest", (e) => {
       this.store.guestMode = true;
       this.store.roomKey = null;
+      this.store.guestScopeId = e.detail?.id || null;
     });
 
     this.server?.addEventListener("open", () => this.#broadcast(this.#hello()));

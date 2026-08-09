@@ -281,6 +281,10 @@ export class Store extends EventTarget {
      *  cannot hold the room MAC key. Its single uplink is the sharer's encrypted
      *  channel and its reads are scope-filtered, so it is exempt from the gate. */
     this.guestMode = false;
+    /** The one item id a scoped guest is allowed to fold. Enforced INSIDE ingest
+     *  so every path — including the server HTTP pull — inherits it, not just the
+     *  peer-message handler. */
+    this.guestScopeId = null;
     this.quarantine = null;
   }
 
@@ -456,7 +460,16 @@ export class Store extends EventTarget {
     // count, nesting, and — critically — that the HLC's actor component matches
     // the op's actor, so a peer cannot borrow another identity for tie-breaking
     // while signing as itself). Anything malformed is dropped, never folded.
-    const raw = Array.isArray(ops) ? ops.filter((op) => isValidOp(op) && validateEnvelope(op) === null) : [];
+    let raw = Array.isArray(ops) ? ops.filter((op) => isValidOp(op) && validateEnvelope(op) === null) : [];
+
+    // A scoped guest may only ever fold its ONE granted item, whatever the
+    // source. Enforcing it HERE (not only in the peer-message handler) means the
+    // server HTTP-pull path and every other ingest route inherit the scope — so
+    // a hostile relay cannot feed a guest anything outside its grant even though
+    // guests are exempt from the room-MAC gate.
+    if (this.guestMode) {
+      raw = this.guestScopeId ? raw.filter((op) => op?.payload?.id === this.guestScopeId) : [];
+    }
     if (!raw.length) return [];
 
     // Convert anything not in our schema version (older upgraded, future kept).
