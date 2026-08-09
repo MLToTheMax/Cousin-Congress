@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shared item · Cousin Congress</title>
+  <meta name="description" content="A single item shared from the Cousin Congress, unlocked by the key in this link.">
+  <meta name="robots" content="noindex">
+  <meta name="color-scheme" content="light dark">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <style>
+    /* This page is intentionally standalone and minimal: it holds ONE decrypted
+       item in memory only, never touches the chamber's store, and persists
+       nothing. Reloading re-decrypts from the link or shows the error state. */
+    .reader { width: min(100% - 2rem, 46rem); margin: 4rem auto; }
+    .reader__badge { display:inline-flex; align-items:center; gap:.5em; padding:.3em .9em;
+      border-radius:999px; background:var(--accent-soft); color:var(--accent-ink);
+      font-size:var(--fs-2xs); font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .reader__note { margin-top:2rem; padding-top:1rem; border-top:1px solid var(--line-hair);
+      font-size:var(--fs-xs); color:var(--text-muted); }
+  </style>
+</head>
+<body>
+  <main class="reader" id="reader">
+    <p class="u-muted">Unlocking the shared item…</p>
+  </main>
+
+  <script type="module">
+    import { openShareFromLocation, shareTypeLabel } from "./js/share.js";
+    import { esc } from "./js/ui.js";
+
+    const root = document.getElementById("reader");
+
+    // Escape hatch: an item is never written to storage from this page.
+    const fmtDate = (v) => {
+      const d = v ? new Date(v) : null;
+      return d && !isNaN(d) ? d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "";
+    };
+
+    function renderBill(item) {
+      return `
+        <span class="reader__badge">📜 ${esc(shareTypeLabel("bill"))}</span>
+        <h1 style="margin-top:1rem">${esc(item.title || "A bill")}</h1>
+        <p class="u-muted">${esc(item.number || "")}${item.sponsorName ? " · sponsored by " + esc(item.sponsorName) : ""}${item.introduced ? " · " + fmtDate(item.introduced) : ""}</p>
+        ${item.summary ? `<p style="font-size:var(--fs-lg);margin-top:1rem">${esc(item.summary)}</p>` : ""}
+        <div class="engrossment" style="margin-top:1.5rem">
+          <p class="engrossment__congress">First Cousin Congress</p>
+          <p class="engrossment__number">${esc(item.number || "")}</p>
+          <p class="engrossment__title">${esc(item.title || "")}</p>
+          <div class="engrossment__body">${esc(item.text || item.summary || "")}</div>
+        </div>`;
+    }
+    function renderNews(item) {
+      return `
+        <span class="reader__badge">${item.memberNote ? "📝" : "📰"} ${esc(item.category || "Dispatch")}</span>
+        <h1 style="margin-top:1rem">${esc(item.title || "")}</h1>
+        <p class="u-muted">${item.author ? "By " + esc(item.author) : ""}${item.published ? " · " + fmtDate(item.published) : ""}</p>
+        ${item.excerpt ? `<p style="font-size:var(--fs-lg);margin-top:1rem">${esc(item.excerpt)}</p>` : ""}
+        ${item.body ? `<div class="u-prose" style="margin-top:1rem;white-space:pre-wrap">${esc(item.body)}</div>` : ""}`;
+    }
+    function renderDocket(item) {
+      return `
+        <span class="reader__badge">📅 Docket item</span>
+        <h1 style="margin-top:1rem">${esc(item.title || "")}</h1>
+        <p class="u-muted">${esc(item.kind || "")}${item.starts ? " · " + fmtDate(item.starts) : ""}${item.room ? " · " + esc(item.room) : ""}</p>
+        ${item.note ? `<p style="margin-top:1rem">${esc(item.note)}</p>` : ""}`;
+    }
+
+    const RENDER = { bill: renderBill, news: renderNews, docket: renderDocket };
+
+    (async () => {
+      const payload = await openShareFromLocation();
+      if (!payload || !RENDER[payload.type]) {
+        root.innerHTML = `
+          <span class="reader__badge" style="background:var(--nay-soft);color:var(--nay)">🔒 Couldn't open</span>
+          <h1 style="margin-top:1rem">This link didn't work</h1>
+          <p class="u-muted">It may be incomplete (the part after <code>#</code> is the key and is easy to lose when copying), it may have been changed in transit, or it may not be a Cousin Congress share link.</p>
+          <p class="reader__note">Ask whoever sent it to copy the whole link again.</p>`;
+        document.title = "Couldn't open · Cousin Congress";
+        return;
+      }
+      root.innerHTML = RENDER[payload.type](payload.item) + `
+        <p class="reader__note">🔐 Shared privately from the Cousin Congress${payload.sharedAt ? " on " + fmtDate(payload.sharedAt) : ""}.
+        This link unlocks only this one item — it is not a way into the chamber. The key that opened it
+        came from the link itself and was never sent to any server.
+        <br><a href="index.html">About the Cousin Congress →</a></p>`;
+      document.title = `${payload.item.title || shareTypeLabel(payload.type)} · Cousin Congress`;
+    })();
+  </script>
+</body>
+</html>

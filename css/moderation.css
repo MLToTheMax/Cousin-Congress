@@ -1,0 +1,347 @@
+/* ==========================================================================
+   moderation.css — the Chair's controls, security surfacing, chat, and the
+   notification/overlay chrome that the newer subsystems paint into.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Frozen overlay — shown to a member the Chair has paused
+   -------------------------------------------------------------------------- */
+
+.frozen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--gutter);
+  background: color-mix(in oklab, var(--c-blue-900) 82%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.frozen-overlay__card {
+  max-width: 26rem;
+  text-align: center;
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-7);
+  background: var(--bg-raised);
+  border-radius: var(--r-lg);
+  border: 3px solid var(--c-blue-600);
+  box-shadow: var(--shadow-3);
+}
+
+.frozen-overlay__icon {
+  font-size: 3.5rem;
+  animation: pulse-dot 2s var(--ease-in-out) infinite;
+}
+
+/* --------------------------------------------------------------------------
+   Security alert banner — the loud, whole-chamber warning
+   -------------------------------------------------------------------------- */
+
+.security-banner {
+  position: sticky;
+  top: 0;
+  z-index: calc(var(--z-header) + 5);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--gutter);
+  background: var(--c-red-600);
+  color: #fff;
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  animation: rise-in var(--dur-3) var(--ease-out) both;
+}
+
+.security-banner button {
+  margin-inline-start: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.2);
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+/* --------------------------------------------------------------------------
+   Notifications
+   -------------------------------------------------------------------------- */
+
+.notif-bell {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+
+[data-notif-count] {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--c-red-500);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+
+.notif {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  text-decoration: none;
+  color: inherit;
+  margin-bottom: var(--sp-2);
+}
+
+.notif--unread {
+  border-inline-start: 4px solid var(--c-blue-600);
+  background: color-mix(in oklab, var(--c-blue-600) 5%, var(--bg-raised));
+}
+
+.notif__icon {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+.notif__body {
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-sm);
+}
+.notif__body span {
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Chat
+   -------------------------------------------------------------------------- */
+
+.chat {
+  display: grid;
+  gap: var(--sp-3);
+  grid-template-rows: 1fr auto;
+  height: min(60vh, 32rem);
+}
+
+.chat__log {
+  overflow-y: auto;
+  display: grid;
+  gap: var(--sp-2);
+  align-content: start;
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+
+.chat__msg {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-1) var(--sp-3);
+  align-items: baseline;
+}
+.chat__who {
+  font-weight: 700;
+  font-size: var(--fs-xs);
+}
+.chat__text {
+  grid-column: 2;
+  font-size: var(--fs-sm);
+}
+.chat__form {
+  display: flex;
+  gap: var(--sp-2);
+}
+.chat__form .input {
+  flex: 1;
+}
+
+/* --------------------------------------------------------------------------
+   The unified Chair dashboard
+   -------------------------------------------------------------------------- */
+
+.dash {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.dash__grid {
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+}
+
+.dash__panel {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  align-content: start;
+}
+
+.dash__panel h3 {
+  font-family: var(--font-body);
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+
+/* A labelled toggle row. */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--line-hair);
+}
+.toggle-row:last-child {
+  border-bottom: 0;
+}
+
+/* A pill switch built on a checkbox. */
+.switch {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  flex: 0 0 auto;
+}
+.switch input {
+  position: absolute;
+  opacity: 0;
+}
+.switch__track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--absent);
+  transition: background-color var(--dur-2) var(--ease-out);
+}
+.switch__track::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: translate var(--dur-2) var(--ease-spring);
+}
+.switch input:checked + .switch__track {
+  background: var(--c-green-600);
+}
+.switch input:checked + .switch__track::before {
+  translate: 20px 0;
+}
+.switch input:focus-visible + .switch__track {
+  outline: 3px solid var(--focus, var(--c-blue-600));
+  outline-offset: 2px;
+}
+
+/* Connection rows in the dashboard: distinguish member vs guest. */
+.conn-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--sp-1) var(--sp-3);
+  align-items: center;
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+}
+.conn-row__badge {
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  padding: 0.2em 0.6em;
+  border-radius: var(--r-pill);
+}
+.conn-row__badge--member {
+  background: var(--yea-soft);
+  color: var(--yea);
+}
+.conn-row__badge--guest {
+  background: var(--present-soft);
+  color: var(--c-yellow-600);
+}
+.conn-row__meta {
+  grid-column: 2;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+/* Security / watchdog flags. */
+.flag {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-red-500);
+  background: var(--nay-soft);
+  font-size: var(--fs-sm);
+}
+.flag__reasons {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* Connection history log. */
+.connlog {
+  max-height: 18rem;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  display: grid;
+  gap: 2px;
+}
+.connlog__line {
+  display: grid;
+  grid-template-columns: 8rem 6rem 1fr auto;
+  gap: var(--sp-2);
+  padding: 2px 0;
+  border-bottom: 1px solid var(--line-hair);
+}
+.connlog__ev--connected {
+  color: var(--yea);
+}
+.connlog__ev--kicked,
+.connlog__ev--blocked-ip {
+  color: var(--nay);
+}
+.connlog__ev--isolated {
+  color: var(--c-yellow-600);
+}
+
+/* The data explorer for pruning. */
+.explorer-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-xs);
+}
+.explorer-table th,
+.explorer-table td {
+  text-align: left;
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line-hair);
+}
+.explorer-table .is-num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

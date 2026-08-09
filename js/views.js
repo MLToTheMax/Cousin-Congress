@@ -433,16 +433,21 @@ function renderBillDetail(state, node) {
         <li class="pipeline__step">Enacted</li>
       </ol>
 
-      ${raw(
-        (bill.stage || "drafted") !== "enacted"
-          ? h`<div class="cluster">
-               <button class="btn btn--ghost btn--sm" data-action="advance-stage" data-bill="${bill.id}">
+      <div class="cluster">
+        ${raw(
+          (bill.stage || "drafted") !== "enacted"
+            ? h`<button class="btn btn--ghost btn--sm" data-action="advance-stage" data-bill="${bill.id}">
                  🔨 Move it along the pipeline
-               </button>
-               <span class="field__hint">Chair only — needs the gavel's password.</span>
-             </div>`
-          : raw("")
-      )}
+               </button>`
+            : raw("")
+        )}
+        <button class="btn btn--ghost btn--sm" data-action="share-item" data-type="bill" data-id="${bill.id}" data-cursor="card">
+          🔗 Copy read-only link
+        </button>
+        <button class="btn btn--ghost btn--sm" data-action="share-live" data-type="bill" data-id="${bill.id}">
+          👋 Live guest link
+        </button>
+      </div>
 
       <div class="engrossment">
         <div class="engrossment__seal" aria-hidden="true">CC</div>
@@ -559,16 +564,18 @@ function renderNews(state) {
   return items
     .map(
       (item, i) => h`
-      <article class="news-card ${raw(i === 0 ? "news-card--feature" : "")}" data-item
+      <article class="news-card ${raw(i === 0 && !item.memberNote ? "news-card--feature" : "")}" data-item
                data-text="${item.title} ${item.category || ""}" data-category="${item.category || "notice"}">
-        <div class="news-card__banner" style="--banner:var(${raw(BANNERS[i % BANNERS.length])})" aria-hidden="true">
-          ${raw(esc((item.category || "Notice").slice(0, 1).toUpperCase()))}
+        <div class="news-card__banner" style="--banner:var(${raw(item.memberNote ? "--c-green-600" : BANNERS[i % BANNERS.length])})" aria-hidden="true">
+          ${raw(item.memberNote ? "📝" : esc((item.category || "Notice").slice(0, 1).toUpperCase()))}
         </div>
         <div class="news-card__body">
-          <p class="kicker">${item.category || "Notice"}</p>
+          <p class="kicker">${item.memberNote ? raw(h`Note · ${item.author || "A cousin"}`) : item.category || "Notice"}</p>
           <h3 class="news-card__title"><a href="news.html#post-${item.id}" data-cursor="read">${item.title}</a></h3>
           <p class="news-card__excerpt">${item.excerpt || item.body || ""}</p>
           <p class="news-card__meta">${fmtDate(item.published)} · ${item.author || "Office of the Clerk"}</p>
+          <button class="btn btn--ghost btn--sm" data-action="share-item" data-type="news" data-id="${item.id}"
+                  style="justify-self:start;margin-top:var(--sp-2)">🔗 Share</button>
         </div>
       </article>`
     )
@@ -802,6 +809,29 @@ function renderCommitteeOptions(state) {
   )}`;
 }
 
+/**
+ * Chamber-wide announcements, shown to every device — including ones where
+ * nobody has taken a seat. This is the "everyone in the room hears it" channel:
+ * the Chair speaks and the whole gallery listens without logging in.
+ */
+function renderAnnouncements(state) {
+  const items = select.announcements(state, 4);
+  if (!items.length) return "";
+  return items
+    .map((a) => {
+      const when = timeOfStamp(a._hlc);
+      return h`
+        <div class="announce announce--${raw(esc(a.tone || "info"))}" role="status">
+          <span class="announce__icon" aria-hidden="true">${a.icon || "📣"}</span>
+          <div class="announce__body">
+            <p class="announce__text">${a.text}</p>
+            <p class="announce__meta">${a.by || "The Chair"}${when ? raw(h` · ${relTime(when)}`) : raw("")}</p>
+          </div>
+        </div>`;
+    })
+    .join("");
+}
+
 function renderTicker(state) {
   const session = state.session || {};
   const quorum = select.quorum(state);
@@ -863,6 +893,7 @@ export const VIEWS = {
   committeeOptions: renderCommitteeOptions,
   ticker: renderTicker,
   provision: renderProvision,
+  announcements: renderAnnouncements,
 };
 
 /**

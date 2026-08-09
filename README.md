@@ -4,7 +4,36 @@
 its fun seriously: floor presence, roll-call voting, bill drafting, committees,
 a docket, a newsroom, and an append-only public record — built as a static site
 that runs entirely in the browser, keeps working offline, and syncs
-cousin-to-cousin with no server required.
+cousin-to-cousin with **no server required**.
+
+> **Full documentation:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) is a
+> complete rebuild-from-scratch specification of every subsystem and feature.
+> [`docs/CC-SEAL.md`](docs/CC-SEAL.md) is the end-to-end encryption protocol.
+
+### What's inside, at a glance
+
+- **Local-first CRDT** — every device holds the whole record; all actions apply
+  instantly and offline; replicas converge deterministically.
+- **Encrypted peer-to-peer mesh** — WebRTC data channels, double-encrypted
+  (AES-256-GCM ⊂ XChaCha20-Poly1305) with post-quantum-resistant key agreement
+  and per-op signatures; full mesh with transitive relay; persistent sessions.
+- **Serverless pairing** — emoji picture codes, from-scratch QR encode/decode,
+  a themed "Seal Card" invite, or a relay-brokered auto-pair.
+- **Voting** — shape-morphing ballots, live tallies, proxies, thresholds.
+- **Legislation** — pipeline tracker, drafting studio with engrossment preview.
+- **The Chair** — enroll/reset/retire members, call votes, moderate: freeze /
+  isolate / disconnect peers, IP allow-block rules, a local ML login-anomaly
+  classifier, a live traffic-flow & world map, a security dashboard, and a data
+  explorer for pruning.
+- **Walkie-talkie** — push-to-talk to everyone, over the encrypted mesh.
+- **Chat & notifications** — Chair-gated chat, per-device notifications.
+- **Sharing** — encrypted read-only links (key in the URL fragment) and live
+  revocable scoped guest links that unlock exactly one item.
+- **Kid-friendly** — big buttons, 721-emoji badge picker, playful copy, a
+  playful primary-shape logo, a morphing custom cursor.
+
+Runs on GitHub Pages with zero configuration. Test suite: `tests/*.test.mjs`
+(run with `node`), plus adversarial security tests in `tests/attacks/`.
 
 ## What's inside
 

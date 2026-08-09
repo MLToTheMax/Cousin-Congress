@@ -1,0 +1,101 @@
+/* ==========================================================================
+   logo.css — the brand mark: a tiny capitol built from primary shapes
+   (see js/logo.js for the SVG source and the reasoning behind the shapes).
+   Tokens only — the mark's own colours live as var() fallbacks inside the
+   SVG string, this file styles size, motion and interaction, nothing else.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Sizing — matches --seal-size on the .brand__seal it replaces, so the mark
+   drops into the existing masthead slot in layout.css without a resize.
+   -------------------------------------------------------------------------- */
+
+.brand__mark {
+  --mark-size: 38px;
+  display: block;
+  width: var(--mark-size);
+  height: var(--mark-size);
+  flex: 0 0 auto;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  transition: scale var(--dur-2) var(--ease-spring), rotate var(--dur-2) var(--ease-spring);
+}
+
+/* A hairline contact shadow keeps the mark grounded on busy backgrounds
+   (the header blur, the dark colophon) without boxing it in a badge. */
+.brand__mark .mark__base {
+  filter: drop-shadow(0 1px 1px color-mix(in oklab, var(--c-ink-900) 22%, transparent));
+}
+
+/* The flag pivots at its own base so it can wave independently of the mark. */
+.brand__mark .mark__flag {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transition: rotate var(--dur-2) var(--ease-spring);
+}
+
+/* --------------------------------------------------------------------------
+   Idle animation — a gentle bob + nod, so the capitol reads as alive without
+   demanding attention. Ambient motion only runs when the visitor allows it.
+   -------------------------------------------------------------------------- */
+
+@keyframes mark-bob {
+  0%,
+  100% {
+    translate: 0 0;
+    rotate: -2deg;
+  }
+  50% {
+    translate: 0 -3px;
+    rotate: 2deg;
+  }
+}
+
+@keyframes mark-flag-wave {
+  0%,
+  100% {
+    rotate: -3deg;
+  }
+  50% {
+    rotate: 3deg;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .brand__mark {
+    animation: mark-bob 4.8s var(--ease-in-out) infinite;
+  }
+  .brand__mark .mark__flag {
+    animation: mark-flag-wave 2.4s var(--ease-in-out) infinite;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Hover / focus playfulness — a small spring "pop", pausing the idle loop so
+   the two motions never fight over the same transform.
+   -------------------------------------------------------------------------- */
+
+.brand:hover .brand__mark,
+.brand:focus-visible .brand__mark {
+  scale: 1.12;
+  rotate: -6deg;
+  animation-play-state: paused;
+}
+
+.brand:hover .brand__mark .mark__flag,
+.brand:focus-visible .brand__mark .mark__flag {
+  rotate: 10deg;
+  animation-play-state: paused;
+}
+
+.brand:active .brand__mark {
+  scale: 0.94;
+  rotate: -2deg;
+  transition-duration: var(--dur-1);
+}
+
+.brand:focus-visible .brand__mark {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 50%;
+}

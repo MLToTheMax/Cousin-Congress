@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connect · Cousin Congress</title>
+  <meta name="description" content="Pair devices with a picture code or QR, see who's connected, push-to-talk on the walkie, and — for the curious — watch the record replicate.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0b1c4a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2040%22%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2224.8%22%20r%3D%2212.5%22%20fill%3D%22%231b3fd8%22%2F%3E%3Cpath%20d%3D%22M11%2C15.3A9%2C9%200%200%201%2029%2C15.3Z%22%20fill%3D%22%23ffc21a%22%2F%3E%3Cpath%20d%3D%22M20%2C2.8L24%2C8.8L16%2C8.8Z%22%20fill%3D%22%23e0243c%22%2F%3E%3C%2Fsvg%3E">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/features.css">
+  <link rel="stylesheet" href="css/connect.css">
+  <link rel="stylesheet" href="css/logo.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/motion.css">
+  <link rel="stylesheet" href="css/emoji.css">
+  <link rel="stylesheet" href="css/moderation.css">
+  <link rel="stylesheet" href="css/cursor.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <a class="u-skip" href="#main">Skip to content</a>
+  <div class="progress-rail" aria-hidden="true"><div class="progress-rail__bar"></div></div>
+
+  <input type="checkbox" class="nav-toggle" id="nav-toggle" aria-label="Open the menu">
+
+  <header class="masthead">
+    <div class="shell shell--wide masthead__inner">
+      <a class="brand" href="index.html" aria-label="Cousin Congress home">
+        <span class="brand__mark" data-logo></span>
+        <span class="brand__wordmark">
+          <span class="brand__name">Cousin Congress</span>
+          <span class="brand__sub">The People's Living Room</span>
+        </span>
+      </a>
+
+      <label class="nav-burger" for="nav-toggle" aria-hidden="true">
+        <span class="nav-burger__bars"></span>
+      </label>
+
+      <nav class="nav" aria-label="Primary">
+        <a class="nav__link" href="floor.html">🪑 The Floor</a>
+        <a class="nav__link" href="voting.html">🙋 Votes</a>
+        <div class="nav__group">
+          <a class="nav__link" href="bills.html">📜 Bills</a>
+          <ul class="nav__menu">
+            <li><a href="bills.html">Bill tracker <small>Every measure on file</small></a></li>
+            <li><a href="draft.html">Drafting studio <small>Write and introduce a bill</small></a></li>
+          </ul>
+        </div>
+        <a class="nav__link" href="docket.html">📅 Docket</a>
+        <a class="nav__link" href="news.html">📰 Newsroom</a>
+        <a class="nav__link" href="members.html">👥 Members</a>
+        <a class="nav__link" href="about.html">🧭 About</a>
+        <a class="nav__link" href="connect.html" aria-current="page">🔗 Connect</a>
+        <a class="nav__link" href="connect.html#talkie">📻 Talkie</a>
+        <a class="nav__link notif-bell" href="connect.html#notifications" aria-label="Notifications">🔔<span data-notif-count hidden>0</span></a>
+        <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <div class="ticker" aria-label="Chamber ticker">
+      <div class="ticker__track" data-render="ticker">
+        <span class="ticker__item ticker__item--live"><span class="ticker__label">Chamber</span>In session · sitting 14</span>
+        <span class="ticker__item"><span class="ticker__label">On the floor</span>Roll Call 31: the Pizza Friday Establishment Act</span>
+        <span class="ticker__item"><span class="ticker__label">Up next</span>Snack Committee hearing · the kitchen</span>
+        <span aria-hidden="true" style="display:contents">
+          <span class="ticker__item ticker__item--live"><span class="ticker__label">Chamber</span>In session · sitting 14</span>
+          <span class="ticker__item"><span class="ticker__label">On the floor</span>Roll Call 31: the Pizza Friday Establishment Act</span>
+          <span class="ticker__item"><span class="ticker__label">Up next</span>Snack Committee hearing · the kitchen</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="link-banner" data-link-banner>
+      <span class="link-banner__dot"></span>
+      <span class="link-banner__count" data-link-count>0</span>
+      <span class="link-banner__text" data-link-text>not connected</span>
+      <a class="link-banner__cta" data-link-cta href="connect.html">Connect</a>
+    </div>
+
+    <div class="shell announce-rail" data-render="announcements"></div>
+
+    <main id="main">
+      <header class="page-head">
+        <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
+        <div class="shell">
+          <ol class="crumbs"><li><a href="index.html">Home</a></li><li>Connect</li></ol>
+          <h1 data-enter>Connect Your Devices</h1>
+          <p class="page-head__lede" data-enter style="--i:1">
+            Two devices near each other can trade the whole chamber in a few taps — scan a
+            code or show your own, and you're linked. No account, no typing, no server needed.
+          </p>
+        </div>
+      </header>
+
+      <p class="notice notice--warn shell" style="margin-top:var(--sp-5)" data-boot-error hidden></p>
+
+      <div data-connect>
+
+        <!-- Pairing -->
+        <section class="section">
+          <div class="shell">
+            <div class="connect-hero">
+              <p class="section__eyebrow u-caps" data-reveal>Pair a device</p>
+              <h2 data-reveal>Scan a code, or show yours</h2>
+            </div>
+
+            <div class="connect-choices">
+              <!-- Scan -->
+              <div class="connect-card" data-reveal="left">
+                <span class="connect-card__icon" aria-hidden="true">📷</span>
+                <h3>Scan a code</h3>
+                <p class="u-muted">Point your camera at a cousin's screen and you're in.</p>
+                <button class="btn btn--lg" data-action="start-scan" type="button">Start scanning</button>
+
+                <div class="scanner" data-scanner hidden>
+                  <video playsinline muted></video>
+                  <div class="scanner__reticle"></div>
+                </div>
+                <button class="btn btn--ghost btn--sm" data-action="stop-scan" type="button">Stop scanning</button>
+
+                <div class="field" style="width:100%">
+                  <label class="field__label" for="code-file">Or upload a picture of a code</label>
+                  <input type="file" id="code-file" data-code-file accept="image/*">
+                  <p class="field__hint">No camera handy? A photo of the code works too.</p>
+                </div>
+
+                <div data-reply-frame class="qr-frame"></div>
+                <div class="stack" data-answer-out-wrap hidden style="width:100%">
+                  <label class="field__label" for="answer-out">Send this reply back</label>
+                  <textarea class="textarea code-box" id="answer-out" data-answer-out readonly rows="3"></textarea>
+                  <button class="btn btn--gold btn--sm" data-action="copy" data-copy-from="#answer-out" type="button">
+                    📋 Copy the reply
+                  </button>
+                </div>
+              </div>
+
+              <!-- Show -->
+              <div class="connect-card" data-reveal="right">
+                <span class="connect-card__icon" aria-hidden="true">📱</span>
+                <h3>Show my code</h3>
+                <p class="u-muted">Your cousin scans this, or you send it in any chat.</p>
+                <button class="btn btn--lg" data-action="show-code" type="button">Show my code</button>
+
+                <div class="qr-frame" data-qr-frame></div>
+                <label class="cluster" style="font-size:var(--fs-xs)">
+                  <input type="checkbox" data-card-toggle checked>
+                  Pretty Seal Card (instead of a plain QR)
+                </label>
+
+                <div class="stack" data-code-out hidden style="width:100%">
+                  <label class="field__label" for="code-text">Send this to your cousin</label>
+                  <textarea class="textarea code-box" id="code-text" data-code-text readonly rows="3"></textarea>
+                  <button class="btn btn--ghost btn--sm" data-action="copy" data-copy-from="#code-text" type="button">
+                    📋 Copy the code
+                  </button>
+                  <label class="field__label" for="answer-box">Paste their reply here</label>
+                  <textarea class="textarea code-box" id="answer-box" data-answer-box rows="3"
+                            placeholder="Paste the reply code…"></textarea>
+                  <button class="btn" data-action="finish-pair" type="button">🤝 Finish pairing</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Who's connected -->
+        <section class="section section--sunken">
+          <div class="shell">
+            <header class="section__head">
+              <p class="section__eyebrow u-caps" data-reveal>Right now</p>
+              <h2 data-reveal>Who's connected</h2>
+            </header>
+            <div class="peers" data-peer-list data-reveal>
+              <p class="empty">No devices connected yet. Show your code, or scan a cousin's.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Walkie-talkie -->
+        <section class="section" id="talkie">
+          <div class="shell u-center stack" style="justify-items:center">
+            <p class="section__eyebrow u-caps" data-reveal>📻 Talkie</p>
+            <h2 data-reveal>Push to talk</h2>
+            <p class="u-muted" data-reveal style="max-width:44ch;text-align:center">
+              Hold the button, say your piece, let go. Every connected cousin hears it live.
+            </p>
+            <div class="walkie" data-reveal="scale">
+              <button class="ptt" data-ptt type="button" data-transmitting="false">
+                Talk
+                <small>Hold to talk</small>
+              </button>
+              <div class="walkie__status" data-walkie-status>Hold the button to talk.</div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- For the curious -->
+      <section class="section section--sunken">
+        <div class="shell">
+          <details class="tech" data-reveal>
+            <summary>For the curious — how the record moves</summary>
+            <div class="tech__body stack">
+              <p class="u-muted" style="font-size:var(--fs-sm)">
+                Every device holds the complete chamber record — an append-only log of
+                operations. A <strong>version vector</strong> tracks the highest operation each
+                device has seen from every other device; two devices with the same vector are
+                perfectly in step. As long as one copy survives, the whole record survives.
+              </p>
+
+              <div class="eventlog" data-eventlog></div>
+
+              <h3 style="font-size:var(--fs-sm);font-family:var(--font-body);font-weight:700;margin-top:var(--sp-2)">
+                One sealed message, on the wire
+              </h3>
+              <pre class="wire" data-wire-format></pre>
+
+              <div class="cluster" style="padding-top:var(--sp-4);border-top:1px dashed var(--line)">
+                <button class="btn btn--ghost btn--sm" data-action="force-sweep">🔄 Sync now</button>
+                <button class="btn btn--ghost btn--sm" data-action="export-log">💾 Save a copy of the record</button>
+                <button class="btn btn--ghost btn--sm" data-action="import-log">📂 Load a saved record</button>
+                <input type="file" id="import-file" accept="application/json,.json" class="u-visually-hidden"
+                       aria-label="Import a saved chamber record">
+                <button class="btn btn--danger btn--sm" data-action="reset-replica">🧹 Erase this device</button>
+              </div>
+              <p class="field__hint">Erasing only forgets on this device — every other copy keeps
+                the record, and this one can rejoin and catch up later.</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- Chamber chat -->
+      <section class="section section--sunken" id="chat">
+        <div class="shell">
+          <header class="section__head">
+            <p class="section__eyebrow u-caps" data-reveal>💬 Chat</p>
+            <h2 data-reveal>Chamber chat</h2>
+            <p class="u-muted" data-reveal>The Chair switches chat on per cousin. <span data-chat-note></span></p>
+          </header>
+          <div class="chat" data-reveal>
+            <div class="chat__log" data-chat-log><p class="empty">No messages yet.</p></div>
+            <form class="chat__form" data-action="chat-send">
+              <label class="u-visually-hidden" for="chat-input">Message</label>
+              <input class="input" id="chat-input" name="text" maxlength="500" placeholder="Say something…" autocomplete="off">
+              <button class="btn" type="submit">Send</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Notifications -->
+      <section class="section" id="notifications">
+        <div class="shell">
+          <header class="section__head section__head--split">
+            <div>
+              <p class="section__eyebrow u-caps" data-reveal>🔔 Notifications</p>
+              <h2 data-reveal>What's happened</h2>
+            </div>
+            <div class="cluster" data-reveal="right">
+              <button class="btn btn--ghost btn--sm" data-action="notif-enable">Enable pop-ups</button>
+              <button class="btn btn--ghost btn--sm" data-action="notif-read-all">Mark all read</button>
+            </div>
+          </header>
+          <div data-render="notifications"><p class="empty">Nothing yet.</p></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="colophon">
+      <div class="shell">
+        <div class="colophon__grid">
+          <div>
+            <h2 class="colophon__title">The chamber</h2>
+            <ul class="colophon__list">
+              <li><a href="floor.html">The floor & presence</a></li>
+              <li><a href="voting.html">Voting & results</a></li>
+              <li><a href="docket.html">Docket & calendar</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">Legislation</h2>
+            <ul class="colophon__list">
+              <li><a href="bills.html">Bill tracker</a></li>
+              <li><a href="draft.html">Drafting studio</a></li>
+              <li><a href="news.html">Newsroom</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">Offices</h2>
+            <ul class="colophon__list">
+              <li><a href="members.html">Member directory</a></li>
+              <li><a href="about.html">Rules & about</a></li>
+              <li><a href="connect.html">Connect your devices</a></li>
+              <li><a href="connect.html#talkie">Walkie-talkie</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2 class="colophon__title">The fine print</h2>
+            <ul class="colophon__list">
+              <li>Local-first: your device holds the full record.</li>
+              <li>Works offline; syncs tab-to-tab and peer-to-peer.</li>
+              <li>Optional Cloudflare Worker for always-on relay.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="colophon__base">
+          <span>Cousin Congress · convened wherever two or more cousins are gathered.</span>
+          <span class="cluster">
+            <span class="u-mono" data-clock="date">—</span>
+            <button class="btn btn--ghost btn--sm" data-action="theme" aria-pressed="false"
+                    style="color:inherit">Night session</button>
+          </span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <div class="cursor" aria-hidden="true">
+    <div class="cursor__lag">
+      <span class="cursor__ring"></span>
+      <span class="cursor__square"></span>
+      <span class="cursor__tri"></span>
+      <span class="cursor__bar"></span>
+      <span class="cursor__label"></span>
+    </div>
+    <div class="cursor__dot"></div>
+  </div>
+</body>
+</html>

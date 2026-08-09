@@ -186,6 +186,9 @@ export const emptyState = () => ({
   docket: {},
   proxies: {}, // memberId -> delegation
   statuses: {}, // statusId -> floor status update (append-only feed)
+  announcements: {}, // chamber-wide notices, shown even to unseated devices
+  shares: {}, // live scoped read-grants for guests, revocable
+  chat: {}, // chamber chat messages (Chair enables per member)
 });
 
 /** Shallow last-writer-wins merge into a keyed entity table. */
@@ -272,6 +275,27 @@ const REDUCERS = {
 
   "news.post": (s, op) => put(s.news, op.payload.id, op.payload, op),
   "news.retract": (s, op) => put(s.news, op.payload.id, { _deleted: true }, op),
+
+  /**
+   * Chamber-wide announcement. Reaches every connected device regardless of
+   * whether anyone has claimed a seat on it, which is the point: the gallery
+   * should hear "we're starting in five minutes" without having to log in.
+   */
+  "announce.post": (s, op) => put(s.announcements, op.payload.id, op.payload, op),
+  "announce.retract": (s, op) => put(s.announcements, op.payload.id, { _deleted: true }, op),
+
+  /**
+   * A live share grant: permission for a guest to read ONE item over a scoped
+   * connection. The grant is a first-class, replicated record so that any
+   * device serving the guest — and the Chair, from anywhere — can see it and
+   * revoke it. Revocation is just a later op; the record is append-only.
+   */
+  "share.grant": (s, op) => put(s.shares, op.payload.id, { revoked: false, ...op.payload }, op),
+  "share.revoke": (s, op) => put(s.shares, op.payload.id, { revoked: true, revokedBy: op.payload.by }, op),
+
+  /** Chamber chat. Enabled per member by the Chair (see canChat). */
+  "chat.post": (s, op) => put(s.chat, op.payload.id, op.payload, op),
+  "chat.retract": (s, op) => put(s.chat, op.payload.id, { _deleted: true }, op),
 
   "docket.add": (s, op) => put(s.docket, op.payload.id, op.payload, op),
   "docket.remove": (s, op) => put(s.docket, op.payload.id, { _deleted: true }, op),
@@ -522,6 +546,62 @@ export const select = {
       .slice(0, limit),
 
   committees: (s) => listOf(s.committees),
+
+  announcements: (s, limit = 10) =>
+    listOf(s.announcements)
+      .filter((a) => !a.until || new Date(a.until).getTime() > Date.now())
+      .sort((a, b) => String(b._hlc).localeCompare(String(a._hlc)))
+      .slice(0, limit),
+
+  /** Live share grants this device authored or holds the gavel over. */
+  shares: (s) =>
+    listOf(s.shares).sort((a, b) => String(b._hlc).localeCompare(String(a._hlc))),
+
+  /** Is a share still good? Unknown, revoked, or expired all mean no. */
+  shareLive(s, shareId) {
+    const grant = s.shares[shareId];
+    if (!grant || grant._deleted || grant.revoked) return false;
+    if (grant.expiresAt && new Date(grant.expiresAt).getTime() < Date.now()) return false;
+    return true;
+  },
+
+  share: (s, shareId) => s.shares[shareId] || null,
+
+  /**
+   * May this member use the walkie-talkie? Two policies: "all" (the default —
+   * anyone seated can talk) or "chair-picks", where only members the Chair has
+   * explicitly granted the talkie may transmit.
+   */
+  canTalk(s, memberId) {
+    if (!memberId) return false;
+    if (select.member(s, memberId)?.frozen) return false;
+    const policy = s.session?.talkiePolicy || "all";
+    if (policy === "all") return true;
+    const member = select.member(s, memberId);
+    return Boolean(member?.canTalk);
+  },
+
+  /**
+   * May this member use the text chat? Chat is OFF for everyone by default —
+   * the Chair grants it per member — so the policy defaults to "chair-picks".
+   * A Chair who wants it open for all can flip the policy to "all".
+   */
+  canChat(s, memberId) {
+    if (!memberId) return false;
+    if (select.member(s, memberId)?.frozen) return false;
+    const policy = s.session?.chatPolicy || "chair-picks";
+    if (policy === "all") return true;
+    return Boolean(select.member(s, memberId)?.canChat);
+  },
+
+  chat: (s, limit = 100) =>
+    listOf(s.chat)
+      .sort((a, b) => String(a._hlc).localeCompare(String(b._hlc)))
+      .slice(-limit),
+
+  /** Chamber-wide moderation state, all Chair-controlled. */
+  locked: (s) => Boolean(s.session?.locked),
+  frozenMembers: (s) => listOf(s.members).filter((m) => m.frozen),
 
   /** Per-member participation record used by the scorecards. */
   scorecard(s, memberId) {

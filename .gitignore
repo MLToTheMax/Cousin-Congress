@@ -1,0 +1,8 @@
+# Release artifacts (delivered per-push, not versioned)
+cousin-congress.zip
+*.zip
+
+# Dependencies / scratch
+node_modules/
+one.html
+.DS_Store

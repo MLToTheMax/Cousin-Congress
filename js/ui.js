@@ -157,7 +157,6 @@ export function askDialog({
   placeholder = "",
   confirmLabel = "OK",
   cancelLabel = "Never mind",
-  minLength = 0,
 } = {}) {
   return new Promise((resolve) => {
     if (!askHost) {
@@ -173,7 +172,6 @@ export function askDialog({
         ${raw(hint ? h`<p class="ask__hint">${hint}</p>` : "")}
         <input class="input ask__input" type="text" autocomplete="off"
                autocapitalize="none" spellcheck="false" required
-               minlength="${Math.max(1, minLength)}"
                placeholder="${placeholder}" aria-label="${title}">
         <div class="ask__actions">
           <button class="btn btn--ghost" value="cancel" formnovalidate>${cancelLabel}</button>

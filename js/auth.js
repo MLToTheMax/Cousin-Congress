@@ -97,16 +97,11 @@ export async function claimSeat(memberId) {
     const pin = await askDialog({
       icon: "✨",
       title: `Pick a secret password for ${member.name}`,
-      hint: "Three or more letters. Capitals and spaces don't matter. You'll use it to sit here on any device — don't lose it, or the Chair will have to reset it!",
+      hint: "Anything you'll remember. Capitals and spaces don't matter. You'll use it to sit here on any device — don't lose it, or the Chair will have to reset it!",
       placeholder: "your secret word",
       confirmLabel: "Save my password",
-      minLength: 3,
     });
-    if (!pin) return false;
-    if (normalize(pin).length < 3) {
-      toast("A password needs at least three letters.", "warn");
-      return false;
-    }
+    if (!pin || !normalize(pin)) return false;
     store.dispatch("member.auth", { memberId, auth: await makeAuth(pin) });
     store.setIdentity({ memberId, displayName: member.name });
     toast(`Password saved. Welcome to the floor, ${member.name}! 🎉`);
@@ -181,13 +176,8 @@ export async function requireChair() {
       hint: "No Chair password exists yet, so you get to invent it. Whoever knows it holds the gavel: they can add members, call votes, and run the chamber. Share it wisely!",
       placeholder: "the gavel's secret word",
       confirmLabel: "Take the gavel",
-      minLength: 3,
     });
-    if (!pin) return false;
-    if (normalize(pin).length < 3) {
-      toast("The gavel deserves at least three letters.", "warn");
-      return false;
-    }
+    if (!pin || !normalize(pin)) return false;
     store.dispatch("session.set", { chairAuth: await makeAuth(pin) });
     rememberChairUnlock();
     toast("You hold the gavel. 🔨 Rule justly.");
@@ -226,9 +216,8 @@ export async function changeChairPin() {
     hint: "Replaces the old one everywhere, on every device, as soon as they sync.",
     placeholder: "new secret word",
     confirmLabel: "Change it",
-    minLength: 3,
   });
-  if (!pin) return false;
+  if (!pin || !normalize(pin)) return false;
   store.dispatch("session.set", { chairAuth: await makeAuth(pin) });
   rememberChairUnlock();
   toast("Chair's password changed.");

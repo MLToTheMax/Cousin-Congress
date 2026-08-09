@@ -4,17 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cousin Congress — The People's Living Room</title>
-  <meta name="description" content="The official chamber of the Cousin Congress: live floor presence, roll-call voting, bill drafting, and the public record — running entirely in your browser.">
+  <meta name="description" content="The official chamber of the Cousin Congress: live floor presence, roll-call voting, bill drafting, and the public record — running entirely on your family's own devices.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#0b1c4a">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ccircle%20cx='36'%20cy='40'%20r='28'%20fill='%231b3fd8'/%3E%3Crect%20x='46'%20y='38'%20width='40'%20height='40'%20rx='7'%20fill='%23ffc21a'/%3E%3Cpath%20d='M28%2094%2050%2058%2072%2094z'%20fill='%23e0243c'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2040%22%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2224.8%22%20r%3D%2212.5%22%20fill%3D%22%231b3fd8%22%2F%3E%3Cpath%20d%3D%22M11%2C15.3A9%2C9%200%200%201%2029%2C15.3Z%22%20fill%3D%22%23ffc21a%22%2F%3E%3Cpath%20d%3D%22M20%2C2.8L24%2C8.8L16%2C8.8Z%22%20fill%3D%22%23e0243c%22%2F%3E%3C%2Fsvg%3E">
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/features.css">
+  <link rel="stylesheet" href="css/connect.css">
+  <link rel="stylesheet" href="css/logo.css">
   <link rel="stylesheet" href="css/pages.css">
   <link rel="stylesheet" href="css/motion.css">
+  <link rel="stylesheet" href="css/emoji.css">
+  <link rel="stylesheet" href="css/moderation.css">
   <link rel="stylesheet" href="css/cursor.css">
   <script type="module" src="js/app.js"></script>
 </head>
@@ -27,7 +31,7 @@
   <header class="masthead">
     <div class="shell shell--wide masthead__inner">
       <a class="brand" href="index.html" aria-label="Cousin Congress home">
-        <span class="brand__seal" aria-hidden="true">CC</span>
+        <span class="brand__mark" data-logo></span>
         <span class="brand__wordmark">
           <span class="brand__name">Cousin Congress</span>
           <span class="brand__sub">The People's Living Room</span>
@@ -40,13 +44,7 @@
 
       <nav class="nav" aria-label="Primary">
         <a class="nav__link" href="floor.html">🪑 The Floor</a>
-        <div class="nav__group">
-          <a class="nav__link" href="voting.html">🙋 Votes</a>
-          <ul class="nav__menu">
-            <li><a href="voting.html">Voting <small>Cast and call roll calls</small></a></li>
-            <li><a href="results.html">Results <small>The roll-call archive</small></a></li>
-          </ul>
-        </div>
+        <a class="nav__link" href="voting.html">🙋 Votes</a>
         <div class="nav__group">
           <a class="nav__link" href="bills.html">📜 Bills</a>
           <ul class="nav__menu">
@@ -58,9 +56,9 @@
         <a class="nav__link" href="news.html">📰 Newsroom</a>
         <a class="nav__link" href="members.html">👥 Members</a>
         <a class="nav__link" href="about.html">🧭 About</a>
-        <a class="conn nav__link" data-conn="static" href="sync.html" title="Replication status — chamber devices">
-          <span data-conn-label>Local</span>
-        </a>
+        <a class="nav__link" href="connect.html">🔗 Connect</a>
+        <a class="nav__link" href="connect.html#talkie">📻 Talkie</a>
+        <a class="nav__link notif-bell" href="connect.html#notifications" aria-label="Notifications">🔔<span data-notif-count hidden>0</span></a>
         <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
       </nav>
     </div>
@@ -80,10 +78,18 @@
       </div>
     </div>
 
+    <div class="link-banner" data-link-banner>
+      <span class="link-banner__dot"></span>
+      <span class="link-banner__count" data-link-count>0</span>
+      <span class="link-banner__text" data-link-text>not connected</span>
+      <a class="link-banner__cta" data-link-cta href="connect.html">Connect</a>
+    </div>
+
+    <div class="shell announce-rail" data-render="announcements"></div>
+
     <main id="main">
       <p class="notice notice--warn shell" style="margin-top:var(--sp-4)" data-boot-error hidden></p>
 
-      <!-- ================================================================ -->
       <section class="hero">
         <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
         <div class="deco deco--disc deco--b" data-parallax aria-hidden="true"></div>
@@ -98,33 +104,24 @@
               <span class="hero__underline">Built.</span>
             </h1>
             <p class="hero__lede" data-enter style="--i:2">
-              Presence on the floor, roll-call votes, bills, and the public record —
-              a full legislature that runs in your browser, keeps working offline,
-              and syncs cousin-to-cousin.
+              Cousin Congress is a private legislature for your family, running entirely on the
+              devices you already carry. There's no account and no central server — every phone
+              and laptop holds the complete record, and two of them sync the moment they connect.
             </p>
-            <div class="hero__actions" data-enter style="--i:3">
-              <a class="btn btn--lg" href="voting.html">Vote on the pending motion</a>
-              <a class="btn btn--ghost btn--lg" href="draft.html">Draft a bill</a>
-            </div>
 
-            <dl class="hero__facts" data-enter style="--i:4">
-              <div class="hero__fact">
-                <dt>Members enrolled</dt>
-                <dd><span class="counter" style="--tally-to:10"></span></dd>
+            <div class="hero__actions" data-enter style="--i:3">
+              <div class="cluster" data-when="disconnected">
+                <a class="btn btn--lg" href="connect.html">🔗 Connect your devices</a>
               </div>
-              <div class="hero__fact">
-                <dt>Roll calls held</dt>
-                <dd><span class="counter" style="--tally-to:31"></span></dd>
+              <div class="cluster" data-when="connected" hidden>
+                <a class="btn btn--lg" href="voting.html">🙋 Vote on the pending motion</a>
+                <a class="btn btn--ghost btn--lg" href="draft.html">📜 Draft a bill</a>
               </div>
-              <div class="hero__fact">
-                <dt>Measures enacted</dt>
-                <dd><span class="counter" style="--tally-to:3"></span></dd>
-              </div>
-              <div class="hero__fact">
-                <dt>Chamber time</dt>
-                <dd class="u-mono" data-clock>--:--:--</dd>
-              </div>
-            </dl>
+            </div>
+            <p class="u-muted" data-when="disconnected" data-enter style="--i:4;max-width:52ch">
+              👋 New here? Connect a device first to load your family's real chamber —
+              otherwise you're seeing example data.
+            </p>
           </div>
 
           <div class="great-seal gavel-strike" data-enter="scale" style="--i:2" aria-hidden="true">
@@ -141,219 +138,83 @@
         </div>
       </section>
 
-      <!-- ================================================================ -->
+      <section class="section">
+        <div class="shell u-center stack stack--lg" style="justify-items:center">
+          <header class="section__head" style="text-align:center">
+            <p class="section__eyebrow u-caps" data-reveal>Right now</p>
+            <h2 data-reveal>On the floor right now</h2>
+            <p class="u-muted" data-reveal>Who's here, and what the chamber is deciding.</p>
+          </header>
+
+          <div class="roster" data-render="roster" style="width:100%">
+            <div class="skeleton" style="height:4.5rem"></div>
+            <div class="skeleton" style="height:4.5rem"></div>
+            <div class="skeleton" style="height:4.5rem"></div>
+          </div>
+
+          <div class="stack stack--lg" data-render="openVotes" style="width:100%">
+            <div class="skeleton" style="height:18rem"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--sunken">
+        <div class="shell">
+          <header class="section__head">
+            <p class="section__eyebrow u-caps" data-reveal>Explore</p>
+            <h2 data-reveal>Everything the chamber can do</h2>
+          </header>
+          <div class="grid grid--4">
+            <a class="card card--interactive card--filed" href="floor.html" data-cursor="card" data-reveal
+               style="--i:0;--spine:var(--c-blue-600);text-decoration:none;color:inherit">
+              <h3 class="card__title" style="font-size:var(--fs-md)">🪑 The Floor</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">Live presence and the seating chart.</p>
+            </a>
+            <a class="card card--interactive card--filed" href="voting.html" data-cursor="card" data-reveal
+               style="--i:1;--spine:var(--c-red-500);text-decoration:none;color:inherit">
+              <h3 class="card__title" style="font-size:var(--fs-md)">🙋 Voting</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">Cast ballots and browse the results archive.</p>
+            </a>
+            <a class="card card--interactive card--filed" href="bills.html" data-cursor="card" data-reveal
+               style="--i:2;--spine:var(--c-yellow-500);text-decoration:none;color:inherit">
+              <h3 class="card__title" style="font-size:var(--fs-md)">📜 Bills & drafting</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">Write, track, and amend legislation.</p>
+            </a>
+            <a class="card card--interactive card--filed" href="docket.html" data-cursor="card" data-reveal
+               style="--i:3;--spine:var(--c-green-600);text-decoration:none;color:inherit">
+              <h3 class="card__title" style="font-size:var(--fs-md)">📅 Docket</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">Sittings, hearings, and the calendar.</p>
+            </a>
+            <a class="card card--interactive card--filed" href="news.html" data-cursor="card" data-reveal
+               style="--i:4;--spine:var(--c-blue-600);text-decoration:none;color:inherit">
+              <h3 class="card__title" style="font-size:var(--fs-md)">📰 Newsroom</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">Dispatches, and notes from any cousin.</p>
+            </a>
+            <a class="card card--interactive card--filed" href="members.html" data-cursor="card" data-reveal
+               style="--i:5;--spine:var(--c-red-500);text-decoration:none;color:inherit">
+              <h3 class="card__title" style="font-size:var(--fs-md)">👥 Members</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">Directory, scorecards, and committees.</p>
+            </a>
+            <a class="card card--interactive card--filed" href="connect.html" data-cursor="card" data-reveal
+               style="--i:6;--spine:var(--c-yellow-500);text-decoration:none;color:inherit">
+              <h3 class="card__title" style="font-size:var(--fs-md)">🔗 Connect & talkie</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">Pair devices and push-to-talk.</p>
+            </a>
+            <a class="card card--interactive card--filed" href="about.html" data-cursor="card" data-reveal
+               style="--i:7;--spine:var(--c-green-600);text-decoration:none;color:inherit">
+              <h3 class="card__title" style="font-size:var(--fs-md)">🧭 About & rules</h3>
+              <p class="u-muted" style="font-size:var(--fs-sm)">How the chamber works, and the rules.</p>
+            </a>
+          </div>
+        </div>
+      </section>
+
       <section class="section section--tight">
-        <div class="shell">
-          <div class="cluster cluster--between" data-reveal>
-            <div class="cluster" data-render="session">
-              <span class="badge badge--live">In session</span>
-              <span class="u-mono">Sitting 14</span>
-            </div>
-            <a class="link-arrow" href="floor.html">Watch the floor</a>
-          </div>
-          <div style="margin-top:var(--sp-4)" data-reveal data-render="quorum">
-            <div class="skeleton" style="height:34px"></div>
-          </div>
-        </div>
-      </section>
-
-
-      <!-- ================================================================ -->
-      <section class="section">
-        <div class="shell">
-          <header class="section__head">
-            <p class="section__eyebrow u-caps" data-reveal>New here?</p>
-            <h2 data-reveal>Three taps and you're a legislator</h2>
-          </header>
-          <div class="grid grid--3">
-            <a class="card card--interactive card--filed" href="members.html" data-cursor="card"
-               data-reveal style="--i:0;--spine:var(--c-blue-600);text-decoration:none;color:inherit">
-              <p class="kicker">Step 1 · 🪑</p>
-              <h3 class="card__title">Take your seat</h3>
-              <p class="u-muted" style="font-size:var(--fs-sm)">Find your card in the member
-                directory and say your secret password. First visit? You get to invent one.</p>
-            </a>
-            <a class="card card--interactive card--filed" href="voting.html" data-cursor="card"
-               data-reveal style="--i:1;--spine:var(--c-red-500);text-decoration:none;color:inherit">
-              <p class="kicker">Step 2 · 🙋</p>
-              <h3 class="card__title">Vote on something</h3>
-              <p class="u-muted" style="font-size:var(--fs-sm)">Yea, Nay, or Present — three big
-                buttons. Watch the tally bar move the moment you tap.</p>
-            </a>
-            <a class="card card--interactive card--filed" href="draft.html" data-cursor="card"
-               data-reveal style="--i:2;--spine:var(--c-yellow-500);text-decoration:none;color:inherit">
-              <p class="kicker">Step 3 · 📜</p>
-              <h3 class="card__title">Write a law</h3>
-              <p class="u-muted" style="font-size:var(--fs-sm)">Draft a bill in the studio and
-                watch it appear on official parchment as you type. Then introduce it for real.</p>
-            </a>
-          </div>
-        </div>
-      </section>
-      <!-- ================================================================ -->
-      <section class="section section--sunken">
-        <div class="shell">
-          <header class="section__head section__head--split">
-            <div>
-              <p class="section__eyebrow u-caps" data-reveal>State of the chamber</p>
-              <h2 data-reveal>The numbers, certified nightly</h2>
-            </div>
-            <p class="u-muted" data-reveal="right">Every figure below is computed from the same
-              replicated record each member's device holds — nobody's copy is more official than yours.</p>
-          </header>
-          <div data-reveal="scale" data-render="kpis" class="kpi-rail">
-            <div class="kpi"><span class="kpi__value">10</span><span class="kpi__label">Members enrolled</span></div>
-            <div class="kpi"><span class="kpi__value">4</span><span class="kpi__label">Bills on file</span></div>
-            <div class="kpi"><span class="kpi__value">4</span><span class="kpi__label">Roll calls held</span></div>
-            <div class="kpi"><span class="kpi__value">3</span><span class="kpi__label">Measures enacted</span></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================================================================ -->
-      <section class="section">
-        <div class="shell">
-          <header class="section__head section__head--split">
-            <div>
-              <p class="section__eyebrow u-caps" data-reveal>Division history</p>
-              <h2 data-reveal>How the chamber has divided</h2>
-            </div>
-            <a class="link-arrow" href="results.html" data-reveal="right">Full roll-call archive</a>
-          </header>
-          <div class="panel">
-            <div class="histogram" data-render="histogram">
-              <div class="skeleton" style="flex:1;height:60%"></div>
-              <div class="skeleton" style="flex:1;height:80%"></div>
-              <div class="skeleton" style="flex:1;height:45%"></div>
-              <div class="skeleton" style="flex:1;height:70%"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================================================================ -->
-      <div class="band" aria-hidden="true">
-        <div class="band__track">
-          <span class="band__item">Yea</span>
-          <span class="band__item">Nay</span>
-          <span class="band__item">Present</span>
-          <span class="band__item">Order in the living room</span>
-          <span class="band__item">The gavel is a wooden spoon</span>
-          <span class="band__item">Yea</span>
-          <span class="band__item">Nay</span>
-          <span class="band__item">Present</span>
-          <span class="band__item">Order in the living room</span>
-          <span class="band__item">The gavel is a wooden spoon</span>
-        </div>
-      </div>
-
-      <!-- ================================================================ -->
-      <section class="section">
-        <div class="shell">
-          <header class="section__head">
-            <p class="section__eyebrow u-caps" data-reveal>Civics, briefly</p>
-            <h2 data-reveal>How a bill becomes family law</h2>
-          </header>
-
-          <div class="process">
-            <aside class="process__pin" data-reveal="left">
-              <div class="panel stack">
-                <h3 style="font-family:var(--font-body);font-size:var(--fs-md);font-weight:700">Five stops, one snack break</h3>
-                <p class="u-muted" style="font-size:var(--fs-sm)">
-                  The pipeline on every bill card tracks these same five stages.
-                  Watch the crimson diamond — that's where your bill is standing right now.
-                </p>
-                <ol class="pipeline" data-stage="3" aria-hidden="true">
-                  <li class="pipeline__step">Drafted</li>
-                  <li class="pipeline__step">Introduced</li>
-                  <li class="pipeline__step">Committee</li>
-                  <li class="pipeline__step">Floor</li>
-                  <li class="pipeline__step">Enacted</li>
-                </ol>
-                <a class="btn btn--gold" href="draft.html">Start drafting</a>
-              </div>
-            </aside>
-
-            <ol class="process__steps">
-              <li class="process__step" data-reveal>
-                <div>
-                  <h3>Drafted</h3>
-                  <p>A cousin writes the measure in the drafting studio. The engrossment preview shows
-                  exactly what the chamber will read — parchment, seal, and all.</p>
-                </div>
-              </li>
-              <li class="process__step" data-reveal>
-                <div>
-                  <h3>Introduced</h3>
-                  <p>One click enters it on the calendar, assigns a number, and records the sponsor.
-                  Cosponsors can sign on from any device, anywhere.</p>
-                </div>
-              </li>
-              <li class="process__step" data-reveal>
-                <div>
-                  <h3>Committee</h3>
-                  <p>The committee of referral marks it up. Amendments are filed on the record and
-                  constituents — grandparents included — may comment.</p>
-                </div>
-              </li>
-              <li class="process__step" data-reveal>
-                <div>
-                  <h3>The floor</h3>
-                  <p>The chair calls the roll. Yea, nay, or present — ballots land instantly, tallies
-                  animate live, and the majority line is drawn on the meter.</p>
-                </div>
-              </li>
-              <li class="process__step" data-reveal>
-                <div>
-                  <h3>Enacted</h3>
-                  <p>Carried measures are signed at a ceremony of appropriate pomp and entered into
-                  the archive, which every member's device keeps a full copy of.</p>
-                </div>
-              </li>
-            </ol>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================================================================ -->
-      <section class="section section--sunken">
-        <div class="shell">
-          <header class="section__head section__head--split">
-            <div>
-              <p class="section__eyebrow u-caps" data-reveal>From the newsroom</p>
-              <h2 data-reveal>Latest dispatches</h2>
-            </div>
-            <a class="link-arrow" href="news.html" data-reveal="right">All press releases</a>
-          </header>
-          <div class="news-grid" data-render="news">
-            <div class="skeleton" style="height:14rem"></div>
-            <div class="skeleton" style="height:14rem"></div>
-            <div class="skeleton" style="height:14rem"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================================================================ -->
-      <section class="section">
-        <div class="shell">
-          <div class="subscribe" data-reveal="scale">
-            <div>
-              <p class="u-caps" style="color:var(--c-yellow-400)">The chamber bulletin</p>
-              <h2>Never miss a roll call</h2>
-              <p style="color:rgb(255 255 255 / 0.75);max-width:52ch">
-                One email per sitting: what passed, what failed, and whose district is hosting
-                the reunion. Delivered by the Committee on Communications.
-              </p>
-            </div>
-            <form class="subscribe__form" data-action="subscribe">
-              <div class="field">
-                <label class="field__label u-visually-hidden" for="sub-email">Email address</label>
-                <input class="input" id="sub-email" name="email" type="email" required
-                       placeholder="you@example.com" autocomplete="email">
-              </div>
-              <button class="btn btn--gold" type="submit">Subscribe</button>
-            </form>
-          </div>
+        <div class="shell u-center stack" style="justify-items:center;text-align:center">
+          <h2 data-reveal>Ready to take your seat?</h2>
+          <p class="u-muted" data-reveal>Connect your devices to load your family's real chamber
+            — it takes less than a minute.</p>
+          <a class="btn btn--lg btn--gold" href="connect.html" data-reveal>🔗 Connect your devices</a>
         </div>
       </section>
     </main>
@@ -366,8 +227,7 @@
             <h2 class="colophon__title">The chamber</h2>
             <ul class="colophon__list">
               <li><a href="floor.html">The floor & presence</a></li>
-              <li><a href="voting.html">Voting</a></li>
-              <li><a href="results.html">Roll-call results</a></li>
+              <li><a href="voting.html">Voting & results</a></li>
               <li><a href="docket.html">Docket & calendar</a></li>
             </ul>
           </div>
@@ -384,7 +244,8 @@
             <ul class="colophon__list">
               <li><a href="members.html">Member directory</a></li>
               <li><a href="about.html">Rules & about</a></li>
-              <li><a href="sync.html">Chamber devices</a></li>
+              <li><a href="connect.html">Connect your devices</a></li>
+              <li><a href="connect.html#talkie">Walkie-talkie</a></li>
             </ul>
           </div>
           <div>

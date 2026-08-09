@@ -19,6 +19,23 @@ export const CONFIG = {
   /** Logical room. Peers only exchange state within the same room. */
   room: "cousin-congress",
 
+  /**
+   * Optional pinned mesh secret (base64url, 32 bytes) shared by every device
+   * in a fixed deployment. Leave empty and each device mints its own, handing
+   * it to peers through pairing codes — the right default for a family that
+   * pairs in person. Set it only if you want every visitor who loads the page
+   * to be able to join without pairing.
+   */
+  roomSecret: "",
+
+  /**
+   * Endpoints that serve schema-migration manifests, tried in order. Each is
+   * either a URL string or { url, sha256 } to pin the manifest's hash. These
+   * carry DATA (declarative converters), never code — see migrate.js. Empty is
+   * fine; converters for older formats also ship built in.
+   */
+  migrationEndpoints: [],
+
   /** Where the genesis snapshot lives, relative to the page. */
   dataBase: "data",
 
