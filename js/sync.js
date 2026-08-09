@@ -352,7 +352,19 @@ export class SyncCoordinator extends EventTarget {
 
       case "ptt": {
         // Walkie-talkie audio chunk, only accepted from an encrypted peer.
-        if (transport === this.peers) this.walkie?.receive(msg);
+        if (transport !== this.peers) break;
+        // Flood to the WHOLE connected mesh, not just our direct neighbours, so
+        // a cousin reachable only through a chain of hops still hears it live —
+        // the same transitive relay ops get. Each chunk is relayed at most once
+        // (deduped by clip+seq) so it cannot loop, and we never re-flood our own
+        // clip coming back around the ring.
+        const key = `${msg.clipId}:${msg.seq}`;
+        this.pttSeen ||= new Set();
+        if (this.pttSeen.has(key)) break;
+        this.pttSeen.add(key);
+        if (this.pttSeen.size > 8192) this.pttSeen.delete(this.pttSeen.values().next().value);
+        this.walkie?.receive(msg);
+        if (msg.from !== this.actor) this.peers.relay(msg, peer);
         break;
       }
 
