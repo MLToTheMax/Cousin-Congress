@@ -95,8 +95,8 @@ async function wireShow(sync) {
     showButton.disabled = true;
     showButton.textContent = "Drawing your code…";
     try {
-      const { code } = await sync.createInvite();
-      await paintCode(frame, code);
+      const { code, compact } = await sync.createInvite();
+      await paintCode(frame, compact); // QR/card use the short form; text uses the picture code
       const raw = qs("[data-code-text]");
       if (raw) raw.value = code;
       qs("[data-code-out]")?.removeAttribute("hidden");
@@ -128,7 +128,7 @@ async function wireShow(sync) {
  * the toggle asks for. Falls back to a plain QR if the Seal Card module is
  * unavailable, because a scannable-but-plain code always beats no code.
  */
-async function paintCode(frame, code) {
+async function paintCode(frame, payload) {
   const wantsCard = qs("[data-card-toggle]")?.checked;
   if (wantsCard) {
     const sc = await loadSealcard();
@@ -136,7 +136,7 @@ async function paintCode(frame, code) {
       try {
         const me = window.CousinCongress?.store?.me;
         const { svg } = await sc.renderSealCard({
-          payload: code,
+          payload,
           name: me?.name || "A cousin",
           icon: me?.icon || "🪑",
           subtitle: "Scan me to join the chamber",
@@ -151,7 +151,7 @@ async function paintCode(frame, code) {
   }
   frame.classList.remove("qr-frame--card");
   // Level M tolerates a phone camera at an angle; the code is our own bytes.
-  frame.innerHTML = qrToSvg(encodeQR(code, { ecl: "M" }), { margin: 3 });
+  frame.innerHTML = qrToSvg(encodeQR(payload, { ecl: "M" }), { margin: 3 });
 }
 
 /* --- scanning with the camera --------------------------------------------- */
@@ -293,16 +293,27 @@ async function fileToImageData(file) {
  * showed (we complete it). We try to tell which from its role and act.
  */
 async function consumeScannedCode(sync, text) {
+  // A seat code from the Chair ("here is your seat") is not a pairing ticket —
+  // it says who this device is. Handle it first, since it is the flow most
+  // cousins will use: scan the code the Chair gave you and you are seated.
+  const { readSeatCode } = await import("./seatcode.js");
+  const seat = readSeatCode(text);
+  if (seat) {
+    const { redeemSeatCode } = await import("./auth.js");
+    await redeemSeatCode(seat, sync);
+    return;
+  }
+
   try {
-    const reply = await sync.acceptInvite(text);
+    const { code, compact } = await sync.acceptInvite(text);
     const box = qs("[data-answer-out]");
     if (box) {
-      box.value = reply;
+      box.value = code;
       qs("[data-answer-out-wrap]")?.removeAttribute("hidden");
     }
     // Also render the reply as a QR so the other phone can scan it straight back.
     const frame = qs("[data-reply-frame]");
-    if (frame) frame.innerHTML = qrToSvg(encodeQR(reply, { ecl: "M" }), { margin: 3 });
+    if (frame) frame.innerHTML = qrToSvg(encodeQR(compact, { ecl: "M" }), { margin: 3 });
     toast("Scanned! Show your reply code back to your cousin.");
   } catch (error) {
     // Not an invite — maybe it is the reply to our own invite.

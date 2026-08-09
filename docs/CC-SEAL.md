@@ -479,6 +479,40 @@ an earlier one left a permanent mid-sequence gap that anti-entropy never healed
 already-held ops dedupe on arrival — it can only cause more resends, never fewer,
 so convergence is unaffected, and for a gapless log it equals the old value.
 
+A **broad fifth pass** (one attacker per surface) confirmed five surfaces fully
+blocked (chair authz, ingest pipeline, cipher cascade, handshake, capability
+shares) and found six more issues, all now fixed and regression-tested
+(`tests/redteam-round5.test.mjs`):
+
+- **Pairing answer-leg hijack (Critical).** `completeInvite()` absorbed a reply
+  ticket without validation, so a hostile answer could overwrite the inviter's
+  room secret, demote them to a scoped guest, and pin a chosen key. Fixed: the
+  answer leg validates the room, **never adopts a room secret or scope**, and a
+  ticket only sets the handshake's *expected* key — never a durable directory
+  entry.
+- **Key learned before PSK proof (Critical/High).** The mesh handshake wrote a
+  peer's key into the trusted directory on `hello`, before key confirmation, so
+  a relay that never held the PSK could teach a device a throwaway key. Fixed:
+  the durable `directory.learn` now happens only in `#secure()`, **after**
+  `checkConfirmation` proves room membership.
+- **Compaction refold divergence (Critical).** The refold folded the whole log
+  *over the snapshot* (which already contained it); with order-sensitive
+  authorisation an op unauthorised at its real position could be resurrected on
+  the second application, and replicas that compacted at different points would
+  diverge. Fixed: the refold folds from empty (the full log is retained).
+- **Id-collision overwrites (High).** A create/post op (`status.post`,
+  `chat.post`, `amendment.file`, member-note `news.post`, and **`share.grant`**)
+  that reused an existing record's id was scoped to the payload's claimed author,
+  so a member could clobber another's record — or re-enable a revoked share.
+  Fixed: when the id already exists, authority is the **existing** owner (or the
+  chair), matching the retract rules.
+- **id.announce DoS (High).** `verifyIdentityOp` decoded the signature without a
+  guard, so one malformed announcement threw and stopped the ingest loop. Fixed
+  with the same try/catch `verifyOp` uses.
+- **Provisioning-window announce (Low).** A network `id.announce` is now
+  quarantined until the verifier is wired, closing the last unsealed corner of
+  the window.
+
 ### Residual risk — stated plainly
 
 - **Same-room founding races.** First-writer-wins is ordered by the HLC, which a

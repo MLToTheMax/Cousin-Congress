@@ -107,6 +107,7 @@ function membersPanel(members, session) {
         <div class="cluster" style="gap:var(--sp-1)">
           <button class="btn btn--ghost btn--sm" data-action="toggle-talk" data-member="${esc(m.id)}" title="Walkie">📻 ${m.canTalk ? "on" : "off"}</button>
           <button class="btn btn--ghost btn--sm" data-action="toggle-chat" data-member="${esc(m.id)}" title="Chat">💬 ${m.canChat ? "on" : "off"}</button>
+          <button class="btn btn--ghost btn--sm" data-action="seat-qr" data-member="${esc(m.id)}" title="Show a sign-in code they can scan">🎟️ Sign-in code</button>
           <button class="btn btn--ghost btn--sm" data-action="toggle-freeze" data-member="${esc(m.id)}">${m.frozen ? "Thaw" : "Freeze"}</button>
           ${devices ? `<button class="btn btn--ghost btn--sm" data-action="reset-seat" data-member="${esc(m.id)}" title="Unregister this seat's devices for recovery">Reset devices</button>` : ""}
         </div>
@@ -123,6 +124,7 @@ function membersPanel(members, session) {
  */
 function devicesPanel(store) {
   const requests = store.select.chairRequests();
+  const seatRequests = store.select.seatRequests();
   const chairs = store.select.chairDevices();
   const short = (kid) => `${String(kid || "").slice(0, 10)}…`;
 
@@ -135,7 +137,18 @@ function devicesPanel(store) {
             <button class="btn btn--sm" data-action="approve-chair" data-kid="${esc(r.kid)}" data-actor="${esc(r.actor || "")}">Approve</button>
           </div>`)
         .join("")
-    : `<p class="u-muted" style="font-size:var(--fs-xs)">No devices are waiting for approval.</p>`;
+    : `<p class="u-muted" style="font-size:var(--fs-xs)">No devices are waiting for the gavel.</p>`;
+
+  const seatRows = seatRequests.length
+    ? seatRequests
+        .map((r) => `
+          <div class="toggle-row">
+            <div><strong>🪑 A device wants ${esc(r.memberIcon || "")} ${esc(r.memberName || "a seat")}</strong><br>
+              <span class="u-mono u-muted" style="font-size:var(--fs-2xs)">${esc(short(r.kid))}</span></div>
+            <button class="btn btn--sm" data-action="approve-seat" data-member="${esc(r.memberId)}" data-kid="${esc(r.kid)}">Approve</button>
+          </div>`)
+        .join("")
+    : "";
 
   const chairRows = chairs.length
     ? `<p class="u-muted" style="font-size:var(--fs-xs);margin-top:var(--sp-3)">Chair devices: ${chairs
@@ -144,8 +157,9 @@ function devicesPanel(store) {
     : `<p class="u-muted" style="font-size:var(--fs-xs);margin-top:var(--sp-3)">No Chair device is registered yet — the first to take the gavel becomes the root.</p>`;
 
   return `<section class="dash__panel">
-      <h3>🔐 Chair devices</h3>
+      <h3>🔐 Devices &amp; approvals</h3>
       ${requestRows}
+      ${seatRows ? `<hr style="border:none;border-top:1px solid var(--line);margin:var(--sp-3) 0">${seatRows}` : ""}
       ${chairRows}
     </section>`;
 }

@@ -73,6 +73,28 @@ function recordScoped(s, table, id, field, kid) {
   return memberScoped(s, rec[field], kid);
 }
 
+/**
+ * Scope a "create or post" op that is keyed by `payload.id`. If a record already
+ * exists at that id, the op is OVERWRITING it, so authority is the EXISTING
+ * record's owner (never the payload's freshly-claimed author) — otherwise a
+ * member could clobber another member's status/note/grant by reusing its id.
+ * A brand-new id is scoped to the claimed author as usual.
+ */
+function createScoped(s, table, id, ownerField, claimedAuthor, kid) {
+  const rec = s[table] && s[table][id];
+  if (!rec) return memberScoped(s, claimedAuthor, kid); // brand-new id
+  // OVERWRITING an existing record. Authority is the existing owner — and this
+  // must fail CLOSED when that owner is not a claimable member id. memberScoped
+  // treats an unowned/unknown member as open (so a fresh seat can be claimed),
+  // which is right for a seat but catastrophic here: an official Chair dispatch
+  // has no member owner at all, so the lenient path let any member overwrite it
+  // by reusing its id. Likewise a share owned by a display name or actor id.
+  if (isChairKey(s, kid)) return true;
+  const owner = rec[ownerField];
+  if (!owner || !s.members[owner]) return false; // unowned/opaque -> chair only
+  return ownsMember(s, owner, kid);
+}
+
 /* --- the policy ----------------------------------------------------------- */
 
 /**
@@ -107,6 +129,7 @@ export function authorize(state, op) {
       return chair; // administering others' keys is the chair's alone
 
     case "chair.request":
+    case "member.requestKey":
       return true; // a request grants nothing; the chair must still approve
 
     case "member.claimKey": {
@@ -149,7 +172,7 @@ export function authorize(state, op) {
       return memberScoped(state, p.id, kid);
 
     case "status.post":
-      return memberScoped(state, p.memberId, kid);
+      return createScoped(state, "statuses", p.id, "memberId", p.memberId, kid);
     case "status.retract":
       return recordScoped(state, "statuses", p.id, "memberId", kid);
 
@@ -162,23 +185,35 @@ export function authorize(state, op) {
       return memberScoped(state, p.memberId, kid);
 
     case "chat.post":
-      return memberScoped(state, p.memberId, kid);
+      return createScoped(state, "chat", p.id, "memberId", p.memberId, kid);
     case "chat.retract":
       return recordScoped(state, "chat", p.id, "memberId", kid);
 
     case "amendment.file":
-      return memberScoped(state, p.author, kid);
+      return createScoped(state, "amendments", p.id, "author", p.author, kid);
     case "amendment.withdraw":
       return recordScoped(state, "amendments", p.id, "author", kid);
 
-    case "share.grant":
-      return memberScoped(state, p.by, kid);
-    case "share.revoke":
-      return recordScoped(state, "shares", p.id, "by", kid);
+    // Share authority is bound to the granting KEY, not to a member/actor string.
+    // `by` was only ever a label (it can hold a memberId, an actorId, or a display
+    // name), and memberScoped treats an unrecognised owner as unowned — so binding
+    // to it let an unrelated member revoke someone else's live share, or resurrect
+    // a revoked one by re-granting its id. `byKid` is the granter's fingerprint,
+    // recorded by the reducer from the authenticated signer.
+    case "share.grant": {
+      const existing = state.shares[p.id];
+      if (!existing) return memberScoped(state, p.by, kid); // a brand-new grant
+      return isChairKey(state, kid) || existing.byKid === kid;
+    }
+    case "share.revoke": {
+      const grant = state.shares[p.id];
+      if (!grant) return true; // nothing to protect yet
+      return isChairKey(state, kid) || grant.byKid === kid;
+    }
 
     case "news.post":
       // A member's newsroom note is theirs; an official dispatch is the chair's.
-      if (p.memberNote) return memberScoped(state, p.authorId, kid);
+      if (p.memberNote) return createScoped(state, "news", p.id, "authorId", p.authorId, kid);
       return chair || noChair;
     case "news.retract":
       return chair || noChair;

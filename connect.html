@@ -108,16 +108,18 @@
         <section class="section">
           <div class="shell">
             <div class="connect-hero">
-              <p class="section__eyebrow u-caps" data-reveal>Pair a device</p>
-              <h2 data-reveal>Scan a code, or show yours</h2>
+              <p class="section__eyebrow u-caps" data-reveal>Join the chamber</p>
+              <h2 data-reveal>Scan your code</h2>
+              <p class="u-muted" data-reveal>The usual way in: point your camera at the sign-in code the
+                Chair gave you, or at a cousin's screen. One scan and you're seated.</p>
             </div>
 
             <div class="connect-choices">
-              <!-- Scan -->
-              <div class="connect-card" data-reveal="left">
+              <!-- Scan — the default path -->
+              <div class="connect-card connect-card--primary" data-reveal="left">
                 <span class="connect-card__icon" aria-hidden="true">📷</span>
                 <h3>Scan a code</h3>
-                <p class="u-muted">Point your camera at a cousin's screen and you're in.</p>
+                <p class="u-muted">Your sign-in code from the Chair, or a cousin's screen.</p>
                 <button class="btn btn--lg" data-action="start-scan" type="button">Start scanning</button>
 
                 <div class="scanner" data-scanner hidden>
@@ -151,7 +153,7 @@
 
                 <div class="qr-frame" data-qr-frame></div>
                 <label class="cluster" style="font-size:var(--fs-xs)">
-                  <input type="checkbox" data-card-toggle checked>
+                  <input type="checkbox" data-card-toggle>
                   Pretty Seal Card (instead of a plain QR)
                 </label>
 

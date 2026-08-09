@@ -23,10 +23,16 @@
 
 import CONFIG from "./config.js";
 import { emojiDecode, emojiEncode, looksLikeIconCode } from "./icons.js";
-import { Session, b64, unb64 } from "./crypto.js";
+import { Session, b64, unb64, fingerprint } from "./crypto.js";
 
 const CHANNEL = "cc-ops";
 const ICE_TIMEOUT_MS = 3500;
+// How long to keep gathering once we already have a usable candidate set. A
+// pairing code should appear near-instantly: host candidates are ready in
+// milliseconds (enough for same-network pairing), and if the STUN servers are
+// slow or blocked we must NOT make the human stare at a spinner for the full
+// ICE_TIMEOUT_MS waiting for gathering to formally "complete".
+const ICE_GRACE_MS = 1200;
 const PAIRING_VERSION = 2;
 
 /* --------------------------------------------------------------------------
@@ -51,12 +57,25 @@ async function gunzip(bytes) {
   return new Response(stream).text();
 }
 
+/**
+ * Encode a pairing ticket two ways from the SAME compressed bytes:
+ *   - `code`    the emoji "picture code", for humans to copy/paste or photograph;
+ *   - `compact` a short base64 string, for the QR and Seal Card.
+ *
+ * The QR must use `compact`, NOT `code`: each byte of the picture code is a
+ * multi-byte emoji, so QR-encoding the emoji string inflates the payload ~4x and
+ * blows past the QR capacity (a ~780-byte ticket becomes ~3100 bytes). Both
+ * forms round-trip through decodePayload — emoji via its icon branch, `compact`
+ * via its `z.`/`p.` branch.
+ */
 async function encodePayload(obj) {
   const raw = new TextEncoder().encode(JSON.stringify(obj));
-  if (typeof CompressionStream === "undefined") return emojiEncode(concatBytes(2, raw));
+  if (typeof CompressionStream === "undefined") {
+    return { code: emojiEncode(concatBytes(2, raw)), compact: `p.${b64(raw)}` };
+  }
   const stream = new Blob([raw]).stream().pipeThrough(new CompressionStream("gzip"));
   const packed = new Uint8Array(await new Response(stream).arrayBuffer());
-  return emojiEncode(concatBytes(1, packed));
+  return { code: emojiEncode(concatBytes(1, packed)), compact: `z.${b64(packed)}` };
 }
 
 async function decodePayload(code) {
@@ -290,9 +309,11 @@ export class PeerTransport extends EventTarget {
           this.#raw(link, { hs: "hello", hello: ownHello });
         }
         await link.session.acceptHello(frame.hello);
-        this.security.directory?.learn(remoteActor, link.session.peerSpki, {
-          pinned: this.pins.has(remoteActor),
-        });
+        // NB: we do NOT learn the peer's key here. acceptHello succeeds before
+        // the PSK is proven (the PSK only gates key confirmation), so learning
+        // now would let a peer that never held the room secret — a relay — teach
+        // us a throwaway key. The durable directory entry is written in #secure()
+        // instead, once checkConfirmation has proven room membership.
         this.#raw(link, { hs: "confirm", mac: await link.session.confirmation() });
       } else if (frame.hs === "confirm") {
         const good = await link.session.checkConfirmation(frame.mac);
@@ -312,6 +333,14 @@ export class PeerTransport extends EventTarget {
   async #secure(remoteActor, link) {
     if (link.secured) return;
     link.secured = true;
+    // Now — and only now — the peer has proven the PSK, so it is safe to write
+    // the durable directory entry the op-gossip path verifies against. Pinned if
+    // the peer's key came from a pairing code (its fingerprint is in this.pins).
+    if (link.session?.peerSpki) {
+      this.security.directory?.learn(remoteActor, link.session.peerSpki, {
+        pinned: this.pins.has(remoteActor),
+      });
+    }
     link.safety = await link.session.safetyWord(SAFETY_ALPHABET);
     this.#log("connected", remoteActor, {
       guest: Boolean(link.guestScope),
@@ -561,10 +590,8 @@ export class PeerTransport extends EventTarget {
     await link.pc.setLocalDescription(offer);
     await this.#gatherIce(link.pc);
 
-    return {
-      id: inviteId,
-      code: await encodePayload(await this.#ticket("offer", inviteId, link.pc.localDescription.sdp, scope)),
-    };
+    const enc = await encodePayload(await this.#ticket("offer", inviteId, link.pc.localDescription.sdp, scope));
+    return { id: inviteId, code: enc.code, compact: enc.compact };
   }
 
   /** A guest invite: the recipient can read only the one shared item. The
@@ -592,7 +619,7 @@ export class PeerTransport extends EventTarget {
     if (t.actor === this.actor) throw new Error("That invite came from this device.");
 
     // Adopt the room secret and pin the inviter's identity from the code.
-    this.#absorbTicket(t);
+    await this.#absorbTicket(t);
 
     const link = this.#newConnection(t.actor, "in");
     link.pc.ondatachannel = (event) => {
@@ -621,15 +648,24 @@ export class PeerTransport extends EventTarget {
   async completeInvite(answerCode) {
     const t = await decodePayload(answerCode);
     if (t.role !== "answer") throw new Error("That is an invite code, not a reply code.");
+    if (t.room !== CONFIG.room) throw new Error(`That reply is for a different room ("${t.room}").`);
 
     const key = this.pending.has(t.id) ? t.id : [...this.pending.keys()].at(-1);
     const pending = this.pending.get(key);
     if (!pending) throw new Error("No invite is waiting for a reply on this device.");
     this.pending.delete(key);
 
-    this.#absorbTicket(t);
+    // ANSWER leg: we already hold the room secret, so never adopt one from a
+    // reply (that would let a hostile answer hijack our room or demote us to a
+    // guest). Only the peer's expected key is recorded, and it is durably
+    // learned in #secure() after the PSK-confirmed handshake.
+    await this.#absorbTicket(t, { adoptSecret: false });
 
     const { link, channel } = pending;
+    // Every send path (#raw, #sealTo) writes to link.channel, so without this the
+    // inviter could never send its hello/confirm and serverless QR / picture-code
+    // pairing would open a data channel that then sat mute forever.
+    link.channel = channel;
     link.remoteFp = t.dtls;
     this.peers.set(t.actor, link);
     channel.onopen = () => {
@@ -647,9 +683,23 @@ export class PeerTransport extends EventTarget {
     return t.actor;
   }
 
-  /** Learn the room secret and pin the peer's identity from a pairing ticket. */
-  #absorbTicket(t) {
-    if (t.scope) {
+  /**
+   * Absorb a pairing ticket: adopt the room/scope secret (OFFER leg only) and
+   * record the peer's expected key fingerprint for the handshake.
+   *
+   * `adoptSecret` is false on the ANSWER leg: an answer travels from the joiner
+   * back to the inviter, who already holds the room secret and must NEVER be
+   * talked into replacing it — or into becoming a scoped guest — by anything a
+   * reply ticket claims. That was a real defeat: a malicious answer could
+   * overwrite the inviter's room secret and demote them to a guest.
+   *
+   * The identity key is only recorded as the handshake's EXPECTED pin here; the
+   * durable directory entry is written later, in #secure(), and only once the
+   * peer has proven the PSK. So a ticket can never durably teach us a key for an
+   * actor that has not completed a confirmed, room-authenticated handshake.
+   */
+  async #absorbTicket(t, { adoptSecret = true } = {}) {
+    if (adoptSecret && t.scope) {
       // A guest ticket: we are joining to read ONE item. We take the per-share
       // secret as our session key and mark ourselves scoped, so this device
       // never even asks for — let alone decrypts — the rest of the chamber.
@@ -662,7 +712,7 @@ export class PeerTransport extends EventTarget {
         }
       }
       this.dispatchEvent(new CustomEvent("guest", { detail: this.#guestScope }));
-    } else if (t.psk && this.security.adoptRoomSecret) {
+    } else if (adoptSecret && t.psk && this.security.adoptRoomSecret) {
       try {
         this.security.adoptRoomSecret(unb64(t.psk));
       } catch {
@@ -672,9 +722,7 @@ export class PeerTransport extends EventTarget {
     if (t.idKey) {
       try {
         const spki = unb64(t.idKey);
-        this.security.directory?.learn(t.actor, spki, { pinned: true }).then((entry) => {
-          this.pins.set(t.actor, entry.fingerprint);
-        });
+        this.pins.set(t.actor, await fingerprint(spki));
       } catch {
         /* ignore a malformed key; TOFU still applies */
       }
@@ -684,14 +732,32 @@ export class PeerTransport extends EventTarget {
   #gatherIce(pc) {
     if (pc.iceGatheringState === "complete") return Promise.resolve();
     return new Promise((resolve) => {
+      let settled = false;
       const done = () => {
-        clearTimeout(timer);
-        pc.removeEventListener("icegatheringstatechange", check);
+        if (settled) return;
+        settled = true;
+        clearTimeout(hard);
+        clearTimeout(grace);
+        pc.removeEventListener("icegatheringstatechange", onState);
+        pc.removeEventListener("icecandidate", onCand);
         resolve();
       };
-      const check = () => pc.iceGatheringState === "complete" && done();
-      const timer = setTimeout(done, ICE_TIMEOUT_MS);
-      pc.addEventListener("icegatheringstatechange", check);
+      const onState = () => pc.iceGatheringState === "complete" && done();
+      const onCand = (e) => {
+        // A server-reflexive / relay candidate is the one that matters for
+        // cross-network pairing; the moment it lands we have all we need, so
+        // stop waiting for formal completion.
+        const c = e.candidate?.candidate || "";
+        if (!e.candidate || c.includes("srflx") || c.includes("relay")) done();
+      };
+      // Resolve after a short grace no matter what: by now host candidates are in
+      // the local description, which is enough for same-network pairing. If STUN
+      // answers within the grace, onCand resolves us even sooner.
+      const grace = setTimeout(done, ICE_GRACE_MS);
+      // Absolute safety net.
+      const hard = setTimeout(done, ICE_TIMEOUT_MS);
+      pc.addEventListener("icegatheringstatechange", onState);
+      pc.addEventListener("icecandidate", onCand);
     });
   }
 

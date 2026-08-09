@@ -515,6 +515,17 @@ export class Store extends EventTarget {
       }
 
       if (op.type === "id.announce") {
+        // Don't process an announcement during the provisioning window (no
+        // verifier wired yet — the coordinator sets the verifier and the room
+        // key together). In that window the rmac gate above is skipped, so a
+        // relay's self-signed announce would otherwise be folded and re-gossiped
+        // without the room-membership check. Hold it; it is re-gated on the
+        // sender's re-gossip once security is up (and dropped there if the
+        // sender never held the PSK).
+        if (!trusted && !this.verifier) {
+          this.#quarantine(op);
+          continue;
+        }
         const ident = await verifyIdentityOp(op);
         if (ident && ident.fingerprint === op.kid) {
           await this.verifier?.learn(op.actor, ident.spki);

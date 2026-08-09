@@ -25,6 +25,35 @@ function findShareItem(state, type, id) {
   return record && !record._deleted ? record : null;
 }
 
+/**
+ * Show a member's seat code as a scannable QR the Chair can hold up, print, or
+ * screenshot into a chat. The QR carries an absolute URL, so a phone's ordinary
+ * camera opens the site AND seats the cousin in one scan.
+ */
+async function showSeatCode(store, ctx, member) {
+  const [{ makeSeatCode }, { encodeQR, qrToSvg }, { showDialog }] = await Promise.all([
+    import("./seatcode.js"),
+    import("./qr.js"),
+    import("./ui.js"),
+  ]);
+  const { url } = makeSeatCode({
+    room: CONFIG.room,
+    memberId: member.id,
+    name: member.name,
+    icon: member.icon,
+    roomSecret: ctx?.sync?.currentRoomSecret,
+  });
+  const svg = qrToSvg(encodeQR(url, { ecl: "M" }), { margin: 3 });
+  await showDialog({
+    icon: member.icon || "🪑",
+    title: `${member.name}'s sign-in code`,
+    hint: "Let them scan this with any phone camera — it opens the chamber and seats them. The first device to scan it takes the seat.",
+    bodyHtml: `<div class="seat-qr">${svg}</div>`,
+    copyText: url,
+    confirmLabel: "Done",
+  });
+}
+
 const OUTBOX_KEY = "cc.outbox";
 
 /* --------------------------------------------------------------------------
@@ -282,11 +311,31 @@ const CLICK_ACTIONS = {
     toast("Access revoked — their screen has been cleared.");
   },
 
+  /**
+   * Show the login QR for one member. Scanning it seats that cousin on the
+   * scanning device (and prompts for a password the first time), so a young
+   * cousin never has to find themselves in a list or type anything.
+   */
+  async "seat-qr"(store, el, ctx) {
+    if (!(await requireChair())) return;
+    const member = select.member(store.state, el.dataset.member);
+    if (!member) return;
+    await showSeatCode(store, ctx, member);
+  },
+
   /** Chair approves a device asking to hold the gavel. */
   async "approve-chair"(store, el) {
     if (!(await requireChair())) return;
     store.dispatch("chair.enroll", { kid: el.dataset.kid, actor: el.dataset.actor || undefined });
     toast("✅ Approved — that device now holds the gavel too.");
+  },
+
+  /** Chair approves a device asking to be enrolled onto a seat. */
+  async "approve-seat"(store, el) {
+    if (!(await requireChair())) return;
+    const member = select.member(store.state, el.dataset.member);
+    store.dispatch("member.enrollKey", { memberId: el.dataset.member, kid: el.dataset.kid });
+    toast(`✅ Approved — that device can now vote as ${member?.name || "that seat"}.`);
   },
 
   /** Chair clears a seat's registered devices so a new one can re-claim it.
@@ -451,7 +500,7 @@ const CLICK_ACTIONS = {
     try {
       const joinBadge = qs("#join-badge");
       if (joinBadge) joinBadge.textContent = await iconFingerprint(input.value.trim());
-      output.value = await ctx.sync.acceptInvite(input.value);
+      output.value = (await ctx.sync.acceptInvite(input.value)).code;
       const badge = qs("#answer-badge");
       if (badge) badge.textContent = await iconFingerprint(output.value);
       wrap.hidden = false;
@@ -588,7 +637,7 @@ const FORM_ACTIONS = {
    * feature at creation time, and the last choices are remembered on the
    * session so the next new member inherits them — set your policy once.
    */
-  async "add-member"(store, form, values) {
+  async "add-member"(store, form, values, ctx) {
     if (!(await requireChair())) return false;
     const name = String(values.name || "").trim();
     if (!name) return false;
@@ -597,8 +646,9 @@ const FORM_ACTIONS = {
     const canChat = values.canChat === "on";
     const canTalk = values.canTalk !== undefined ? values.canTalk === "on" : true;
 
+    const memberId = newId("m");
     store.dispatch("member.upsert", {
-      id: newId("m"),
+      id: memberId,
       name,
       icon: values.icon || "🪑",
       district: values.district || "At large",
@@ -611,7 +661,11 @@ const FORM_ACTIONS = {
 
     // Remember these toggles as the defaults for the next new member.
     store.dispatch("session.set", { memberDefaults: { canChat, canTalk } });
-    toast(`${values.icon || "🪑"} ${name} is enrolled! They'll pick their password when they first sit down.`);
+    toast(`${values.icon || "🪑"} ${name} is enrolled!`);
+
+    // Hand the Chair their sign-in code straight away — enrolling someone and
+    // getting them onto a device is one motion, not two.
+    await showSeatCode(store, ctx, { id: memberId, name, icon: values.icon || "🪑" });
     return true;
   },
 
@@ -875,7 +929,7 @@ export function initActions(store, sync) {
     const submit = qs("[type='submit']", form);
     if (submit) submit.disabled = true;
     try {
-      const reset = await handler(store, form, formValues(form));
+      const reset = await handler(store, form, formValues(form), ctx);
       if (reset !== false) form.reset();
     } catch (error) {
       toast(String(error.message || error), "err");

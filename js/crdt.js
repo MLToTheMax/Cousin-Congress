@@ -309,32 +309,56 @@ const REDUCERS = {
     const kid = op.payload?.kid || op.kid;
     const member = s.members[memberId];
     if (!member || !kid) return;
+    const pending = { ...(member.pendingKeys || {}) };
+    delete pending[kid];
     s.members[memberId] = {
       ...member,
       keys: { ...(member.keys || {}), [kid]: { actor: op.actor, at: op.hlc } },
+      pendingKeys: pending,
       _hlc: op.hlc,
       _actor: op.actor,
     };
   },
 
-  /** The chair enrols an additional device onto a seat. */
-  "member.enrollKey": (s, op) => {
-    const { memberId, kid } = op.payload || {};
+  /** A device that knows a seat's password but isn't the seat's first device
+   *  asks the Chair to enrol it. Grants nothing on its own — the Chair approves
+   *  with member.enrollKey — so anyone folding this just sees a pending request. */
+  "member.requestKey": (s, op) => {
+    const memberId = op.payload?.memberId;
+    const kid = op.payload?.kid || op.kid;
     const member = s.members[memberId];
-    if (!member || !kid) return;
+    if (!member || !kid || (member.keys && member.keys[kid])) return;
     s.members[memberId] = {
       ...member,
-      keys: { ...(member.keys || {}), [kid]: { actor: op.payload.actor || op.actor, at: op.hlc } },
+      pendingKeys: {
+        ...(member.pendingKeys || {}),
+        [kid]: { name: op.payload?.name || "", at: op.hlc },
+      },
       _hlc: op.hlc,
     };
   },
 
-  /** The chair clears a seat's keys so a new device can re-claim it (recovery
-   *  for a lost or replaced device). */
+  /** The chair enrols an additional device onto a seat, clearing its request. */
+  "member.enrollKey": (s, op) => {
+    const { memberId, kid } = op.payload || {};
+    const member = s.members[memberId];
+    if (!member || !kid) return;
+    const pending = { ...(member.pendingKeys || {}) };
+    delete pending[kid];
+    s.members[memberId] = {
+      ...member,
+      keys: { ...(member.keys || {}), [kid]: { actor: op.payload.actor || op.actor, at: op.hlc } },
+      pendingKeys: pending,
+      _hlc: op.hlc,
+    };
+  },
+
+  /** The chair clears a seat's keys (and any pending requests) so a new device
+   *  can re-claim it — recovery for a lost or replaced device. */
   "member.resetKeys": (s, op) => {
     const member = s.members[op.payload?.memberId];
     if (!member) return;
-    s.members[op.payload.memberId] = { ...member, keys: {}, _hlc: op.hlc };
+    s.members[op.payload.memberId] = { ...member, keys: {}, pendingKeys: {}, _hlc: op.hlc };
   },
 
   "member.upsert": (s, op) => put(s.members, op.payload.id, op.payload, op),
@@ -414,7 +438,10 @@ const REDUCERS = {
    * device serving the guest — and the Chair, from anywhere — can see it and
    * revoke it. Revocation is just a later op; the record is append-only.
    */
-  "share.grant": (s, op) => put(s.shares, op.payload.id, { revoked: false, ...op.payload }, op),
+  // `byKid` is stamped from the AUTHENTICATED signer, never from the payload, so
+  // re-grant/revoke authority can be bound to a key instead of a mutable label.
+  "share.grant": (s, op) =>
+    put(s.shares, op.payload.id, { revoked: false, ...op.payload, byKid: op.kid || null }, op),
   "share.revoke": (s, op) => put(s.shares, op.payload.id, { revoked: true, revokedBy: op.payload.by }, op),
 
   /** Chamber chat. Enabled per member by the Chair (see canChat). */
@@ -502,7 +529,15 @@ export class Log {
 
     if (needsRefold) {
       this.ordered = [...this.byId.values()].sort(compareOps);
-      this.state = fold(this.ordered, this.snapshot?.state);
+      // Refold from EMPTY, never over the snapshot: the snapshot is a checkpoint
+      // of the whole retained log, so folding the log on top of it double-applies
+      // every pre-snapshot op. That is invisible for pure LWW, but authorisation
+      // is order-sensitive — an op that was unauthorised at its real position
+      // (before the op that bound its key) would see that binding already baked
+      // into the snapshot base and wrongly take effect, and replicas that
+      // compacted at different points would diverge. The full log is retained, so
+      // a from-scratch fold is correct and deterministic.
+      this.state = fold(this.ordered);
     } else {
       accepted.sort(compareOps);
       for (const op of accepted) {
@@ -770,6 +805,15 @@ export const select = {
     Object.entries(s.session?.chairRequests || {})
       .filter(([kid]) => !chairKeysOf(s)[kid])
       .map(([kid, meta]) => ({ kid, ...meta })),
+
+  /** Devices asking to be enrolled onto a seat, awaiting Chair approval —
+   *  flattened across members for the Chair's dashboard. */
+  seatRequests: (s) =>
+    listOf(s.members).flatMap((m) =>
+      Object.entries(m.pendingKeys || {})
+        .filter(([kid]) => !(m.keys && m.keys[kid]))
+        .map(([kid, meta]) => ({ memberId: m.id, memberName: m.name, memberIcon: m.icon, kid, ...meta }))
+    ),
   /** Is this key authorised to act as the given member? */
   ownsSeat: (s, memberId, kid) => ownsMember(s, memberId, kid),
   /** Has anyone claimed this seat with a key yet? */
