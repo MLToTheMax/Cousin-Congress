@@ -27,6 +27,12 @@ import { Session, b64, unb64, fingerprint } from "./crypto.js";
 
 const CHANNEL = "cc-ops";
 const ICE_TIMEOUT_MS = 3500;
+// How long to keep gathering once we already have a usable candidate set. A
+// pairing code should appear near-instantly: host candidates are ready in
+// milliseconds (enough for same-network pairing), and if the STUN servers are
+// slow or blocked we must NOT make the human stare at a spinner for the full
+// ICE_TIMEOUT_MS waiting for gathering to formally "complete".
+const ICE_GRACE_MS = 1200;
 const PAIRING_VERSION = 2;
 
 /* --------------------------------------------------------------------------
@@ -722,14 +728,32 @@ export class PeerTransport extends EventTarget {
   #gatherIce(pc) {
     if (pc.iceGatheringState === "complete") return Promise.resolve();
     return new Promise((resolve) => {
+      let settled = false;
       const done = () => {
-        clearTimeout(timer);
-        pc.removeEventListener("icegatheringstatechange", check);
+        if (settled) return;
+        settled = true;
+        clearTimeout(hard);
+        clearTimeout(grace);
+        pc.removeEventListener("icegatheringstatechange", onState);
+        pc.removeEventListener("icecandidate", onCand);
         resolve();
       };
-      const check = () => pc.iceGatheringState === "complete" && done();
-      const timer = setTimeout(done, ICE_TIMEOUT_MS);
-      pc.addEventListener("icegatheringstatechange", check);
+      const onState = () => pc.iceGatheringState === "complete" && done();
+      const onCand = (e) => {
+        // A server-reflexive / relay candidate is the one that matters for
+        // cross-network pairing; the moment it lands we have all we need, so
+        // stop waiting for formal completion.
+        const c = e.candidate?.candidate || "";
+        if (!e.candidate || c.includes("srflx") || c.includes("relay")) done();
+      };
+      // Resolve after a short grace no matter what: by now host candidates are in
+      // the local description, which is enough for same-network pairing. If STUN
+      // answers within the grace, onCand resolves us even sooner.
+      const grace = setTimeout(done, ICE_GRACE_MS);
+      // Absolute safety net.
+      const hard = setTimeout(done, ICE_TIMEOUT_MS);
+      pc.addEventListener("icegatheringstatechange", onState);
+      pc.addEventListener("icecandidate", onCand);
     });
   }
 

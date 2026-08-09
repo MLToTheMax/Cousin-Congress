@@ -376,21 +376,26 @@ export function renderSealCard({
     }
   }
 
-  // One path per ink rather than one element per module: a dense code is a few
-  // thousand modules, and three paths keep the card small enough to paste into
-  // a chat without a second thought.
-  const paths = inks.map(() => "");
+  // Draw the data modules as SOLID, full-cell squares in a single dark ink.
+  // Stylised multi-colour dots/triangles looked pretty but did not survive
+  // binarisation — the code failed to decode even in our own reader — which
+  // makes it a decoration, not a pairing code. The branding lives in the frame,
+  // the seal, the name and the caption around the code; the code itself must be
+  // a boring, high-contrast, reliably-scannable QR. One dark ink on the light
+  // plaque, edge-to-edge modules, untouched quiet zone.
+  const codeInk = inkFor(palette.heading, paper);
+  let data = "";
   for (let y = 0; y < qr.size; y += 1) {
     for (let x = 0; x < qr.size; x += 1) {
       if (!qr.modules[y][x] || reserved[y][x]) continue;
-      paths[inkIndex(x, y)] += modulePath(x, y);
+      data += `M${num(x)} ${num(y)}h1v1h${num(-1)}z`;
     }
   }
 
   const grid =
     `<g transform="translate(${num(originX)} ${num(originY)}) scale(${num(module)})">` +
-    paths.map((d, i) => (d ? `<path d="${d}" fill="${inks[i]}"/>` : "")).join("") +
-    eyes.map((eye, i) => eyeMarkup(eye, inks[i % inks.length], paper)).join("") +
+    (data ? `<path d="${data}" fill="${codeInk}"/>` : "") +
+    eyes.map((eye) => eyeMarkup(eye, codeInk, paper)).join("") +
     `</g>`;
 
   const caption = captionFor(payload);
