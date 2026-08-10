@@ -151,20 +151,51 @@
 
 /* --- drawers (notifications + settings) ---------------------------------- */
 .drawerin { position: absolute; opacity: 0; pointer-events: none; }
+
+/* A panel that slides in from the right. SOLID — a translucent panel over a
+   busy page made the close button and the text behind it hard to read — with
+   rounded inner corners so it reads as a card rather than a wall. */
 .drawer {
-  position: fixed; top: 0; right: 0; z-index: 60; height: 100dvh; width: min(420px, 92vw);
-  background: var(--surface); border-left: 1px solid var(--line);
-  box-shadow: -12px 0 40px rgba(0,0,0,.18);
-  transform: translateX(100%); transition: transform .25s ease; overflow-y: auto;
+  position: fixed; top: 0; right: 0; z-index: 60;
+  height: 100dvh; width: min(440px, 94vw);
+  background: light-dark(#fff, #0d1730);
+  border: 1px solid var(--line); border-right: 0;
+  border-radius: var(--radius-lg, 14px) 0 0 var(--radius-lg, 14px);
+  box-shadow: -18px 0 60px rgba(6, 12, 30, .32);
+  transform: translateX(101%); transition: transform .28s var(--ease, cubic-bezier(.22,.7,.3,1));
+  overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
   padding: var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-4);
 }
 #drawer-notif:checked ~ .drawer--notif,
 #drawer-settings:checked ~ .drawer--settings,
 #drawer-chair:checked ~ .drawer--chair { transform: none; }
-.drawer__head { display: flex; align-items: center; justify-content: space-between; }
-.drawer__close { cursor: pointer; font-size: 1.3rem; width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 50%; }
-.drawer__close:hover { background: var(--surface-2); }
-.drawer-scrim { position: fixed; inset: 0; z-index: 55; background: rgba(6,12,30,.4); opacity: 0; pointer-events: none; transition: opacity .2s; }
+
+.drawer__head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3);
+  position: sticky; top: calc(var(--sp-5) * -1); z-index: 1;
+  margin: calc(var(--sp-5) * -1) calc(var(--sp-5) * -1) 0;
+  padding: var(--sp-4) var(--sp-5);
+  background: inherit;
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius-lg, 14px) 0 0 0;
+}
+/* A real, obvious button rather than a faint glyph. */
+.drawer__close {
+  cursor: pointer; flex: none;
+  width: 2.35rem; height: 2.35rem;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-1);
+  font-size: 1.05rem; line-height: 1;
+  transition: background var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease);
+}
+.drawer__close:hover { background: var(--c-red-100, var(--surface-3, var(--surface-2))); border-color: var(--c-crimson-500, var(--c-red-500, var(--line))); }
+.drawer__close:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.drawer-scrim { position: fixed; inset: 0; z-index: 55; background: rgba(6,12,30,.45); opacity: 0; pointer-events: none; transition: opacity .2s; }
 #drawer-notif:checked ~ .drawer-scrim,
 #drawer-settings:checked ~ .drawer-scrim,
 #drawer-chair:checked ~ .drawer-scrim,

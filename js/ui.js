@@ -177,25 +177,19 @@ export function showDialog({
         ${raw(hint ? h`<p class="ask__hint">${hint}</p>` : "")}
         ${raw(bodyHtml)}
         <div class="ask__actions">
-          ${raw(copyText ? `<button class="btn btn--ghost" value="copy" formnovalidate>Copy link</button>` : "")}
+          ${raw(copyText ? `<button class="btn btn--ghost" type="button" data-ask-copy>Copy link</button>` : "")}
           <button class="btn" value="ok">${confirmLabel}</button>
         </div>
       </form>`;
 
+    askHost.querySelector("[data-ask-copy]")?.addEventListener("click", () => {
+      navigator.clipboard?.writeText(copyText).then(
+        () => toast("Copied — send it to them however you like."),
+        () => toast("Couldn't copy automatically; long-press the code instead.", "warn")
+      );
+    });
     askHost.returnValue = "ok";
-    const onClose = () => {
-      if (askHost.returnValue === "copy" && copyText) {
-        copyText && navigator.clipboard?.writeText(copyText).then(
-          () => toast("Link copied — send it to them however you like."),
-          () => toast("Couldn't copy automatically; long-press the code instead.", "warn")
-        );
-        // Re-open so the Chair can still show the code after copying it.
-        askHost.showModal();
-        askHost.addEventListener("close", onClose, { once: true });
-        return;
-      }
-      resolve(true);
-    };
+    const onClose = () => resolve(true);
     askHost.addEventListener("close", onClose, { once: true });
     askHost.showModal();
   });
@@ -225,12 +219,19 @@ export function askDialog({
                autocapitalize="none" spellcheck="false" required
                placeholder="${placeholder}" aria-label="${title}">
         <div class="ask__actions">
-          <button class="btn btn--ghost" value="cancel" formnovalidate>${cancelLabel}</button>
+          <button class="btn btn--ghost" type="button" data-ask-cancel>${cancelLabel}</button>
           <button class="btn" value="ok">${confirmLabel}</button>
         </div>
       </form>`;
 
     const input = askHost.querySelector("input");
+    // Cancel is a plain button, not a submit: the FIRST submit button in a form
+    // is what Enter activates, and having cancel there meant pressing Enter
+    // dismissed the dialog instead of accepting what you just typed.
+    askHost.querySelector("[data-ask-cancel]")?.addEventListener("click", () => {
+      askHost.returnValue = "cancel";
+      askHost.close("cancel");
+    });
     askHost.returnValue = "cancel";
     askHost.addEventListener(
       "close",

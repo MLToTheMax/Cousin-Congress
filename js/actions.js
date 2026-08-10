@@ -323,6 +323,40 @@ const CLICK_ACTIONS = {
     await showSeatCode(store, ctx, member);
   },
 
+  /**
+   * Found a brand-new chamber, and become its Chair.
+   *
+   * Deliberately only offered to a device that has never joined anything and has
+   * nothing of its own: founding a chamber on top of an existing record would
+   * either fork it or throw it away, and neither is something to do behind one
+   * link. Everything the demo shipped with is cleared, so the family starts on a
+   * blank record rather than deleting sample cousins one at a time.
+   *
+   * The gavel is bound to the founder's SEAT, not to a shared password: once
+   * they have signed in as themselves, chair actions just work. The password
+   * still exists so another device can take the gavel if it has to.
+   */
+  async "register-chair"(store, el, ctx) {
+    const { registerChair } = await import("./founding.js");
+    await registerChair(store, ctx?.sync);
+  },
+
+  /** Chair bars a device from the chamber — everywhere, not just here. */
+  async "revoke-device"(store, el, ctx) {
+    if (!(await requireChair())) return;
+    const kid = el.dataset.kid;
+    store.dispatch("device.revoke", { kid });
+    ctx.sync?.peers?.dropByFingerprint?.(kid);
+    toast("Device barred and disconnected. It can't rejoin from anywhere.");
+  },
+
+  /** Chair lets a barred device back in. */
+  async "unrevoke-device"(store, el) {
+    if (!(await requireChair())) return;
+    store.dispatch("device.seen", { kid: el.dataset.kid, revoked: false });
+    toast("Device allowed again.");
+  },
+
   /** Chair approves a device asking to hold the gavel. */
   async "approve-chair"(store, el) {
     if (!(await requireChair())) return;

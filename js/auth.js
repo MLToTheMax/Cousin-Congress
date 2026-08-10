@@ -202,6 +202,29 @@ export async function redeemSeatCode(body, sync) {
     }
   }
 
+  // A sign-in code also CONNECTS: the Chair baked a live pairing offer into it,
+  // so accepting it here opens the channel and the record starts flowing. The
+  // reply travels back over the relay when one is configured; with no relay the
+  // Chair scans the reply we surface, which is the second half of the WebRTC
+  // handshake and cannot be skipped.
+  if (body.invite && sync?.acceptInvite) {
+    try {
+      const reply = await sync.acceptInvite(body.invite);
+      if (reply?.compact) {
+        toast("Connecting… show the Chair your reply code to finish.", "warn");
+        try {
+          const { showReplyCode } = await import("./connect.js");
+          await showReplyCode(reply);
+        } catch {
+          /* the pairing page shows it too */
+        }
+      }
+    } catch {
+      // An expired offer is normal for a code that has been sitting around; the
+      // seat still works, they just pair separately.
+    }
+  }
+
   if (!member) {
     // The roster has not reached this device yet. Take the identity anyway; the
     // record arrives with the first sync and the seat is already ours.
@@ -266,8 +289,25 @@ function rememberChairUnlock() {
   }
 }
 
+/**
+ * Does the gavel belong to the cousin signed in on this device?
+ *
+ * The Chair used to be "whoever can type the chair password", re-asked on every
+ * privileged action, which is tedious for the one person who uses it constantly.
+ * A chamber now records `chairSeat` — the seat the gavel belongs to — so once
+ * that cousin has signed in with THEIR password on a device whose key is
+ * enrolled as a chair device, they simply are the Chair. Both halves are
+ * required: the seat says who, the key says which device.
+ */
+export function isChairSeat() {
+  const seat = store.state.session?.chairSeat;
+  if (!seat || store.identity.memberId !== seat) return false;
+  const kid = store.myFingerprint;
+  return Boolean(kid && select.isChairDevice(store.state, kid));
+}
+
 export function isChair() {
-  return chairUnlocked();
+  return isChairSeat() || chairUnlocked();
 }
 
 /**

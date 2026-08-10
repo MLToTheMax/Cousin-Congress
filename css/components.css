@@ -1203,3 +1203,26 @@
   color: transparent;
   min-height: 1em;
 }
+
+/* ==========================================================================
+   Interface icons — flat, professional, currentColor.
+   Emoji stay for cousins (avatars, pairing alphabet, decorated faces); the
+   CHROME uses these so it aligns to buttons, themes itself, and reads as one
+   system across platforms.
+   ========================================================================== */
+
+.ico-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+.ico {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+  vertical-align: -0.18em;
+  color: inherit;
+}
+.ico--lg { width: 1.6em; height: 1.6em; }
+.ico--xl { width: 2.4em; height: 2.4em; }
+
+/* Icons inside buttons/links sit next to their label with an even gap. */
+.btn .ico, .nav__link .ico, .conn-row .ico, .toggle-row .ico { margin-right: .45em; }
+.btn .ico:only-child, .nav__link .ico:only-child { margin-right: 0; }

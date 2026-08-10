@@ -49,7 +49,7 @@ export function baseUrl(loc = location) {
  * Build a seat code. Returns both the deep link (for the QR) and the raw
  * payload (for anyone who wants to paste text instead).
  */
-export function makeSeatCode({ room, memberId, name, icon, roomSecret }, loc = location) {
+export function makeSeatCode({ room, memberId, name, icon, roomSecret, invite }, loc = location) {
   if (!memberId) throw new Error("A seat code needs a member.");
   const body = {
     t: "seat",
@@ -59,6 +59,11 @@ export function makeSeatCode({ room, memberId, name, icon, roomSecret }, loc = l
     name: name || "",
     icon: icon || "🪑",
     psk: roomSecret ? b64(roomSecret) : null,
+    // A live pairing offer, so one scan both seats the cousin AND opens the
+    // connection. Without it the code still works — it seats them and puts them
+    // in the right room — but they would have to pair separately to get the
+    // record flowing, which is a second step nobody should need.
+    invite: invite || null,
   };
   const payload = b64(te.encode(JSON.stringify(body)));
   return { url: `${baseUrl(loc)}${SEAT_PREFIX}${payload}`, payload, body };

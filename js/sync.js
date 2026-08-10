@@ -59,6 +59,9 @@ export class SyncCoordinator extends EventTarget {
           // works only on the same local network.
           iceServers: () =>
             this.store.state.session?.stun === false ? [] : CONFIG.sync.iceServers,
+          // Chair bans live in the replicated record, so every peer enforces
+          // them, not just the device the Chair happened to be using.
+          isDeviceRevoked: (kid) => Boolean(kid && this.store.state.devices?.[kid]?.revoked),
         })
       : null;
 
@@ -195,6 +198,24 @@ export class SyncCoordinator extends EventTarget {
       this.#emitStatus();
     });
     this.peers?.addEventListener("peerclose", () => this.#emitStatus());
+
+    /* A device joined the mesh. Record it in the shared record — not just the
+       local connection log — so the Chair has a durable roster of everything
+       that has ever connected, with the details needed to recognise a stranger,
+       and can bar one later from anywhere. */
+    this.peers?.addEventListener("peersecured", (e) => {
+      const { peer, fingerprint, address, safety } = e.detail || {};
+      if (!fingerprint) return;
+      this.store.dispatch("device.seen", {
+        kid: fingerprint,
+        actor: peer,
+        ip: address || null,
+        label: e.detail?.label || "",
+        safety: safety || null,
+        at: new Date().toISOString(),
+      });
+      this.dispatchEvent(new CustomEvent("devicejoined", { detail: e.detail }));
+    });
 
     // If this device becomes a scoped guest, it holds only a per-share secret,
     // never the room secret — so it cannot MAC or verify room ops. Exempt it

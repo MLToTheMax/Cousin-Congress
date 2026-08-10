@@ -232,6 +232,14 @@ export function authorize(state, op) {
     case "comment.retract":
       return chair || noChair;
 
+    // Anyone already inside the room may RECORD what they observed connecting
+    // (that is how the Chair learns about devices it never saw itself), but only
+    // the Chair may bar one.
+    case "device.seen":
+      return true;
+    case "device.revoke":
+      return chair || noChair;
+
     /* --- open / self-authenticating / low-stakes -------------------------- */
     case "id.announce":
     case "comment.post":

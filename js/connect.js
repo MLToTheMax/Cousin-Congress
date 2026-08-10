@@ -83,6 +83,73 @@ export function mountConnect(sync) {
   wirePeers(sync);
 }
 
+/* --- the pairing flow (pair.html) ------------------------------------------ */
+
+/**
+ * The pairing page is a single screen with one card that swaps panes, so the
+ * whole journey — choose a side, show or scan, done — never grows the page or
+ * asks anyone to scroll. This controller is just the pane switch plus the
+ * plumbing that moves the flow forward when something actually connects.
+ */
+export function mountPairFlow(sync) {
+  const flow = qs("[data-pair-flow]");
+  if (!flow) return;
+
+  const panes = [...flow.querySelectorAll("[data-pane]")];
+  const show = (name) => {
+    for (const p of panes) p.hidden = p.dataset.pane !== name;
+    // Stop the camera whenever we leave the scanning pane.
+    if (name !== "join") qs("[data-action='stop-scan']")?.click();
+  };
+  flow.__showPane = show;
+
+  document.addEventListener("click", (event) => {
+    const mode = event.target.closest("[data-action='pair-mode']");
+    if (mode) {
+      show(mode.dataset.mode);
+      // Showing a code? Mint one immediately — nobody should have to press twice.
+      if (mode.dataset.mode === "host") qs("[data-action='show-code']")?.click();
+      // Scanning? Open the camera immediately for the same reason.
+      if (mode.dataset.mode === "join") qs("[data-action='start-scan']")?.click();
+      return;
+    }
+    if (event.target.closest("[data-action='pair-back']")) show("choose");
+  });
+
+  // Paste-a-code fallback for anyone whose camera is unavailable.
+  qs("[data-action='paste-code']")?.addEventListener("click", async () => {
+    const value = qs("[data-paste-code]")?.value?.trim();
+    if (!value) return toast("Paste the code first.", "warn");
+    await consumeScannedCode(sync, value);
+  });
+
+  // Upload-a-picture lives in the scan pane on this page.
+  qs("[data-code-file]")?.closest(".pair__upload")?.addEventListener("click", () => {
+    qs("[data-code-file]")?.click();
+  });
+
+  // When a peer secures, move to "done" and show the safety word.
+  const onPeers = () => {
+    const peers = sync.status.peers || [];
+    const live = peers.filter((p) => p.state === "open" || p.secured);
+    if (live.length && !flow.dataset.done) {
+      flow.dataset.done = "1";
+      show("done");
+    }
+    const safety = live.find((p) => p.safety)?.safety;
+    const box = qs("[data-pair-safety]");
+    if (safety && box) {
+      box.hidden = false;
+      const word = qs("[data-safety-word]");
+      if (word) word.textContent = safety;
+    }
+  };
+  sync.addEventListener("status", onPeers);
+  onPeers();
+
+  show("choose");
+}
+
 /* --- showing our own code -------------------------------------------------- */
 
 async function wireShow(sync) {
@@ -314,6 +381,7 @@ async function consumeScannedCode(sync, text) {
     // Also render the reply as a QR so the other phone can scan it straight back.
     const frame = qs("[data-reply-frame]");
     if (frame) frame.innerHTML = qrToSvg(encodeQR(compact, { ecl: "M" }), { margin: 3 });
+    qs("[data-pair-flow]")?.__showPane?.("reply");
     toast("Scanned! Show your reply code back to your cousin.");
   } catch (error) {
     // Not an invite — maybe it is the reply to our own invite.

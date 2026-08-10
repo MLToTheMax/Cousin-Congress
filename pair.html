@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Drafting Studio · Cousin Congress</title>
-  <meta name="description" content="Write a bill with a live engrossment preview and introduce it to the chamber with one click.">
+  <title>Add a device · Cousin Congress</title>
+  <meta name="description" content="Pair another device with a QR or picture code, or start a brand-new chamber.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#0b1c4a">
   <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2040%22%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2224.8%22%20r%3D%2212.5%22%20fill%3D%22%231b3fd8%22%2F%3E%3Cpath%20d%3D%22M11%2C15.3A9%2C9%200%200%201%2029%2C15.3Z%22%20fill%3D%22%23ffc21a%22%2F%3E%3Cpath%20d%3D%22M20%2C2.8L24%2C8.8L16%2C8.8Z%22%20fill%3D%22%23e0243c%22%2F%3E%3C%2Fsvg%3E">
@@ -45,7 +45,7 @@
       <nav class="nav" aria-label="Primary">
         <a class="nav__link" href="floor.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-floor"></use></svg>The Floor</a>
         <a class="nav__link" href="members.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-members"></use></svg>Members</a>
-        <a class="nav__link" href="connect.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-connect"></use></svg>Connect</a>
+        <a class="nav__link" href="connect.html" aria-current="page"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-connect"></use></svg>Connect</a>
         <a class="nav__link" href="news.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-news"></use></svg>Newsroom</a>
         <div class="nav__group">
           <a class="nav__link" href="voting.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>Votes</a>
@@ -91,118 +91,161 @@
     <div class="shell announce-rail" data-render="announcements"></div>
 
     <main id="main">
-      <header class="page-head">
-        <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
-        <div class="shell">
-          <ol class="crumbs"><li><a href="index.html">Home</a></li><li><a href="bills.html">Legislation</a></li><li>Drafting studio</li></ol>
-          <h1 data-enter>The Drafting Studio</h1>
-          <p class="page-head__lede" data-enter style="--i:1">
-            Write on the left, watch the engrossed parchment take shape on the right.
-            Your draft autosaves on this device; introducing it takes one click and
-            enters it on every cousin's calendar.
-          </p>
-        </div>
-      </header>
+      <!-- ================================================================
+           Pairing — deliberately ONE SCREEN. Left: what is about to happen,
+           in three steps. Right: the actual flow, which swaps in place rather
+           than growing the page.
+           ================================================================ -->
+      <section class="pair">
+        <div class="shell shell--wide pair__grid">
 
-      <section class="section">
-        <div class="shell shell--wide">
-          <div class="studio">
-            <!-- The desk -->
-            <form class="stack stack--lg" data-action="submit-bill" data-reveal="left">
-              <div class="panel stack">
-                <h2 style="font-size:var(--fs-lg)">1 · Title the measure</h2>
-                <div class="field">
-                  <label class="field__label" for="bill-committee">Committee of referral</label>
-                  <select class="select" id="bill-committee" name="committee" data-render="committeeOptions">
-                    <option value="">No referral</option>
-                  </select>
-                  <p class="field__hint">Optional. The clerk assigns the bill number automatically.</p>
+          <!-- Left: the three steps -->
+          <aside class="pair__steps">
+            <h1 class="pair__title">Add a device</h1>
+            <p class="pair__lede">Two devices swap one code and then keep each other
+              up to date — no account, no server.</p>
+
+            <ol class="steps">
+              <li class="steps__item">
+                <span class="steps__n">1</span>
+                <div>
+                  <strong>Pick a side</strong>
+                  <span>Are you joining a cousin's chamber, or letting them into yours?</span>
                 </div>
-                <div class="field">
-                  <label class="field__label" for="bill-title">Short title</label>
-                  <input class="input" id="bill-title" name="title" required maxlength="120"
-                         placeholder="The Backyard Campout Authorization Act">
+              </li>
+              <li class="steps__item">
+                <span class="steps__n">2</span>
+                <div>
+                  <strong>Show or scan the code</strong>
+                  <span>One phone shows a code, the other points its camera at it.</span>
                 </div>
-                <div class="field">
-                  <label class="field__label" for="bill-summary">Summary for the tracker</label>
-                  <textarea class="textarea" id="bill-summary" name="summary" required maxlength="280"
-                            style="min-height:5rem;font-family:var(--font-body)"
-                            placeholder="One or two sentences on what this measure does."></textarea>
+              </li>
+              <li class="steps__item">
+                <span class="steps__n">3</span>
+                <div>
+                  <strong>Sign in to your seat</strong>
+                  <span>The record arrives on its own. Your password proves which cousin you are.</span>
+                </div>
+              </li>
+            </ol>
+
+            <p class="pair__safety" data-pair-safety hidden>
+              <svg class="ico" aria-hidden="true"><use href="#i-shield"></use></svg>
+              <span>Both screens should show <strong data-safety-word>····</strong></span>
+            </p>
+          </aside>
+
+          <!-- Right: the flow -->
+          <div class="pair__flow" data-pair-flow>
+
+            <!-- Step 1 — choose a side -->
+            <div class="pair__pane" data-pane="choose">
+              <div class="pair__choices">
+                <button class="choice" data-action="pair-mode" data-mode="join" type="button">
+                  <svg class="ico ico--xl" aria-hidden="true"><use href="#i-scan"></use></svg>
+                  <strong>Join a cousin's chamber</strong>
+                  <span>Scan the code on their screen. Everything they have arrives here.</span>
+                </button>
+                <button class="choice" data-action="pair-mode" data-mode="host" type="button" data-when="connected">
+                  <svg class="ico ico--xl" aria-hidden="true"><use href="#i-qr"></use></svg>
+                  <strong>Share my chamber</strong>
+                  <span>Show a code for a cousin to scan. They join everything you have.</span>
+                </button>
+              </div>
+              <p class="pair__note" data-when="disconnected">
+                <svg class="ico" aria-hidden="true"><use href="#i-info"></use></svg>
+                This device hasn't joined a chamber yet, so scanning is the way in.
+                Once you're connected you'll be able to share it onward too.
+              </p>
+            </div>
+
+            <!-- Step 2a — scan -->
+            <div class="pair__pane" data-pane="join" hidden>
+              <div class="pair__paneHead">
+                <button class="btn btn--ghost btn--sm" data-action="pair-back" type="button">Back</button>
+                <h2>Scan their code</h2>
+              </div>
+              <div class="scanner" data-scanner hidden>
+                <video playsinline muted></video>
+                <div class="scanner__reticle"></div>
+              </div>
+              <div class="pair__actions">
+                <button class="btn btn--lg" data-action="start-scan" type="button">
+                  <svg class="ico" aria-hidden="true"><use href="#i-camera"></use></svg>Start camera
+                </button>
+                <button class="btn btn--ghost btn--sm" data-action="stop-scan" type="button">Stop</button>
+              </div>
+              <label class="pair__upload">
+                <svg class="ico" aria-hidden="true"><use href="#i-upload"></use></svg>
+                <span>No camera? Upload a picture of the code</span>
+                <input type="file" data-code-file accept="image/*" hidden>
+              </label>
+              <details class="pair__more">
+                <summary>Paste a code instead</summary>
+                <textarea class="textarea" data-paste-code rows="2" placeholder="Paste the code your cousin sent"></textarea>
+                <button class="btn btn--sm" data-action="paste-code" type="button">Use this code</button>
+                <p class="field__hint">If they gave you a reply code, paste it here too.</p>
+              </details>
+            </div>
+
+            <!-- Step 2b — show -->
+            <div class="pair__pane" data-pane="host" hidden>
+              <div class="pair__paneHead">
+                <button class="btn btn--ghost btn--sm" data-action="pair-back" type="button">Back</button>
+                <h2>Show this code</h2>
+              </div>
+              <div class="pair__qr" data-qr-frame></div>
+              <div class="pair__actions">
+                <button class="btn" data-action="show-code" type="button">
+                  <svg class="ico" aria-hidden="true"><use href="#i-qr"></use></svg>New code
+                </button>
+                <button class="btn btn--ghost btn--sm" data-action="copy" data-copy-from="[data-code-text]" type="button">
+                  <svg class="ico" aria-hidden="true"><use href="#i-copy"></use></svg>Copy
+                </button>
+                <label class="pair__toggle"><input type="checkbox" data-card-toggle> Pretty card</label>
+              </div>
+              <div data-code-out hidden>
+                <textarea class="textarea u-visually-hidden" data-code-text readonly rows="1"></textarea>
+                <details class="pair__more">
+                  <summary>They scanned it — paste their reply</summary>
+                  <textarea class="textarea" data-answer-box rows="2" placeholder="Paste the reply code"></textarea>
+                  <button class="btn btn--sm" data-action="finish-pair" type="button">Finish pairing</button>
+                </details>
+              </div>
+            </div>
+
+            <!-- Reply code, after scanning someone's offer -->
+            <div class="pair__pane" data-pane="reply" hidden>
+              <div class="pair__paneHead">
+                <button class="btn btn--ghost btn--sm" data-action="pair-back" type="button">Back</button>
+                <h2>Show them this reply</h2>
+              </div>
+              <div class="pair__qr" data-reply-frame></div>
+              <textarea class="textarea" data-answer-out readonly rows="2"></textarea>
+              <p class="field__hint">Let your cousin scan this (or paste it back to them) and you're connected.</p>
+            </div>
+
+            <!-- Connected -->
+            <div class="pair__pane" data-pane="done" hidden>
+              <div class="pair__done">
+                <svg class="ico ico--xl" aria-hidden="true"><use href="#i-check"></use></svg>
+                <h2>Connected</h2>
+                <p class="u-muted" data-pair-donetext>The record is syncing. Sign in to your seat to take part.</p>
+                <div class="cluster">
+                  <a class="btn" href="members.html">Sign in to my seat</a>
+                  <a class="btn btn--ghost" href="floor.html">Go to the floor</a>
                 </div>
               </div>
-
-              <div class="panel stack">
-                <h2 style="font-size:var(--fs-lg)">2 · Write the operative text</h2>
-                <div class="field">
-                  <label class="field__label" for="bill-text">Sections and clauses</label>
-                  <textarea class="textarea" id="bill-text" name="text" required maxlength="8000"
-                            style="min-height:16rem"
-                            placeholder="SECTION 1. SHORT TITLE.&#10;This Act may be cited as the &quot;…&quot;.&#10;&#10;SEC. 2. …"></textarea>
-                  <span class="field__count" data-count="text">0 characters</span>
-                </div>
-              </div>
-
-              <div class="panel stack">
-                <h2 style="font-size:var(--fs-lg)">3 · Introduce it</h2>
-                <ul class="draft-progress">
-                  <li data-requires="title" data-min="8">Short title of at least eight characters</li>
-                  <li data-requires="summary" data-min="20">Tracker summary written</li>
-                  <li data-requires="text" data-min="40">Operative text drafted</li>
-                </ul>
-                <p class="field__hint" data-me="seat">You need a claimed seat to sponsor a bill —
-                  choose yours on the <a href="members.html">Members page</a>.</p>
-                <p class="field__hint" data-me="seated" hidden>
-                  Sponsoring as <strong data-me="name">—</strong>. You are automatically the first cosponsor.</p>
-                <button class="btn btn--lg" type="submit">Introduce the bill</button>
-              </div>
-            </form>
-
-            <!-- The parchment -->
-            <aside class="studio__preview" data-reveal="right" aria-label="Live engrossment preview">
-              <div class="engrossment">
-                <span class="engrossment__stamp">Draft — not yet introduced</span>
-                <div class="engrossment__seal" aria-hidden="true">CC</div>
-                <p class="engrossment__congress">First Cousin Congress · Session I</p>
-                <p class="engrossment__number" data-draft="number">H.CC. ___</p>
-                <p class="engrossment__title" data-draft="title">An untitled measure</p>
-                <p class="engrossment__clause"><strong>Be it enacted by the Cousins in Congress assembled,</strong></p>
-                <div class="engrossment__body" data-draft="text">The operative text of the bill appears here as you type.</div>
-                <div class="engrossment__sig">
-                  <span data-draft="sponsor">Sponsor — unclaimed seat</span>
-                  <span data-clock="date">—</span>
-                </div>
-              </div>
-            </aside>
+            </div>
           </div>
         </div>
-      </section>
 
-      <!-- Drafting conventions -->
-      <section class="section section--sunken">
-        <div class="shell">
-          <header class="section__head">
-            <p class="section__eyebrow u-caps" data-reveal>House style</p>
-            <h2 data-reveal>Conventions of the chamber</h2>
-          </header>
-          <div class="grid grid--3">
-            <div class="card" data-reveal style="--i:0">
-              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body)">Number your sections</h3>
-              <p class="u-muted" style="font-size:var(--fs-sm)">SECTION 1 is the short title.
-                Substantive clauses follow as SEC. 2, SEC. 3, and so on — it makes amendments
-                possible to aim.</p>
-            </div>
-            <div class="card" data-reveal style="--i:1">
-              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body)">One subject per bill</h3>
-              <p class="u-muted" style="font-size:var(--fs-sm)">The Parliamentarian will sever a
-                pizza clause smuggled into a bedtime bill. History has proven this repeatedly.</p>
-            </div>
-            <div class="card" data-reveal style="--i:2">
-              <h3 class="card__title" style="font-size:var(--fs-md);font-family:var(--font-body)">Write the enforcement</h3>
-              <p class="u-muted" style="font-size:var(--fs-sm)">A rule without a consequence is a
-                suggestion. Name the committee that referees it and the penalty that applies.</p>
-            </div>
-          </div>
-        </div>
+        <!-- The quiet way to start a brand-new chamber. Deliberately understated:
+             almost everyone is joining an existing one. -->
+        <p class="pair__founder">
+          Nobody to join?
+          <a href="#" data-action="register-chair">Register a new chamber</a>
+        </p>
       </section>
     </main>
 
