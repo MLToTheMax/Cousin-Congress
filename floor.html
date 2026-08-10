@@ -47,13 +47,16 @@
         <a class="nav__link" href="members.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-members"></use></svg>Members</a>
         <a class="nav__link" href="connect.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-connect"></use></svg>Connect</a>
         <a class="nav__link" href="news.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-news"></use></svg>Newsroom</a>
+        <!-- Voting, the bill tracker, drafting and the docket are all tabs of the
+             Floor now, so this menu points into it rather than away from it.
+             Every entry is a same-page tab except About, which stays a page. -->
         <div class="nav__group">
-          <a class="nav__link" href="voting.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>Votes</a>
+          <a class="nav__link" href="floor.html#votes"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>Chamber</a>
           <ul class="nav__menu">
-            <li><a href="voting.html">Voting <small>Cast a ballot, watch the tally</small></a></li>
-            <li><a href="bills.html">Bill tracker <small>Every measure on file</small></a></li>
-            <li><a href="draft.html">Drafting studio <small>Write and introduce a bill</small></a></li>
-            <li><a href="docket.html">Docket <small>The order of business</small></a></li>
+            <li><a href="floor.html#votes">Voting <small>Cast a ballot, watch the tally</small></a></li>
+            <li><a href="floor.html#bills">Bill tracker <small>Every measure on file</small></a></li>
+            <li><a href="floor.html#now">Drafting desk <small>Write and introduce a bill</small></a></li>
+            <li><a href="floor.html#docket">Docket <small>The order of business</small></a></li>
             <li><a href="about.html">About &amp; rules <small>How the chamber works</small></a></li>
           </ul>
         </div>
@@ -61,7 +64,7 @@
           <a class="nav__icon" href="connect.html#talkie" data-when="authed" aria-label="Push to talk" title="Push to talk"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-talkie"></use></svg></a>
           <a class="nav__icon notif-bell" href="connect.html#notifications" aria-label="Notifications" title="Notifications"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span data-notif-count hidden>0</span></a>
         </span>
-        <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
+        <a class="btn btn--sm nav__cta" href="floor.html#votes">Cast your vote</a>
       </nav>
     </div>
   </header>
@@ -91,35 +94,67 @@
     <div class="shell announce-rail" data-render="announcements"></div>
 
     <main id="main">
-      <header class="page-head page-head--strip">
-        <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
+      <!--
+        The Floor is the workspace. Everything a sitting needs — the question on
+        the floor, the chamber, voting, the bill tracker, the drafting desk and
+        the docket — lives here as panes of one console rather than as separate
+        pages.
+
+        That is not only tidier. Serverless WebRTC has no way to re-signal a
+        connection once its last data channel dies, so every full page load used
+        to drop the mesh and there was nothing left to rebuild it over. Keeping a
+        sitting inside one document is what makes the connection survive, so the
+        IA and the transport want exactly the same thing.
+      -->
+      <header class="page-head page-head--strip page-head--flat">
         <div class="shell shell--wide page-head__strip">
           <div>
-            <ol class="crumbs"><li><a href="index.html">Home</a></li><li>The Floor</li></ol>
             <h1 data-enter>The Floor</h1>
           </div>
-          <p class="page-head__lede" data-enter style="--i:1">
-            Who is here, where they are sitting, and what the chamber is doing right now.
-          </p>
-          <div class="page-head__meta" data-enter style="--i:2">
+          <div class="page-head__meta" data-enter style="--i:1">
             <span data-clock>--:--:--</span>
             <span class="page-head__session" data-render="session">
               <span class="badge badge--live">In session</span>
             </span>
+            <!-- The colophon stands down on this page (see pages.css), so the
+                 build stamp rides here instead — "which version are you on?" is
+                 the first question asked about any sync problem. -->
+            <span class="u-mono" data-version title="Build version">v—</span>
           </div>
         </div>
       </header>
 
       <!--
-        The Floor is the one page people leave open all evening, so it is built
-        as a console rather than as a document: three panes that share a single
-        screen and scroll inside themselves. On a phone the same three panes
-        become tabs — same markup, same render hooks, no duplicated regions.
+        One card, two halves, replacing both the scrolling ticker and the two
+        calls to action that used to live up in the masthead: who is connected on
+        the left, what the chamber is being asked on the right.
       -->
+      <section class="section section--tight deskcard-wrap">
+        <div class="shell shell--wide">
+          <div class="deskcard">
+            <a class="deskcard__half" href="pair.html" data-link-banner>
+              <span class="deskcard__figure" data-link-count>0</span>
+              <span class="deskcard__text">
+                <strong data-link-text>not connected</strong>
+                <small>Tap to add a device</small>
+              </span>
+              <svg class="ico ico--lg" aria-hidden="true" focusable="false"><use href="#i-qr"></use></svg>
+            </a>
+            <label class="deskcard__half deskcard__half--vote" for="floor-tab-now">
+              <svg class="ico ico--lg" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>
+              <span class="deskcard__text">
+                <strong>Cast your vote</strong>
+                <small data-render="floorQuestion">See what is before the chamber</small>
+              </span>
+            </label>
+          </div>
+        </div>
+      </section>
+
       <section class="section section--tight floor">
         <div class="shell shell--wide">
           <h2 class="u-visually-hidden">The floor console</h2>
-          <div class="floor-app">
+          <div class="floor-app floor-app--six">
             <div class="floor-app__tabs" role="radiogroup" aria-label="Which panel to show">
               <input class="floor-app__radio" type="radio" name="floor-pane" id="floor-tab-now" checked>
               <label class="floor-app__tab" for="floor-tab-now">
@@ -127,6 +162,15 @@
               <input class="floor-app__radio" type="radio" name="floor-pane" id="floor-tab-chamber">
               <label class="floor-app__tab" for="floor-tab-chamber">
                 <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-users"></use></svg>Chamber</label>
+              <input class="floor-app__radio" type="radio" name="floor-pane" id="floor-tab-votes">
+              <label class="floor-app__tab" for="floor-tab-votes">
+                <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>Votes</label>
+              <input class="floor-app__radio" type="radio" name="floor-pane" id="floor-tab-bills">
+              <label class="floor-app__tab" for="floor-tab-bills">
+                <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-bills"></use></svg>Bills</label>
+              <input class="floor-app__radio" type="radio" name="floor-pane" id="floor-tab-docket">
+              <label class="floor-app__tab" for="floor-tab-docket">
+                <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-docket"></use></svg>Docket</label>
               <input class="floor-app__radio" type="radio" name="floor-pane" id="floor-tab-feed">
               <label class="floor-app__tab" for="floor-tab-feed">
                 <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chat"></use></svg>Feed</label>
@@ -145,10 +189,10 @@
                 </div>
 
                 <!--
-                  Proposing is rare next to watching, so the whole editor lives
-                  behind a disclosure. A <details> was chosen over a CSS radio
-                  toggle because the browser already gives it the right
-                  keyboard and screen-reader semantics for free.
+                  Proposing is rare next to watching, so the desk sits behind a
+                  disclosure — which is also what keeps this pane inside one fold.
+                  A <details> rather than a CSS radio toggle because the browser
+                  already gives it the right keyboard and screen-reader semantics.
                 -->
                 <details class="disclosure floor-propose">
                   <summary>Propose a motion or a bill</summary>
@@ -161,14 +205,16 @@
                       <input class="switcher__radio" type="radio" name="propose" id="propose-motion" checked>
                       <input class="switcher__radio" type="radio" name="propose" id="propose-bill">
                       <div class="switcher__tabs" role="tablist">
-                        <label class="switcher__tab" for="propose-motion">🙋 Quick motion</label>
-                        <label class="switcher__tab" for="propose-bill">📜 Write a bill</label>
+                        <label class="switcher__tab" for="propose-motion">
+                          <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-gavel"></use></svg>Quick motion</label>
+                        <label class="switcher__tab" for="propose-bill">
+                          <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-bills"></use></svg>Write a bill</label>
                       </div>
                       <div class="switcher__panels">
                         <!-- Motion -->
                         <div class="switcher__panel">
                           <form class="stack" data-action="open-vote">
-                            <p class="field__hint">🔨 Calling a vote needs the Chair's password. It
+                            <p class="field__hint">Calling a vote needs the Chair's password. It
                               appears on every device at once.</p>
                             <div class="field">
                               <label class="field__label" for="m-title">The question</label>
@@ -194,10 +240,10 @@
                                 </select>
                               </div>
                             </div>
-                            <button class="btn btn--danger btn--sm" type="submit">🔨 Put the question</button>
+                            <button class="btn btn--danger btn--sm" type="submit">Put the question</button>
                           </form>
                         </div>
-                        <!-- Bill -->
+                        <!-- Bill — this desk IS the drafting studio now -->
                         <div class="switcher__panel">
                           <form class="stack" data-action="submit-bill">
                             <div class="field">
@@ -216,9 +262,7 @@
                                         placeholder="SECTION 1. …"></textarea>
                             </div>
                             <p class="field__hint" data-me="seat">Claim your seat to sponsor a bill.</p>
-                            <button class="btn btn--sm" type="submit">📜 Introduce the bill</button>
-                            <p class="field__hint">Want the full studio with a live parchment preview?
-                              <a href="draft.html">Open the drafting studio →</a></p>
+                            <button class="btn btn--sm" type="submit">Introduce the bill</button>
                           </form>
                         </div>
                       </div>
@@ -235,7 +279,15 @@
                 <span class="floor-pane__note u-caps">Tap a seat</span>
               </header>
 
-              <div class="floor-pane__fixed">
+              <!--
+                One scrolling body, not a pinned head plus a scroller. The
+                diagram, the key and the quorum bar together are taller than the
+                pane on a short screen, and a `flex: 0 0 auto` block that big
+                cannot shrink — it grows the pane past its grid track and paints
+                the check-in row below the fold. Everything scrolls together and
+                the pane keeps its promise instead.
+              -->
+              <div class="floor-pane__scroll">
                 <div class="chamber" data-render="chamber">
                   <div class="chamber__arc" data-rows="1"></div>
                   <div class="chamber__rostrum">
@@ -252,14 +304,6 @@
                 <div data-render="quorum">
                   <div class="skeleton" style="height:34px"></div>
                 </div>
-              </div>
-
-              <!--
-                Only the diagram, the key and the quorum bar are pinned. Check-in,
-                the seat hints and the roster scroll together underneath, because
-                that block grows with the family and the pinned part must not.
-              -->
-              <div class="floor-pane__scroll">
                 <div class="floor-checkin">
                   <button class="btn btn--sm" data-action="check-in" data-presence="present"
                           data-location="Main chamber (the living room)">On the floor</button>
@@ -299,11 +343,180 @@
               </div>
             </section>
 
-            <!-- Pane 3 · the side rail: what is being said, and what happens next -->
-            <section class="floor-pane floor-pane--rail" aria-label="Status updates and the docket">
+            <!-- Pane 3 · voting: the open roll calls, the whip, and the archive -->
+            <section class="floor-pane floor-pane--votes" aria-label="Voting">
+              <header class="floor-pane__head">
+                <h3 class="floor-pane__title">Voting</h3>
+                <span class="floor-pane__note u-caps">Yea · Nay · Present</span>
+              </header>
+
+              <div class="floor-pane__scroll">
+                <p class="field__hint" data-me="seat">No seat claimed on this device yet — find your
+                  card on the <a href="members.html">Members page</a>, say your password, and the big
+                  vote buttons light up.</p>
+                <p class="field__hint" data-me="seated" hidden>Voting as <strong data-me="name">—</strong>.</p>
+
+                <div class="switcher">
+                  <input class="switcher__radio" type="radio" name="voting-tabs" id="tab-open" checked>
+                  <input class="switcher__radio" type="radio" name="voting-tabs" id="tab-results">
+                  <div class="switcher__tabs" role="tablist" aria-label="Voting views">
+                    <label class="switcher__tab" for="tab-open">Whip board</label>
+                    <label class="switcher__tab" for="tab-results">Results</label>
+                  </div>
+                  <div class="switcher__panels">
+                    <!--
+                      The whip, not a second copy of the ballot. The ballot is
+                      the Now pane; rendering [data-render="openVotes"] twice
+                      would paint the same region into two places and duplicate
+                      every id inside it.
+                    -->
+                    <div class="switcher__panel">
+                      <p class="field__hint">Live disposition of the chamber on the pending
+                        question. Cast your own ballot on the <label class="u-link" for="floor-tab-now">Now</label> tab.</p>
+                      <div class="whip" data-render="whip">
+                        <div class="skeleton" style="height:8rem"></div>
+                      </div>
+                    </div>
+
+                    <!-- Results -->
+                    <div class="switcher__panel">
+                      <div class="kpi-rail" data-render="kpis">
+                        <div class="kpi"><span class="kpi__value">—</span><span class="kpi__label">Members enrolled</span></div>
+                        <div class="kpi"><span class="kpi__value">—</span><span class="kpi__label">Bills on file</span></div>
+                        <div class="kpi"><span class="kpi__value">—</span><span class="kpi__label">Roll calls held</span></div>
+                        <div class="kpi"><span class="kpi__value">—</span><span class="kpi__label">Measures enacted</span></div>
+                      </div>
+
+                      <h4 class="floor-rail__title" style="margin-top:var(--sp-5)">Session at a glance</h4>
+                      <div class="panel">
+                        <div class="histogram" data-render="histogram">
+                          <div class="skeleton" style="flex:1;height:60%"></div>
+                          <div class="skeleton" style="flex:1;height:80%"></div>
+                        </div>
+                        <div class="tally__legend" style="margin-top:var(--sp-4)">
+                          <span style="color:var(--yea)">Yea</span>
+                          <span style="color:var(--nay)">Nay</span>
+                          <span style="color:var(--present)">Present</span>
+                        </div>
+                      </div>
+
+                      <h4 class="floor-rail__title" style="margin-top:var(--sp-5)">Completed roll calls</h4>
+                      <div class="filterbar filterbar--slim">
+                        <div class="search">
+                          <label class="u-visually-hidden" for="results-search">Search roll calls</label>
+                          <input class="input" id="results-search" type="search"
+                                 placeholder="Search by title or number…" data-search-for="archive">
+                        </div>
+                        <label class="u-visually-hidden" for="results-outcome">Outcome</label>
+                        <select class="select" id="results-outcome" data-filter-for="archive" data-facet="outcome">
+                          <option value="all">All outcomes</option>
+                          <option value="passed">Agreed to</option>
+                          <option value="failed">Not agreed to</option>
+                        </select>
+                        <span class="u-mono u-muted" style="font-size:var(--fs-2xs)">
+                          <span data-count-for="archive">—</span> shown
+                        </span>
+                      </div>
+                      <div class="stack stack--lg" id="archive" data-filter-scope data-render="results">
+                        <div class="skeleton" style="height:10rem"></div>
+                      </div>
+                      <p class="empty" data-empty-for="archive" hidden>No roll calls match that filter.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Pane 4 · the bill tracker and the reading room -->
+            <section class="floor-pane floor-pane--bills" aria-label="Bills">
+              <header class="floor-pane__head">
+                <h3 class="floor-pane__title">Measures on file</h3>
+                <span class="floor-pane__note u-caps">Pick one to read it</span>
+              </header>
+
+              <div class="floor-pane__scroll">
+                <div class="filterbar filterbar--slim">
+                  <div class="search">
+                    <label class="u-visually-hidden" for="bills-search">Search bills</label>
+                    <input class="input" id="bills-search" type="search"
+                           placeholder="Search by number, title, or sponsor…" data-search-for="bills">
+                  </div>
+                  <label class="u-visually-hidden" for="bills-stage">Stage</label>
+                  <select class="select" id="bills-stage" data-filter-for="bills" data-facet="stage">
+                    <option value="all">All stages</option>
+                    <option value="drafted">Drafted</option>
+                    <option value="introduced">Introduced</option>
+                    <option value="committee">In committee</option>
+                    <option value="floor">On the floor</option>
+                    <option value="enacted">Enacted</option>
+                  </select>
+                  <span class="u-mono u-muted" style="font-size:var(--fs-2xs)">
+                    <span data-count-for="bills">—</span> shown
+                  </span>
+                </div>
+
+                <div class="grid grid--2" id="bills" data-filter-scope data-render="bills">
+                  <div class="skeleton" style="height:10rem"></div>
+                  <div class="skeleton" style="height:10rem"></div>
+                </div>
+                <p class="empty" data-empty-for="bills" hidden>No measures match that filter.</p>
+
+                <h4 class="floor-rail__title" style="margin-top:var(--sp-5)">Full text &amp; record</h4>
+                <div data-render="billDetail">
+                  <p class="empty">Pick a measure above to read its text, cosponsors and comments.</p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Pane 5 · the calendar and the order of business -->
+            <section class="floor-pane floor-pane--docket" aria-label="Docket and calendar">
+              <header class="floor-pane__head">
+                <h3 class="floor-pane__title">Docket</h3>
+                <span class="floor-pane__note u-caps">What happens next</span>
+              </header>
+
+              <div class="floor-pane__scroll">
+                <div class="calendar">
+                  <div class="calendar__head" aria-hidden="true">
+                    <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                  </div>
+                  <div class="calendar__grid" data-render="calendar">
+                    <div class="calendar__day"><span class="calendar__num">…</span></div>
+                  </div>
+                </div>
+
+                <h4 class="floor-rail__title" style="margin-top:var(--sp-5)">Scheduled items</h4>
+                <div class="filterbar filterbar--slim">
+                  <div class="search">
+                    <label class="u-visually-hidden" for="docket-search">Search the docket</label>
+                    <input class="input" id="docket-search" type="search"
+                           placeholder="Search hearings, votes, sittings…" data-search-for="schedule">
+                  </div>
+                  <label class="u-visually-hidden" for="docket-kind">Kind</label>
+                  <select class="select" id="docket-kind" data-filter-for="schedule" data-facet="kind">
+                    <option value="all">Everything</option>
+                    <option value="session">Sittings</option>
+                    <option value="vote">Votes</option>
+                    <option value="hearing">Hearings</option>
+                    <option value="recess">Recess</option>
+                  </select>
+                  <span class="u-mono u-muted" style="font-size:var(--fs-2xs)">
+                    <span data-count-for="schedule">—</span> shown
+                  </span>
+                </div>
+                <ol class="timeline" id="schedule" data-filter-scope data-render="docket">
+                  <li class="skeleton" style="height:3rem"></li>
+                  <li class="skeleton" style="height:3rem"></li>
+                </ol>
+                <p class="empty" data-empty-for="schedule" hidden>Nothing on the docket matches.</p>
+              </div>
+            </section>
+
+            <!-- Pane 6 · what is being said -->
+            <section class="floor-pane floor-pane--rail" aria-label="Status updates from the floor">
               <header class="floor-pane__head">
                 <h3 class="floor-pane__title">From the floor</h3>
-                <a class="floor-pane__note u-caps" href="docket.html">Full calendar</a>
+                <span class="floor-pane__note u-caps">Latest first</span>
               </header>
 
               <div class="floor-pane__fixed">
@@ -339,21 +552,11 @@
                 </details>
               </div>
 
-              <div class="floor-rail">
-                <div class="floor-rail__block">
-                  <h4 class="floor-rail__title">Status updates</h4>
-                  <ul class="status-feed status-feed--compact" data-render="statusFeed">
-                    <li class="skeleton" style="height:4rem"></li>
-                    <li class="skeleton" style="height:4rem"></li>
-                  </ul>
-                </div>
-                <div class="floor-rail__block">
-                  <h4 class="floor-rail__title">Order of business</h4>
-                  <ol class="timeline timeline--compact" data-render="docket">
-                    <li class="skeleton" style="height:3rem"></li>
-                    <li class="skeleton" style="height:3rem"></li>
-                  </ol>
-                </div>
+              <div class="floor-pane__scroll">
+                <ul class="status-feed status-feed--compact" data-render="statusFeed">
+                  <li class="skeleton" style="height:4rem"></li>
+                  <li class="skeleton" style="height:4rem"></li>
+                </ul>
               </div>
             </section>
           </div>

@@ -47,13 +47,16 @@
         <a class="nav__link" href="members.html" aria-current="page"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-members"></use></svg>Members</a>
         <a class="nav__link" href="connect.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-connect"></use></svg>Connect</a>
         <a class="nav__link" href="news.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-news"></use></svg>Newsroom</a>
+        <!-- Voting, the bill tracker, drafting and the docket are all tabs of the
+             Floor now, so this menu points into it rather than away from it.
+             Every entry is a same-page tab except About, which stays a page. -->
         <div class="nav__group">
-          <a class="nav__link" href="voting.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>Votes</a>
+          <a class="nav__link" href="floor.html#votes"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>Chamber</a>
           <ul class="nav__menu">
-            <li><a href="voting.html">Voting <small>Cast a ballot, watch the tally</small></a></li>
-            <li><a href="bills.html">Bill tracker <small>Every measure on file</small></a></li>
-            <li><a href="draft.html">Drafting studio <small>Write and introduce a bill</small></a></li>
-            <li><a href="docket.html">Docket <small>The order of business</small></a></li>
+            <li><a href="floor.html#votes">Voting <small>Cast a ballot, watch the tally</small></a></li>
+            <li><a href="floor.html#bills">Bill tracker <small>Every measure on file</small></a></li>
+            <li><a href="floor.html#now">Drafting desk <small>Write and introduce a bill</small></a></li>
+            <li><a href="floor.html#docket">Docket <small>The order of business</small></a></li>
             <li><a href="about.html">About &amp; rules <small>How the chamber works</small></a></li>
           </ul>
         </div>
@@ -61,7 +64,7 @@
           <a class="nav__icon" href="connect.html#talkie" data-when="authed" aria-label="Push to talk" title="Push to talk"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-talkie"></use></svg></a>
           <a class="nav__icon notif-bell" href="connect.html#notifications" aria-label="Notifications" title="Notifications"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span data-notif-count hidden>0</span></a>
         </span>
-        <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
+        <a class="btn btn--sm nav__cta" href="floor.html#votes">Cast your vote</a>
       </nav>
     </div>
   </header>

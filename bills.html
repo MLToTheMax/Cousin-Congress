@@ -47,13 +47,16 @@
         <a class="nav__link" href="members.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-members"></use></svg>Members</a>
         <a class="nav__link" href="connect.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-connect"></use></svg>Connect</a>
         <a class="nav__link" href="news.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-news"></use></svg>Newsroom</a>
+        <!-- Voting, the bill tracker, drafting and the docket are all tabs of the
+             Floor now, so this menu points into it rather than away from it.
+             Every entry is a same-page tab except About, which stays a page. -->
         <div class="nav__group">
-          <a class="nav__link" href="voting.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>Votes</a>
+          <a class="nav__link" href="floor.html#votes"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>Chamber</a>
           <ul class="nav__menu">
-            <li><a href="voting.html">Voting <small>Cast a ballot, watch the tally</small></a></li>
-            <li><a href="bills.html">Bill tracker <small>Every measure on file</small></a></li>
-            <li><a href="draft.html">Drafting studio <small>Write and introduce a bill</small></a></li>
-            <li><a href="docket.html">Docket <small>The order of business</small></a></li>
+            <li><a href="floor.html#votes">Voting <small>Cast a ballot, watch the tally</small></a></li>
+            <li><a href="floor.html#bills">Bill tracker <small>Every measure on file</small></a></li>
+            <li><a href="floor.html#now">Drafting desk <small>Write and introduce a bill</small></a></li>
+            <li><a href="floor.html#docket">Docket <small>The order of business</small></a></li>
             <li><a href="about.html">About &amp; rules <small>How the chamber works</small></a></li>
           </ul>
         </div>
@@ -61,7 +64,7 @@
           <a class="nav__icon" href="connect.html#talkie" data-when="authed" aria-label="Push to talk" title="Push to talk"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-talkie"></use></svg></a>
           <a class="nav__icon notif-bell" href="connect.html#notifications" aria-label="Notifications" title="Notifications"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span data-notif-count hidden>0</span></a>
         </span>
-        <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
+        <a class="btn btn--sm nav__cta" href="floor.html#votes">Cast your vote</a>
       </nav>
     </div>
   </header>
@@ -91,78 +94,20 @@
     <div class="shell announce-rail" data-render="announcements"></div>
 
     <main id="main">
-      <header class="page-head">
-        <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
-        <div class="shell">
-          <ol class="crumbs"><li><a href="index.html">Home</a></li><li>Legislation</li></ol>
-          <h1 data-enter>Legislation Before the Chamber</h1>
-          <p class="page-head__lede" data-enter style="--i:1">
-            Every measure on file, from first draft to family law. Follow the pipeline,
-            sign on as a cosponsor, file amendments, and add your comment to the record.
+      <!--
+        Absorbed into the Floor. Kept as a pointer rather than deleted: these
+        URLs are in bookmarks, in the sample data, and on paper QR cards that
+        are already out in the world, and a 404 is a worse answer than a door.
+      -->
+      <section class="section" style="min-height:50svh;display:grid;place-items:center">
+        <div class="shell u-center stack stack--lg" style="justify-items:center;text-align:center">
+          <p class="kicker" data-enter>Moved</p>
+          <h1 data-enter style="--i:1">The bill tracker now lives on the Floor</h1>
+          <p class="u-muted u-prose" data-enter style="--i:2">
+            The chamber now works from one screen — every measure on file is the <strong>Bills</strong> tab.
           </p>
-          <div class="page-head__meta" data-enter style="--i:2">
-            <span>Pipeline: Drafted → Introduced → Committee → Floor → Enacted</span>
-          </div>
-        </div>
-      </header>
-
-      <!-- Tracker -->
-      <section class="section">
-        <div class="shell">
-          <div class="cluster cluster--between" style="margin-bottom:var(--sp-5)">
-            <header>
-              <p class="section__eyebrow u-caps" data-reveal>The tracker</p>
-              <h2 data-reveal>Measures on file</h2>
-            </header>
-            <a class="btn" href="draft.html" data-reveal="right">Introduce a new bill</a>
-          </div>
-
-          <div class="filterbar" data-reveal>
-            <div class="search">
-              <label class="u-visually-hidden" for="bills-search">Search bills</label>
-              <input class="input" id="bills-search" type="search"
-                     placeholder="Search by number, title, or sponsor…" data-search-for="bills">
-            </div>
-            <div class="field">
-              <label class="field__label" for="bills-stage">Stage</label>
-              <select class="select" id="bills-stage" data-filter-for="bills" data-facet="stage">
-                <option value="all">All stages</option>
-                <option value="drafted">Drafted</option>
-                <option value="introduced">Introduced</option>
-                <option value="committee">In committee</option>
-                <option value="floor">On the floor</option>
-                <option value="enacted">Enacted</option>
-              </select>
-            </div>
-            <span class="u-mono u-muted" style="font-size:var(--fs-xs)">
-              <span data-count-for="bills">—</span> shown
-            </span>
-          </div>
-
-          <div class="grid grid--2" id="bills" data-filter-scope data-render="bills"
-               style="margin-top:var(--sp-5)">
-            <div class="skeleton" style="height:16rem"></div>
-            <div class="skeleton" style="height:16rem"></div>
-            <div class="skeleton" style="height:16rem"></div>
-            <div class="skeleton" style="height:16rem"></div>
-          </div>
-          <p class="empty" data-empty-for="bills" hidden>No measures match that filter.</p>
-        </div>
-      </section>
-
-      <!-- Reading room -->
-      <section class="section section--sunken" id="reading-room">
-        <div class="shell">
-          <header class="section__head section__head--split">
-            <div>
-              <p class="section__eyebrow u-caps" data-reveal>The reading room</p>
-              <h2 data-reveal>Full text &amp; record</h2>
-            </div>
-            <p class="u-muted" data-reveal="right">Pick any bill above — its engrossed text,
-              cosponsors, amendments, and comment record open here.</p>
-          </header>
-          <div data-render="billDetail">
-            <div class="skeleton" style="height:26rem"></div>
+          <div class="cluster" data-enter style="--i:3">
+            <a class="btn btn--lg" href="floor.html#bills">Go to the Floor</a>
           </div>
         </div>
       </section>

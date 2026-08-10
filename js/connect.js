@@ -15,6 +15,7 @@
 
 import { qs, qsa, toast, copyText } from "./ui.js";
 import { encodeQR, qrToSvg } from "./qr.js";
+import { select } from "./crdt.js";
 
 let decoderModule = null;
 let sealcardModule = null;
@@ -35,8 +36,12 @@ async function loadSealcard() {
 const SAFETY_FACES = "🦉🦊🐸🐼🦄🐙";
 
 export function mountLinkBanner(sync) {
-  const banner = qs("[data-link-banner]");
-  if (!banner) return;
+  // Every [data-link-banner], not just the first. The Floor folds this readout
+  // into its desk card instead of wearing the shell's strip, so a page can hold
+  // more than one — and painting only qs()'s first match left the card frozen
+  // at "0 · not connected" while the mesh was perfectly live.
+  const banners = qsa("[data-link-banner]");
+  if (!banners.length) return;
 
   const paint = () => {
     const status = sync.status;
@@ -44,24 +49,25 @@ export function mountLinkBanner(sync) {
     const relay = status.transports?.find((t) => t.name === "server");
     const relayLive = relay?.state === "connected";
     const total = peers + (relayLive ? 1 : 0);
+    const label =
+      peers > 0
+        ? `${peers} device${peers === 1 ? "" : "s"} connected`
+        : relayLive
+          ? "waiting on the relay"
+          : "not connected yet";
 
-    banner.dataset.link = total > 0 ? "live" : status.online ? "local" : "offline";
+    for (const banner of banners) {
+      banner.dataset.link = total > 0 ? "live" : status.online ? "local" : "offline";
 
-    const count = qs("[data-link-count]", banner);
-    if (count) count.textContent = String(peers);
+      const count = qs("[data-link-count]", banner);
+      if (count) count.textContent = String(peers);
 
-    const text = qs("[data-link-text]", banner);
-    if (text) {
-      text.textContent =
-        peers > 0
-          ? `${peers} device${peers === 1 ? "" : "s"} connected`
-          : relayLive
-            ? "waiting on the relay"
-            : "not connected yet";
+      const text = qs("[data-link-text]", banner);
+      if (text) text.textContent = label;
+
+      const cta = qs("[data-link-cta]", banner);
+      if (cta) cta.hidden = peers > 0;
     }
-
-    const cta = qs("[data-link-cta]", banner);
-    if (cta) cta.hidden = peers > 0;
   };
 
   sync.addEventListener("status", paint);
@@ -98,6 +104,28 @@ export function mountConnect(sync) {
  * asks anyone to scroll. This controller is just the pane switch plus the
  * plumbing that moves the flow forward when something actually connects.
  */
+
+/**
+ * Is this device actually part of a chamber, or still looking at the demo?
+ *
+ * Three things each independently mean yes: the record has a Chair (somebody
+ * founded it), this device holds a seat, or it has ever paired with a peer.
+ * The shipped sample data satisfies none of them, which is exactly the line
+ * the pairing choices need to draw.
+ */
+export function isInChamber(sync) {
+  const store = window.CousinCongress?.store;
+  if (!store) return false;
+  try {
+    if (select.chairEstablished(store.state)) return true;
+  } catch {
+    /* an unreadable record is not a chamber */
+  }
+  if (store.identity?.memberId) return true;
+  if ((sync?.status?.peers || []).length) return true;
+  return (sync?.status?.knownPeers || 0) > 0;
+}
+
 export function mountPairFlow(sync) {
   const flow = qs("[data-pair-flow]");
   if (!flow) return;
@@ -155,6 +183,34 @@ export function mountPairFlow(sync) {
   onPeers();
 
   show("choose");
+
+  /*
+   * Only offer the side that makes sense.
+   *
+   * A device still looking at the shipped demo has no chamber to share — its
+   * "Share my chamber" code would seat a cousin inside a sample record and
+   * quietly fork the family into two chambers that can never merge. And a
+   * device already in a real chamber has nothing to gain from "Join a
+   * cousin's": joining a second one is how you lose the first.
+   *
+   * So: not in a chamber yet -> Join. In one -> Share.
+   */
+  const paintChoices = () => {
+    const inChamber = isInChamber(sync);
+    for (const el of qsa("[data-action='pair-mode']")) {
+      const wantsChamber = el.dataset.mode === "host";
+      el.hidden = wantsChamber !== inChamber;
+    }
+    const note = qs("[data-pair-choicenote]");
+    if (note) {
+      note.textContent = inChamber
+        ? "Show this code to a cousin and they join everything you have."
+        : "Scan a cousin's code to join their chamber — or start your own below.";
+    }
+  };
+  sync.addEventListener("status", paintChoices);
+  window.CousinCongress?.store?.addEventListener?.("change", paintChoices);
+  paintChoices();
 
   // Arrived by scanning a code with the phone's own camera? The ticket is in the
   // address bar. Use it straight away and scrub it, so the whole journey for the

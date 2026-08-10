@@ -312,6 +312,7 @@ async function wireExtras(sync, appCtx = {}) {
      rather than trusting a hard-coded viewport fraction. */
   fitFloorConsole();
   connect.fitPairCode();
+  openFloorTabFromHash();
   connect.mountWalkie(sync.walkie);
   connect.mountEventLog(store, sync);
 
@@ -499,6 +500,28 @@ boot().catch((error) => {
  * fit inside. Measuring the real offset costs one layout read per resize and is
  * correct on every screen, including ones that did not exist when it was tuned.
  */
+/**
+ * floor.html#votes and friends open that tab.
+ *
+ * Voting, the bill tracker, the drafting desk and the docket used to be pages
+ * of their own. They are panes now, so the URLs that pointed at them — in
+ * bookmarks, in the nav menu, on the pointer pages left behind — have to land
+ * on the right pane rather than merely on the right page.
+ */
+function openFloorTabFromHash() {
+  const apply = () => {
+    const name = (location.hash || "").replace(/^#/, "");
+    if (!name) return;
+    const tab = document.getElementById(`floor-tab-${name}`);
+    if (tab && !tab.checked) {
+      tab.checked = true;
+      tab.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  };
+  apply();
+  addEventListener("hashchange", apply);
+}
+
 function fitFloorConsole() {
   const app = document.querySelector(".floor-app");
   if (!app) return;
