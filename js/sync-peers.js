@@ -664,7 +664,17 @@ export class PeerTransport extends EventTarget {
       // We sort second and may not offer, so we ask to be rung back. The nudge
       // grants nothing: whatever link it produces still has to prove the room
       // secret before a single op crosses it.
-      this.signal?.(actor, { kind: "dial" });
+      const delivered = this.signal?.(actor, { kind: "dial" });
+
+      // ...but a nudge nobody can carry is a deadlock, and it is the DEFAULT
+      // case: with no relay configured, a device that sorts second and has just
+      // reloaded has no live peer and no sibling tab, so the request to be rung
+      // back reaches nobody and it waits forever for a call the other side does
+      // not know to place. When there is demonstrably no path, place the call
+      // ourselves. Glare is the thing the sort order exists to prevent, and it
+      // cannot happen here: the other side cannot have heard us, so it is not
+      // dialling. connectTo() is keyed by actor, so a duplicate is a no-op.
+      if (delivered === false) await this.connectTo(actor).catch(() => {});
     }
 
     // Nothing reports a call that nobody answered, so the only evidence is

@@ -11,6 +11,7 @@
  */
 
 import { select } from "./crdt.js";
+import { memberAvatar } from "./emoji-decorate.js";
 import { esc, fmtDate, fmtTime, h, initials, pct, raw, relTime, timeOfStamp } from "./ui.js";
 
 const PRESENCE_LABEL = {
@@ -31,10 +32,13 @@ const STAGE_LABEL = {
 
 const memberName = (state, id) => select.member(state, id)?.name || "Unassigned";
 
-/** Emoji avatar when the member has picked one, initials otherwise. */
+/** A cousin's decorated badge when they have one, plain emoji or initials otherwise. */
 function avatarOf(member, extraClass = "") {
-  if (member?.icon) {
-    return h`<div class="member__avatar member__avatar--icon ${raw(extraClass)}" aria-hidden="true">${member.icon}</div>`;
+  // A decorated badge is a five-key spec, not markup, so it re-renders from the
+  // current palette every time. memberAvatar also understands a bare `icon`, so
+  // cousins who never opened the decorator keep exactly the avatar they had.
+  if (member?.avatar || member?.icon) {
+    return h`<div class="member__avatar member__avatar--icon ${raw(extraClass)}" aria-hidden="true">${raw(memberAvatar(member, 44))}</div>`;
   }
   return h`<div class="member__avatar ${raw(extraClass)}" aria-hidden="true">${initials(member?.name)}</div>`;
 }

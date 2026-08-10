@@ -96,6 +96,14 @@ function toggle({ id, part, label, hint, checked }) {
  * @param {Function} options.onStep      Called with (stepNumber, total) on each move.
  * @param {Function} options.onDone      Called with the result, just before resolving.
  */
+/**
+ * Element ids must be unique per invocation. The four controls used fixed ids,
+ * so a second onboarding opened before the first resolved would put duplicate
+ * ids in the document — and a <label for> then points at whichever input the
+ * browser finds first, which may be the other dialog's.
+ */
+let obSeq = 0;
+
 export function runOnboarding({
   name = "",
   avatar = null,
@@ -106,6 +114,7 @@ export function runOnboarding({
   onStep,
   onDone,
 } = {}) {
+  const uid = `ob${(obSeq += 1)}`;
   return new Promise((resolve) => {
     installSprite();
 
@@ -127,8 +136,8 @@ export function runOnboarding({
           <h2 class="ask__title">Welcome to ${houseName}</h2>
           <p class="ask__hint">Four quick things and you have a seat. You can change all of them later.</p>
           <div class="field ob__field">
-            <label class="field__label" for="ob-name">What should we call you?</label>
-            <input class="input ob__input" id="ob-name" type="text" data-ob-name
+            <label class="field__label" for=`${uid}-name`>What should we call you?</label>
+            <input class="input ob__input" id=`${uid}-name` type="text" data-ob-name
                    value="${name}" maxlength="${MAX_NAME}" autocomplete="given-name"
                    spellcheck="false" placeholder="Your name"${raw(nameLocked ? " readonly" : "")}>
             <p class="ob__error" data-ob-error="1"></p>
@@ -148,8 +157,8 @@ export function runOnboarding({
           <p class="ask__hint">You type this to take your seat. It shows on screen on purpose — a
             secret word you mistyped once and cannot see is a seat you cannot get back into.</p>
           <div class="field ob__field">
-            <label class="field__label" for="ob-pass">Secret word</label>
-            <input class="input ask__input ob__input" id="ob-pass" type="text" data-ob-pass
+            <label class="field__label" for=`${uid}-pass`>Secret word</label>
+            <input class="input ask__input ob__input" id=`${uid}-pass` type="text" data-ob-pass
                    autocomplete="off" autocapitalize="none" spellcheck="false"
                    minlength="${minPassword}" placeholder="at least ${minPassword} letters">
             <p class="ob__error" data-ob-error="3"></p>
@@ -164,7 +173,7 @@ export function runOnboarding({
             ${raw(walkieRow(walkie))}
             ${raw(
               toggle({
-                id: "ob-notify",
+                id: `${uid}-notify`,
                 part: "notify",
                 label: "Tell me when things happen",
                 hint: "A nudge when a vote opens or someone answers you.",
@@ -173,7 +182,7 @@ export function runOnboarding({
             )}
             ${raw(
               toggle({
-                id: "ob-motion",
+                id: `${uid}-motion`,
                 part: "reduceMotion",
                 label: "Calmer screens",
                 hint: "Turns off the sliding and the confetti.",

@@ -795,6 +795,11 @@
 
 .floor-propose {
   flex: 0 0 auto;
+  /* A flex item's automatic minimum size does not account for a <details>
+     summary, so inside the column this collapsed to a 2px sliver and the whole
+     propose desk became unclickable — present in the DOM, impossible to open.
+     fit-content pins it to the height its summary actually needs. */
+  min-height: fit-content;
 }
 
 .floor-propose > summary {

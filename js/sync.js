@@ -504,14 +504,22 @@ export class SyncCoordinator extends EventTarget {
     };
     if (this.server?.state === "connected") {
       this.server.send(msg);
-      return;
+      return true;
     }
     if (this.peers?.hasPeer(to)) {
       this.peers.send(msg, to);
-      return;
+      return true;
     }
+    // Last resort: shout it into the mesh and across our own tabs, in case
+    // someone can carry it the last hop. Report whether there was anybody at
+    // all to carry it — a device with no relay, no live peer and no sibling tab
+    // has NO path to the peer it wants, and the caller needs to know that
+    // rather than wait forever for an answer nobody could have heard.
+    const viaTabs = Boolean(this.tabs);
+    const viaPeers = (this.peers?.peerList || []).length > 0;
     this.tabs?.send(msg);
     this.peers?.relay(msg);
+    return viaTabs || viaPeers;
   }
 
   /**
