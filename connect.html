@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Connect · Cousin Congress</title>
-  <meta name="description" content="Pair devices with a picture code or QR, see who's connected, push-to-talk on the walkie, and — for the curious — watch the record replicate.">
+  <meta name="description" content="Pair another device in one screen: one of you shows a code, the other scans it.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#0b1c4a">
   <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2040%2040%22%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2224.8%22%20r%3D%2212.5%22%20fill%3D%22%231b3fd8%22%2F%3E%3Cpath%20d%3D%22M11%2C15.3A9%2C9%200%200%201%2029%2C15.3Z%22%20fill%3D%22%23ffc21a%22%2F%3E%3Cpath%20d%3D%22M20%2C2.8L24%2C8.8L16%2C8.8Z%22%20fill%3D%22%23e0243c%22%2F%3E%3C%2Fsvg%3E">
@@ -91,191 +91,160 @@
     <div class="shell announce-rail" data-render="announcements"></div>
 
     <main id="main">
-      <header class="page-head">
-        <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
-        <div class="shell">
-          <ol class="crumbs"><li><a href="index.html">Home</a></li><li>Connect</li></ol>
-          <h1 data-enter>Connect Your Devices</h1>
-          <p class="page-head__lede" data-enter style="--i:1">
-            Two devices near each other can trade the whole chamber in a few taps — scan a
-            code or show your own, and you're linked. No account, no typing, no server needed.
-          </p>
-        </div>
-      </header>
+      <!-- ================================================================
+           Pairing — deliberately ONE SCREEN. Left: what is about to happen,
+           in three steps. Right: the actual flow, which swaps in place rather
+           than growing the page.
+           ================================================================ -->
+      <section class="pair">
+        <div class="shell shell--wide pair__grid">
 
-      <p class="notice notice--warn shell" style="margin-top:var(--sp-5)" data-boot-error hidden></p>
+          <!-- Left: the three steps -->
+          <aside class="pair__steps">
+            <h1 class="pair__title">Add a device</h1>
+            <p class="pair__lede">Two devices swap one code and then keep each other
+              up to date — no account, no server.</p>
 
-      <div data-connect>
-
-        <!-- Pairing -->
-        <section class="section">
-          <div class="shell">
-            <div class="connect-hero">
-              <p class="section__eyebrow u-caps" data-reveal>Pair a device</p>
-              <h2 data-reveal>Scan a code, or show yours</h2>
-            </div>
-
-            <div class="connect-choices">
-              <!-- Scan -->
-              <div class="connect-card" data-reveal="left">
-                <span class="connect-card__icon" aria-hidden="true">📷</span>
-                <h3>Scan a code</h3>
-                <p class="u-muted">Point your camera at a cousin's screen and you're in.</p>
-                <button class="btn btn--lg" data-action="start-scan" type="button">Start scanning</button>
-
-                <div class="scanner" data-scanner hidden>
-                  <video playsinline muted></video>
-                  <div class="scanner__reticle"></div>
+            <ol class="steps">
+              <li class="steps__item">
+                <span class="steps__n">1</span>
+                <div>
+                  <strong>Pick a side</strong>
+                  <span>Are you joining a cousin's chamber, or letting them into yours?</span>
                 </div>
-                <button class="btn btn--ghost btn--sm" data-action="stop-scan" type="button">Stop scanning</button>
-
-                <div class="field" style="width:100%">
-                  <label class="field__label" for="code-file">Or upload a picture of a code</label>
-                  <input type="file" id="code-file" data-code-file accept="image/*">
-                  <p class="field__hint">No camera handy? A photo of the code works too.</p>
+              </li>
+              <li class="steps__item">
+                <span class="steps__n">2</span>
+                <div>
+                  <strong>Show or scan the code</strong>
+                  <span>One phone shows a code, the other points its camera at it.</span>
                 </div>
-
-                <div data-reply-frame class="qr-frame"></div>
-                <div class="stack" data-answer-out-wrap hidden style="width:100%">
-                  <label class="field__label" for="answer-out">Send this reply back</label>
-                  <textarea class="textarea code-box" id="answer-out" data-answer-out readonly rows="3"></textarea>
-                  <button class="btn btn--gold btn--sm" data-action="copy" data-copy-from="#answer-out" type="button">
-                    📋 Copy the reply
-                  </button>
+              </li>
+              <li class="steps__item">
+                <span class="steps__n">3</span>
+                <div>
+                  <strong>Sign in to your seat</strong>
+                  <span>The record arrives on its own. Your password proves which cousin you are.</span>
                 </div>
-              </div>
+              </li>
+            </ol>
 
-              <!-- Show -->
-              <div class="connect-card" data-reveal="right">
-                <span class="connect-card__icon" aria-hidden="true">📱</span>
-                <h3>Show my code</h3>
-                <p class="u-muted">Your cousin scans this, or you send it in any chat.</p>
-                <button class="btn btn--lg" data-action="show-code" type="button">Show my code</button>
-
-                <div class="qr-frame" data-qr-frame></div>
-                <label class="cluster" style="font-size:var(--fs-xs)">
-                  <input type="checkbox" data-card-toggle checked>
-                  Pretty Seal Card (instead of a plain QR)
-                </label>
-
-                <div class="stack" data-code-out hidden style="width:100%">
-                  <label class="field__label" for="code-text">Send this to your cousin</label>
-                  <textarea class="textarea code-box" id="code-text" data-code-text readonly rows="3"></textarea>
-                  <button class="btn btn--ghost btn--sm" data-action="copy" data-copy-from="#code-text" type="button">
-                    📋 Copy the code
-                  </button>
-                  <label class="field__label" for="answer-box">Paste their reply here</label>
-                  <textarea class="textarea code-box" id="answer-box" data-answer-box rows="3"
-                            placeholder="Paste the reply code…"></textarea>
-                  <button class="btn" data-action="finish-pair" type="button">🤝 Finish pairing</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Who's connected -->
-        <section class="section section--sunken">
-          <div class="shell">
-            <header class="section__head">
-              <p class="section__eyebrow u-caps" data-reveal>Right now</p>
-              <h2 data-reveal>Who's connected</h2>
-            </header>
-            <div class="peers" data-peer-list data-reveal>
-              <p class="empty">No devices connected yet. Show your code, or scan a cousin's.</p>
-            </div>
-          </div>
-        </section>
-
-        <!-- Walkie-talkie -->
-        <section class="section" id="talkie">
-          <div class="shell u-center stack" style="justify-items:center">
-            <p class="section__eyebrow u-caps" data-reveal>📻 Talkie</p>
-            <h2 data-reveal>Push to talk</h2>
-            <p class="u-muted" data-reveal style="max-width:44ch;text-align:center">
-              Hold the button, say your piece, let go. Every connected cousin hears it live.
+            <p class="pair__safety" data-pair-safety hidden>
+              <svg class="ico" aria-hidden="true"><use href="#i-shield"></use></svg>
+              <span>Both screens should show <strong data-safety-word>····</strong></span>
             </p>
-            <div class="walkie" data-reveal="scale">
-              <button class="ptt" data-ptt type="button" data-transmitting="false">
-                Talk
-                <small>Hold to talk</small>
-              </button>
-              <div class="walkie__status" data-walkie-status>Hold the button to talk.</div>
-            </div>
-          </div>
-        </section>
+          </aside>
 
-      </div>
+          <!-- Right: the flow -->
+          <div class="pair__flow" data-pair-flow>
 
-      <!-- For the curious -->
-      <section class="section section--sunken">
-        <div class="shell">
-          <details class="tech" data-reveal>
-            <summary>For the curious — how the record moves</summary>
-            <div class="tech__body stack">
-              <p class="u-muted" style="font-size:var(--fs-sm)">
-                Every device holds the complete chamber record — an append-only log of
-                operations. A <strong>version vector</strong> tracks the highest operation each
-                device has seen from every other device; two devices with the same vector are
-                perfectly in step. As long as one copy survives, the whole record survives.
-              </p>
-
-              <div class="eventlog" data-eventlog></div>
-
-              <h3 style="font-size:var(--fs-sm);font-family:var(--font-body);font-weight:700;margin-top:var(--sp-2)">
-                One sealed message, on the wire
-              </h3>
-              <pre class="wire" data-wire-format></pre>
-
-              <div class="cluster" style="padding-top:var(--sp-4);border-top:1px dashed var(--line)">
-                <button class="btn btn--ghost btn--sm" data-action="force-sweep">🔄 Sync now</button>
-                <button class="btn btn--ghost btn--sm" data-action="export-log">💾 Save a copy of the record</button>
-                <button class="btn btn--ghost btn--sm" data-action="import-log">📂 Load a saved record</button>
-                <input type="file" id="import-file" accept="application/json,.json" class="u-visually-hidden"
-                       aria-label="Import a saved chamber record">
-                <button class="btn btn--danger btn--sm" data-action="reset-replica">🧹 Erase this device</button>
+            <!-- Step 1 — choose a side -->
+            <div class="pair__pane" data-pane="choose">
+              <div class="pair__choices">
+                <button class="choice" data-action="pair-mode" data-mode="join" type="button">
+                  <svg class="ico ico--xl" aria-hidden="true"><use href="#i-scan"></use></svg>
+                  <strong>Join a cousin's chamber</strong>
+                  <span>Scan the code on their screen. Everything they have arrives here.</span>
+                </button>
+                <button class="choice" data-action="pair-mode" data-mode="host" type="button">
+                  <svg class="ico ico--xl" aria-hidden="true"><use href="#i-qr"></use></svg>
+                  <strong>Share my chamber</strong>
+                  <span>Show a code for a cousin to scan. They join everything you have.</span>
+                </button>
               </div>
-              <p class="field__hint">Erasing only forgets on this device — every other copy keeps
-                the record, and this one can rejoin and catch up later.</p>
+              <p class="pair__note">
+                <svg class="ico" aria-hidden="true"><use href="#i-info"></use></svg>
+                One of you shows, the other scans — it does not matter which.
+              </p>
             </div>
-          </details>
-        </div>
-      </section>
 
-      <!-- Chamber chat -->
-      <section class="section section--sunken" id="chat">
-        <div class="shell">
-          <header class="section__head">
-            <p class="section__eyebrow u-caps" data-reveal>💬 Chat</p>
-            <h2 data-reveal>Chamber chat</h2>
-            <p class="u-muted" data-reveal>The Chair switches chat on per cousin. <span data-chat-note></span></p>
-          </header>
-          <div class="chat" data-reveal>
-            <div class="chat__log" data-chat-log><p class="empty">No messages yet.</p></div>
-            <form class="chat__form" data-action="chat-send">
-              <label class="u-visually-hidden" for="chat-input">Message</label>
-              <input class="input" id="chat-input" name="text" maxlength="500" placeholder="Say something…" autocomplete="off">
-              <button class="btn" type="submit">Send</button>
-            </form>
+            <!-- Step 2a — scan -->
+            <div class="pair__pane" data-pane="join" hidden>
+              <div class="pair__paneHead">
+                <button class="btn btn--ghost btn--sm" data-action="pair-back" type="button">Back</button>
+                <h2>Scan their code</h2>
+              </div>
+              <div class="scanner" data-scanner hidden>
+                <video playsinline muted></video>
+                <div class="scanner__reticle"></div>
+              </div>
+              <div class="pair__actions">
+                <button class="btn btn--lg" data-action="start-scan" type="button">
+                  <svg class="ico" aria-hidden="true"><use href="#i-camera"></use></svg>Start camera
+                </button>
+                <button class="btn btn--ghost btn--sm" data-action="stop-scan" type="button">Stop</button>
+              </div>
+              <label class="pair__upload">
+                <svg class="ico" aria-hidden="true"><use href="#i-upload"></use></svg>
+                <span>No camera? Upload a picture of the code</span>
+                <input type="file" data-code-file accept="image/*" hidden>
+              </label>
+              <details class="pair__more">
+                <summary>Paste a code instead</summary>
+                <textarea class="textarea" data-paste-code rows="2" placeholder="Paste the code your cousin sent"></textarea>
+                <button class="btn btn--sm" data-action="paste-code" type="button">Use this code</button>
+                <p class="field__hint">If they gave you a reply code, paste it here too.</p>
+              </details>
+            </div>
+
+            <!-- Step 2b — show -->
+            <div class="pair__pane" data-pane="host" hidden>
+              <div class="pair__paneHead">
+                <button class="btn btn--ghost btn--sm" data-action="pair-back" type="button">Back</button>
+                <h2>Show this code</h2>
+              </div>
+              <div class="pair__qr" data-qr-frame></div>
+              <div class="pair__actions">
+                <button class="btn" data-action="show-code" type="button">
+                  <svg class="ico" aria-hidden="true"><use href="#i-qr"></use></svg>New code
+                </button>
+                <button class="btn btn--ghost btn--sm" data-action="copy" data-copy-from="[data-code-text]" type="button">
+                  <svg class="ico" aria-hidden="true"><use href="#i-copy"></use></svg>Copy
+                </button>
+                <label class="pair__toggle"><input type="checkbox" data-card-toggle> Pretty card</label>
+              </div>
+              <div data-code-out hidden>
+                <textarea class="textarea u-visually-hidden" data-code-text readonly rows="1"></textarea>
+                <details class="pair__more">
+                  <summary>They scanned it — paste their reply</summary>
+                  <textarea class="textarea" data-answer-box rows="2" placeholder="Paste the reply code"></textarea>
+                  <button class="btn btn--sm" data-action="finish-pair" type="button">Finish pairing</button>
+                </details>
+              </div>
+            </div>
+
+            <!-- Reply code, after scanning someone's offer -->
+            <div class="pair__pane" data-pane="reply" hidden>
+              <div class="pair__paneHead">
+                <button class="btn btn--ghost btn--sm" data-action="pair-back" type="button">Back</button>
+                <h2>Show them this reply</h2>
+              </div>
+              <div class="pair__qr" data-reply-frame></div>
+              <textarea class="textarea" data-answer-out readonly rows="2"></textarea>
+              <p class="field__hint">Let your cousin scan this (or paste it back to them) and you're connected.</p>
+            </div>
+
+            <!-- Connected -->
+            <div class="pair__pane" data-pane="done" hidden>
+              <div class="pair__done">
+                <svg class="ico ico--xl" aria-hidden="true"><use href="#i-check"></use></svg>
+                <h2>Connected</h2>
+                <p class="u-muted" data-pair-donetext>The record is syncing. Sign in to your seat to take part.</p>
+                <div class="cluster">
+                  <a class="btn" href="members.html">Sign in to my seat</a>
+                  <a class="btn btn--ghost" href="floor.html">Go to the floor</a>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
 
-      <!-- Notifications -->
-      <section class="section" id="notifications">
-        <div class="shell">
-          <header class="section__head section__head--split">
-            <div>
-              <p class="section__eyebrow u-caps" data-reveal>🔔 Notifications</p>
-              <h2 data-reveal>What's happened</h2>
-            </div>
-            <div class="cluster" data-reveal="right">
-              <button class="btn btn--ghost btn--sm" data-action="notif-enable">Enable pop-ups</button>
-              <button class="btn btn--ghost btn--sm" data-action="notif-read-all">Mark all read</button>
-            </div>
-          </header>
-          <div data-render="notifications"><p class="empty">Nothing yet.</p></div>
-        </div>
+        <!-- The quiet way to start a brand-new chamber. Deliberately understated:
+             almost everyone is joining an existing one. -->
+        <p class="pair__founder">
+          Nobody to join?
+          <a href="#" data-action="register-chair">Register a new chamber</a>
+        </p>
       </section>
     </main>
 

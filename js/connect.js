@@ -74,8 +74,15 @@ export function mountLinkBanner(sync) {
    -------------------------------------------------------------------------- */
 
 export function mountConnect(sync) {
-  const root = qs("[data-connect]");
-  if (!root) return;
+  // Wire each control only if its markup is on this page, rather than requiring
+  // one wrapper element around all of them. The old connect page had a
+  // [data-connect] wrapper and the rebuilt pairing page does not, so gating the
+  // whole function on that wrapper silently left EVERY pairing control dead —
+  // the buttons were there, nothing was listening, and pairing was impossible.
+  // Each wire* already no-ops when its own element is absent.
+  if (!qs("[data-qr-frame]") && !qs("[data-scanner]") && !qs("[data-code-file]") && !qs("[data-peer-list]")) {
+    return;
+  }
 
   wireShow(sync);
   wireScan(sync);

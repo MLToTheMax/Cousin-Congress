@@ -647,3 +647,12 @@
   display: inline-grid;
   place-items: center;
 }
+
+/* The pairing page is the flow and nothing else, so the shell chrome above it
+   (ticker, announcement rail, page padding) is what pushes it past a fold.
+   Reclaim that space here rather than in the shell, which every other page
+   still wants. */
+body:has(.pair) .ticker { display: none; }
+body:has(.pair) .announce-rail:empty { display: none; }
+body:has(.pair) .colophon { display: none; }
+body:has(.pair) .pair { padding-block: var(--sp-4); }
