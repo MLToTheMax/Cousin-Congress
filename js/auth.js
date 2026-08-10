@@ -18,6 +18,8 @@
 import store from "./store.js";
 import { select } from "./crdt.js";
 import { askDialog, toast } from "./ui.js";
+import { makeChairRecovery, proveChairRecovery } from "./crypto.js";
+import CONFIG from "./config.js";
 
 const CHAIR_UNLOCK_KEY = "cc.chair";
 
@@ -27,6 +29,13 @@ const CHAIR_UNLOCK_KEY = "cc.chair";
 
 const hex = (buf) =>
   [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+/**
+ * The label a password manager files the gavel under. Deliberately distinct
+ * from any seat name so the Chair's password saves as its own credential
+ * rather than overwriting the cousin's seat password on the same origin.
+ */
+const CHAIR_CREDENTIAL = "Chair of the Chamber";
 
 export function newSalt() {
   const bytes = new Uint8Array(8);
@@ -131,6 +140,9 @@ export async function claimSeat(memberId) {
       hint: "Anything you'll remember. Capitals and spaces don't matter. You'll use it to sit here on any device — don't lose it, or the Chair will have to reset it!",
       placeholder: "your secret word",
       confirmLabel: "Save my password",
+      password: true,
+      autocomplete: "new-password",
+      username: member.name,
     });
     if (!pin || !normalize(pin)) return false;
     bindSeatKey(memberId); // register this device's key as the seat's own
@@ -150,6 +162,9 @@ export async function claimSeat(memberId) {
           : `Not quite — try again (${ATTEMPTS - attempt + 1} ${ATTEMPTS - attempt + 1 === 1 ? "try" : "tries"} left).`,
       placeholder: "secret word",
       confirmLabel: "Take my seat",
+      password: true,
+      autocomplete: "current-password",
+      username: member.name,
     });
     if (pin === null) return false;
     if (await verifyPin(pin, member.auth)) {
@@ -251,6 +266,9 @@ export async function redeemSeatCode(body, sync) {
       hint: "You'll use it to sit in your seat on any device. Capitals and spaces don't matter — just don't forget it!",
       placeholder: "your secret word",
       confirmLabel: "Save my password",
+      password: true,
+      autocomplete: "new-password",
+      username: member.name,
     });
     if (pin && normalize(pin)) {
       store.dispatch("member.auth", { memberId: body.memberId, auth: await makeAuth(pin) });
@@ -327,6 +345,43 @@ function claimChairKey() {
   }
 }
 
+/**
+ * Mint the recovery verifier for a password, or null if this browser cannot.
+ *
+ * Never fatal: a chamber without a verifier simply has no self-recovery, which
+ * is exactly where things stood before. Better a Chair with no escape hatch
+ * than a password that refused to be set at all.
+ */
+async function mintRecovery(pin) {
+  try {
+    return await makeChairRecovery(pin);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Enrol THIS device as a Chair device by proving the Chair's password.
+ *
+ * The op carries a signature made with a key that only the password can unwrap,
+ * so every replica verifies it for itself — no surviving Chair device has to
+ * approve, and no server has to vouch. Returns false when the chamber predates
+ * recovery verifiers or the browser lacks the crypto, in which case the caller
+ * falls back to filing a request.
+ */
+async function recoverChairDevice(pin) {
+  const kid = store.myFingerprint;
+  const recovery = store.state.session?.chairRecovery;
+  if (!kid || !recovery?.pub) return false;
+
+  const ts = Date.now();
+  const proof = await proveChairRecovery(recovery, pin, { room: CONFIG.room, kid, ts });
+  if (!proof) return false;
+
+  store.dispatch("chair.recover", { kid, ts, proof });
+  return select.isChairDevice(store.state, kid);
+}
+
 /** True if the gavel exists but this device's key is not a chair device yet. */
 function chairUnenrolled() {
   const kid = store.myFingerprint;
@@ -352,10 +407,18 @@ export async function requireChair() {
       hint: "No Chair password exists yet, so you get to invent it. Whoever knows it holds the gavel: they can add members, call votes, and run the chamber. Share it wisely!",
       placeholder: "the gavel's secret word",
       confirmLabel: "Take the gavel",
+      password: true,
+      autocomplete: "new-password",
+      username: CHAIR_CREDENTIAL,
     });
     if (!pin || !normalize(pin)) return false;
     claimChairKey(); // bind this device as the founding chair key first
-    store.dispatch("session.set", { chairAuth: await makeAuth(pin) });
+    store.dispatch("session.set", {
+      chairAuth: await makeAuth(pin),
+      // Minted with the password, not after it: a chamber whose only Chair
+      // device dies before this exists has no way back in.
+      chairRecovery: await mintRecovery(pin),
+    });
     rememberChairUnlock();
     toast("You hold the gavel. 🔨 Rule justly.");
     return true;
@@ -371,16 +434,27 @@ export async function requireChair() {
           : `That's not it — ${ATTEMPTS - attempt + 1} ${ATTEMPTS - attempt + 1 === 1 ? "try" : "tries"} left.`,
       placeholder: "the gavel's secret word",
       confirmLabel: "Unlock",
+      password: true,
+      autocomplete: "current-password",
+      username: CHAIR_CREDENTIAL,
     });
     if (pin === null) return false;
     if (await verifyPin(pin, auth)) {
       rememberChairUnlock();
       if (chairUnenrolled()) {
-        claimChairKey(); // files a chair.request for the founder to approve
-        toast(
-          "Gavel unlocked on this tab. This device isn't a registered Chair device yet — your Chair actions apply here but won't reach everyone until the main Chair device approves it (Chair's Office → Chair devices).",
-          "warn"
-        );
+        // Try to self-enrol by proving the password to the whole chamber. This
+        // is the answer to "my only Chair device is gone": nobody is left to
+        // approve a request, but the password still proves who you are.
+        const recovered = await recoverChairDevice(pin);
+        if (recovered) {
+          toast("Chair device recovered. Every cousin's device recognises this one now. 🔨");
+        } else {
+          claimChairKey(); // falls back to a request for a surviving Chair device
+          toast(
+            "Gavel unlocked on this tab. This device isn't a registered Chair device yet — your Chair actions apply here but won't reach everyone until another Chair device approves it (Chair's Office → Chair devices).",
+            "warn"
+          );
+        }
       } else {
         toast("Gavel unlocked for this tab. 🔨");
       }
@@ -401,9 +475,18 @@ export async function changeChairPin() {
     hint: "Replaces the old one everywhere, on every device, as soon as they sync.",
     placeholder: "new secret word",
     confirmLabel: "Change it",
+    password: true,
+    autocomplete: "new-password",
+    username: CHAIR_CREDENTIAL,
   });
   if (!pin || !normalize(pin)) return false;
-  store.dispatch("session.set", { chairAuth: await makeAuth(pin) });
+  // Re-mint the verifier too. Leaving the old one in place would mean the
+  // PREVIOUS password still recovered the gavel, which is the opposite of what
+  // changing a password is for.
+  store.dispatch("session.set", {
+    chairAuth: await makeAuth(pin),
+    chairRecovery: await mintRecovery(pin),
+  });
   rememberChairUnlock();
   toast("Chair's password changed.");
   return true;

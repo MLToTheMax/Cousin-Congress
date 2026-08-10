@@ -195,12 +195,19 @@ export function showDialog({
   });
 }
 
-export function askDialog({
-  icon = "🔑",
+/**
+ * A yes/no. Same shape as askDialog, minus the field.
+ *
+ * Cancel is a plain button rather than a second submit for the same reason it
+ * is there: the first submit button in a form is what Enter activates, and a
+ * cancel in that position turns "press Enter to agree" into "press Enter to
+ * back out" — which on a consequential question is precisely the wrong default.
+ */
+export function confirmDialog({
+  icon = "❓",
   title,
   hint = "",
-  placeholder = "",
-  confirmLabel = "OK",
+  confirmLabel = "Yes",
   cancelLabel = "Never mind",
 } = {}) {
   return new Promise((resolve) => {
@@ -209,22 +216,114 @@ export function askDialog({
       askHost.className = "ask";
       document.body.append(askHost);
     }
+    askHost.innerHTML = h`
+      <form method="dialog" class="ask__form">
+        <div class="ask__icon" aria-hidden="true">${icon}</div>
+        <h2 class="ask__title">${title}</h2>
+        ${raw(hint ? h`<p class="ask__hint">${hint}</p>` : "")}
+        <div class="ask__actions">
+          <button class="btn btn--ghost" type="button" data-ask-cancel>${cancelLabel}</button>
+          <button class="btn" value="ok">${confirmLabel}</button>
+        </div>
+      </form>`;
+    askHost.querySelector("[data-ask-cancel]")?.addEventListener("click", () => {
+      askHost.returnValue = "cancel";
+      askHost.close("cancel");
+    });
+    askHost.returnValue = "cancel";
+    askHost.addEventListener("close", () => resolve(askHost.returnValue === "ok"), { once: true });
+    askHost.showModal();
+  });
+}
+
+/**
+ * Ask for one line of text — or for a password.
+ *
+ * `password: true` renders a real `<input type="password">` rather than a text
+ * box with the letters showing. That matters for more than shoulder-surfing: a
+ * browser only offers to save, sync and autofill a credential it can recognise
+ * as one, and recognition needs the password type, an `autocomplete` hint, and
+ * a username field to hang the entry on. Without those, every cousin has to
+ * remember the chamber's password by heart forever, which for a family app is
+ * the difference between "works next month" and "locked out".
+ *
+ * @param {boolean} password        Render a masked credential field.
+ * @param {string}  autocomplete    "current-password" when proving a password
+ *                                  you already have, "new-password" when
+ *                                  setting one — the browser offers to generate
+ *                                  and save on the latter and only fills on the
+ *                                  former.
+ * @param {string}  username        What the password belongs to. Password
+ *                                  managers key their entry on this, so a seat
+ *                                  password and the Chair's gavel end up as two
+ *                                  separate saved credentials rather than one
+ *                                  overwriting the other.
+ */
+export function askDialog({
+  icon = "🔑",
+  title,
+  hint = "",
+  placeholder = "",
+  confirmLabel = "OK",
+  cancelLabel = "Never mind",
+  password = false,
+  autocomplete = "current-password",
+  username = "",
+} = {}) {
+  return new Promise((resolve) => {
+    if (!askHost) {
+      askHost = document.createElement("dialog");
+      askHost.className = "ask";
+      document.body.append(askHost);
+    }
+
+    // The username field is offscreen rather than absent: managers need
+    // something to label the saved entry with, but nobody is meant to edit it.
+    const identity = password
+      ? h`<input class="u-visually-hidden" type="text" name="username"
+                 autocomplete="username" value="${username || "Cousin Congress"}"
+                 readonly tabindex="-1" aria-hidden="true">`
+      : "";
+
+    const field = password
+      ? h`<div class="ask__reveal">
+            <input class="input ask__input" type="password" name="password"
+                   autocomplete="${autocomplete}" autocapitalize="none"
+                   spellcheck="false" required
+                   placeholder="${placeholder}" aria-label="${title}">
+            <button class="ask__eye" type="button" data-ask-reveal
+                    aria-label="Show the password" aria-pressed="false">Show</button>
+          </div>`
+      : h`<input class="input ask__input" type="text" autocomplete="off"
+                 autocapitalize="none" spellcheck="false" required
+                 placeholder="${placeholder}" aria-label="${title}">`;
 
     askHost.innerHTML = h`
       <form method="dialog" class="ask__form">
         <div class="ask__icon" aria-hidden="true">${icon}</div>
         <h2 class="ask__title">${title}</h2>
         ${raw(hint ? h`<p class="ask__hint">${hint}</p>` : "")}
-        <input class="input ask__input" type="text" autocomplete="off"
-               autocapitalize="none" spellcheck="false" required
-               placeholder="${placeholder}" aria-label="${title}">
+        ${raw(identity)}
+        ${raw(field)}
         <div class="ask__actions">
           <button class="btn btn--ghost" type="button" data-ask-cancel>${cancelLabel}</button>
           <button class="btn" value="ok">${confirmLabel}</button>
         </div>
       </form>`;
 
-    const input = askHost.querySelector("input");
+    const input = askHost.querySelector(".ask__input");
+
+    // Kids mistype long words. Letting them look is worth more here than the
+    // shoulder-surfing it costs, so long as it is off by default.
+    askHost.querySelector("[data-ask-reveal]")?.addEventListener("click", (event) => {
+      const eye = event.currentTarget;
+      const shown = input.type === "text";
+      input.type = shown ? "password" : "text";
+      eye.textContent = shown ? "Show" : "Hide";
+      eye.setAttribute("aria-pressed", String(!shown));
+      eye.setAttribute("aria-label", shown ? "Show the password" : "Hide the password");
+      input.focus();
+    });
     // Cancel is a plain button, not a submit: the FIRST submit button in a form
     // is what Enter activates, and having cancel there meant pressing Enter
     // dismissed the dialog instead of accepting what you just typed.

@@ -1028,6 +1028,82 @@ function renderFloorQuestion(state) {
   return h`${open[0].title || "A question is before the chamber"}`;
 }
 
+/**
+ * The succession panel — the chamber's rule of last resort.
+ *
+ * Shown only where it is buried (the far corner of About) and inert unless the
+ * Chair has genuinely stopped answering. When the Chair is present it says so
+ * and offers nothing, because a live Chair is not a problem this solves.
+ */
+function renderSuccession(state) {
+  const seat = state.session?.chairSeat;
+  const chair = seat ? select.member(state, seat) : null;
+
+  // No Chair has ever been established — a demo chamber, or one nobody has
+  // founded yet. Succession is the wrong tool: there is no gavel to move, and
+  // "silent since the epoch" is a nonsense number to put in front of anyone.
+  if (!select.chairEstablished(state)) {
+    return h`<div class="panel">
+      <p><strong>This chamber has no Chair yet.</strong> Nothing to hand over.</p>
+      <p class="field__hint">Whoever founds the chamber takes the gavel — there is a
+        <a href="pair.html">Register a new chamber</a> link at the foot of the pairing page.</p>
+    </div>`;
+  }
+
+  const dormant = select.chairDormant(state);
+  const silent = select.chairSilentFor(state);
+  const days = Math.floor(silent / 86400000);
+
+  if (!dormant) {
+    return h`<div class="panel">
+      <p><strong>The Chair is answering.</strong> ${chair ? h`${chair.name} holds the gavel` : raw("The gavel is held")}
+         and their device has acted${days > 0 ? h` within the last ${days} day${raw(days === 1 ? "" : "s")}` : raw(" recently")}.</p>
+      <p class="field__hint">Nothing here does anything while that is true — and the moment
+        the Chair acts again, any names already gathered are cleared. If you need something
+        from them, ask them.</p>
+    </div>`;
+  }
+
+  const members = select.members(state).filter((m) => m.id !== seat);
+  const petitions = state.session?.chairPetitions || {};
+  const tallies = Object.keys(petitions)
+    .map((id) => ({ id, member: select.member(state, id), ...select.chairPetition(state, id) }))
+    .filter((t) => t.member);
+
+  return h`<div class="panel">
+    <p><strong>The Chair has been silent for ${days} day${raw(days === 1 ? "" : "s")}.</strong>
+       The chamber may move the gavel if two-thirds of the seated cousins ask for the same
+       cousin to take it.</p>
+    <div class="field">
+      <label class="field__label" for="succession-seat">Who should take the gavel?</label>
+      <select class="select" id="succession-seat" data-succession-seat>
+        ${raw(members.map((m) => h`<option value="${m.id}">${m.name}</option>`).join(""))}
+      </select>
+    </div>
+    <button class="btn btn--sm" data-action="chair-petition" type="button">Add my name</button>
+    ${raw(
+      tallies.length
+        ? h`<ul class="rows" style="margin-top:var(--sp-4)">
+            ${raw(
+              tallies
+                .map(
+                  (t) => h`<li class="row">
+                    <div class="row__what">
+                      <span class="row__title">${t.member.name}</span>
+                      <span class="row__note">${t.backers.length} of ${t.needed} needed</span>
+                    </div>
+                    <button class="btn btn--ghost btn--sm" data-action="chair-unpetition"
+                            data-seat="${t.id}" type="button">Take my name off</button>
+                  </li>`
+                )
+                .join("")
+            )}
+          </ul>`
+        : h`<p class="field__hint">Nobody has asked yet.</p>`
+    )}
+  </div>`;
+}
+
 export const VIEWS = {
   session: renderSession,
   quorum: renderQuorum,
@@ -1036,6 +1112,7 @@ export const VIEWS = {
   roster: renderRoster,
   statusFeed: renderStatusFeed,
   openVotes: renderOpenVotes,
+  succession: renderSuccession,
   floorQuestion: renderFloorQuestion,
   whip: renderWhip,
   results: renderResults,

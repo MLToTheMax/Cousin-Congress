@@ -419,6 +419,111 @@ export class KeyDirectory extends EventTarget {
    -------------------------------------------------------------------------- */
 
 /** 256 bits from the CSPRNG. This is the whole post-quantum story; treat it as such. */
+/* --------------------------------------------------------------------------
+   Chair recovery — proving you know the Chair's password to a stranger
+   -------------------------------------------------------------------------- */
+
+/**
+ * The recovery problem.
+ *
+ * Enrolling a new Chair device normally needs an existing Chair device to
+ * approve it. When the only Chair device is lost, that deadlocks: the person
+ * who knows the password cannot get their new phone recognised, and nobody is
+ * left who can say yes.
+ *
+ * Letting anyone self-enrol is not the fix — that hands the gavel to any device
+ * on the mesh. And the obvious shortcut, "prove you know the password", does not
+ * work naively either: `chairAuth` is a salted hash sitting in replicated state,
+ * so every replica already holds everything needed to fake a hash-based proof.
+ * A proof has to rest on something that is NOT in the record.
+ *
+ * So at the moment the Chair's password is set, we mint a signing keypair and
+ * store the PUBLIC half in the record and the PRIVATE half wrapped under a key
+ * derived from the password itself. The record therefore contains a verifier
+ * everyone can check against and a ciphertext nobody can open without the
+ * password. Recovery is then: unwrap, sign a challenge naming your own device
+ * key, and every replica verifies it independently — no surviving Chair device,
+ * and no server, required.
+ *
+ * The wrapping key is PBKDF2-SHA-256 over the normalized password. The iteration
+ * count is deliberately high because this ciphertext replicates to every device
+ * in the chamber, which makes it the one piece of state worth grinding offline.
+ */
+const RECOVERY_KDF_ITERATIONS = 310000;
+
+const recoveryWrapKey = async (password, salt) => {
+  const base = await crypto.subtle.importKey(
+    "raw",
+    te.encode(String(password).trim().toLowerCase()),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: RECOVERY_KDF_ITERATIONS, hash: "SHA-256" },
+    base,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+};
+
+/** The bytes a recovery proof covers: this chamber, this device key, this moment. */
+const recoveryChallenge = (room, kid, ts) => te.encode(`cc.chair.recover.v1\n${room}\n${kid}\n${ts}`);
+
+/**
+ * Mint a recovery verifier for a freshly chosen Chair password.
+ * Returns the object to store in replicated state — public verifier plus the
+ * password-wrapped private half. Never returns the password or the raw key.
+ */
+export async function makeChairRecovery(password) {
+  const pair = await crypto.subtle.generateKey(SIG_ALG, true, ["sign", "verify"]);
+  const pkcs8 = new Uint8Array(await crypto.subtle.exportKey("pkcs8", pair.privateKey));
+  const spki = new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey));
+
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const wrapKey = await recoveryWrapKey(password, salt);
+  const wrapped = new Uint8Array(
+    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, wrapKey, pkcs8)
+  );
+
+  return { v: 1, pub: b64(spki), salt: b64(salt), iv: b64(iv), wrapped: b64(wrapped) };
+}
+
+/**
+ * Prove knowledge of the Chair's password by signing a challenge that names the
+ * device key being enrolled. Returns null when the password is wrong — AES-GCM
+ * authenticates, so a bad key fails to decrypt rather than yielding garbage.
+ */
+export async function proveChairRecovery(recovery, password, { room, kid, ts }) {
+  if (!recovery?.wrapped || !recovery?.salt || !recovery?.iv) return null;
+  try {
+    const wrapKey = await recoveryWrapKey(password, unb64(recovery.salt));
+    const pkcs8 = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: unb64(recovery.iv) },
+      wrapKey,
+      unb64(recovery.wrapped)
+    );
+    const priv = await crypto.subtle.importKey("pkcs8", pkcs8, SIG_ALG, false, ["sign"]);
+    const sig = await crypto.subtle.sign(SIG_PARAMS, priv, recoveryChallenge(room, kid, ts));
+    return b64(new Uint8Array(sig));
+  } catch {
+    return null; // wrong password, or a verifier this build cannot read
+  }
+}
+
+/** Check a recovery proof against the verifier in the record. */
+export async function verifyChairRecovery(recovery, proof, { room, kid, ts }) {
+  if (!recovery?.pub || !proof) return false;
+  try {
+    const pub = await importVerifyKey(unb64(recovery.pub));
+    return await verifyWith(pub, unb64(proof), recoveryChallenge(room, kid, ts));
+  } catch {
+    return false;
+  }
+}
+
 export const newPairingSecret = () => crypto.getRandomValues(new Uint8Array(32));
 
 /* --------------------------------------------------------------------------

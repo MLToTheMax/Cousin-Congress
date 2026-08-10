@@ -63,6 +63,8 @@ const touchesChairFields = (payload) =>
  * it). Ballots deliberately do NOT get this leniency — an unclaimed seat has no
  * voter — and are handled separately.
  */
+const hasRecovery = (s) => Boolean(s?.session?.chairRecovery?.pub);
+
 const memberScoped = (s, memberId, kid) =>
   isChairKey(s, kid) || ownsMember(s, memberId, kid) || !memberOwned(s, memberId);
 
@@ -123,10 +125,27 @@ export function authorize(state, op) {
       if (p.kid && p.kid !== kid) return false;
       return noChair || chair;
 
+    case "chair.recover":
+      // Recovery from a lost Chair device. Two things are checked here — that
+      // the op enrols the SIGNER'S own key and nobody else's, and that the
+      // chamber actually has a recovery verifier to check against. The proof
+      // itself is verified in store.ingest, next to the op signatures, because
+      // it needs WebCrypto and this function is deliberately synchronous.
+      // Fail closed if either half is missing.
+      return Boolean(p.kid) && p.kid === kid && Boolean(p.proof) && hasRecovery(state);
+
     case "chair.enroll":
     case "member.enrollKey":
     case "member.resetKeys":
       return chair; // administering others' keys is the chair's alone
+
+    case "chair.petition":
+    case "chair.unpetition":
+      // A cousin may only endorse in their OWN name, and only for a seat that
+      // exists. Whether the endorsement counts for anything — the supermajority
+      // and the dormant-Chair test — is decided in the reducer, on every
+      // replica, from the log alone.
+      return Boolean(p.memberId) && ownsMember(state, p.memberId, kid) && Boolean(state.members?.[p.seat]);
 
     case "chair.request":
     case "member.requestKey":
