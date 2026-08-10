@@ -1226,3 +1226,14 @@
 /* Icons inside buttons/links sit next to their label with an even gap. */
 .btn .ico, .nav__link .ico, .conn-row .ico, .toggle-row .ico { margin-right: .45em; }
 .btn .ico:only-child, .nav__link .ico:only-child { margin-right: 0; }
+
+/* Build version in the footer — quiet, monospaced, always answerable. */
+.colophon__version { opacity: .7; font-size: var(--fs-2xs); letter-spacing: .02em; }
+
+/* The home page has no full colophon — just a quiet base line with the build. */
+.home-foot { border-top: 1px solid var(--line); margin-top: var(--sp-7); padding: var(--sp-5) 0; }
+.home-foot__inner {
+  display: flex; flex-wrap: wrap; gap: var(--sp-3);
+  align-items: center; justify-content: space-between;
+  font-size: var(--fs-2xs); color: var(--ink-3);
+}

@@ -277,23 +277,237 @@
    Chamber floor map
    -------------------------------------------------------------------------- */
 
+/*
+ * The whole diagram — arc, seats, rostrum — is one picture. The rostrum used
+ * to be a caption parked beside the seating chart; it is now the chair's desk
+ * at the head of the room, which is the only place in the drawing where a
+ * position means something on its own.
+ */
 .chamber {
+  --seat-size: clamp(24px, 8.5cqw, 34px);
   position: relative;
   width: 100%;
-  max-width: 46rem;
+  max-width: 30rem;
   margin-inline: auto;
-  aspect-ratio: 2 / 1.15;
+  aspect-ratio: 2 / 1.2;
   container-type: inline-size;
 }
 
+.chamber__arc {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/*
+ * Every row is a full-bleed positioned layer, so without this the last row
+ * painted sits on top of the whole diagram and swallows the clicks meant for
+ * the rows in front of it. Only the seats themselves take the pointer.
+ */
+.chamber__row {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/*
+ * Seats sit on a semicircular arc computed with CSS trigonometry. The
+ * renderer hands each seat its place along the arc as a 0..1 fraction (--t)
+ * rather than an index, so a row holding a single cousin lands dead centre
+ * instead of dividing by zero at the end of the arc. The row supplies the
+ * radii (--rx/--ry) in container percentages, so the drawing reflows with
+ * the pane and no script ever measures anything.
+ */
+.chamber__seat {
+  --angle: calc(180deg - var(--t, 0.5) * 180deg);
+  position: absolute;
+  left: calc(50% + cos(var(--angle)) * var(--rx, 40%));
+  bottom: calc(sin(var(--angle)) * var(--ry, 52%) + var(--seat-base, 26%));
+  translate: -50% 50%;
+  display: grid;
+  place-items: center;
+  width: var(--seat-size);
+  height: var(--seat-size);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.chamber__seat:hover,
+.chamber__seat:focus-visible {
+  z-index: 3;
+}
+
+/* The disc reads as a seat; the ring carries the presence colour so an emoji
+   can sit legibly inside it. Filling the disc with the status colour instead
+   left dark avatars unreadable against the away grey. */
+.chamber__face {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--seat-color, var(--absent)) 20%, var(--bg-raised));
+  box-shadow: 0 0 0 2px var(--seat-color, var(--absent));
+  font-size: calc(var(--seat-size) * 0.56);
+  line-height: 1;
+  transition: scale var(--dur-2) var(--ease-spring), box-shadow var(--dur-2) var(--ease-out);
+}
+
+/* Initials need two glyphs where an emoji needs one. */
+.chamber__face--text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: calc(var(--seat-size) * 0.36);
+  color: var(--text);
+}
+
+.chamber__seat:hover .chamber__face,
+.chamber__seat:focus-visible .chamber__face {
+  scale: 1.25;
+  box-shadow: 0 0 0 2px var(--seat-color, var(--absent)),
+    0 0 0 6px color-mix(in oklab, var(--seat-color, var(--absent)) 35%, transparent);
+}
+
+/*
+ * Names ride under the disc so the chart answers "who is that?" without a
+ * hover. The label is decorative — every seat carries the same name in its
+ * aria-label — so it is free to shrink, ellipsise or disappear entirely when
+ * the row gets crowded.
+ */
+.chamber__name {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 50%;
+  translate: -50% 0;
+  width: min(6rem, calc(92cqw / var(--n, 4)));
+  font-size: clamp(9px, 2.7cqw, 12px);
+  font-weight: 650;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+
+/* Past roughly seven desks the labels touch, so a dense row falls back to
+   emoji-only and hands the name to hover and keyboard focus. */
+.chamber__row--dense .chamber__name {
+  opacity: 0;
+}
+
+/* A three-deep chamber on a phone-width container has no room for names at
+   all — the container query is what lets a four-cousin chamber keep its
+   labels at 360px while a twenty-cousin one gives them up. */
+@container (max-width: 24rem) {
+  .chamber__arc[data-rows="3"] .chamber__name {
+    opacity: 0;
+  }
+}
+
+.chamber__seat:hover .chamber__name,
+.chamber__seat:focus-visible .chamber__name {
+  opacity: 1;
+  z-index: 3;
+  width: max-content;
+  max-width: 9rem;
+  padding: 1px 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  color: var(--text);
+}
+
+/*
+ * Row radii per occupied row count: one row spreads wide so its labels have
+ * the whole arc; three rows nest the way a real chamber does. --seat-base is
+ * how far the whole arc floats above the bottom edge, and it grows with the
+ * row count so the front row clears the rostrum standing in front of it —
+ * with a single wide row the end seats are already outboard of the desk.
+ */
+.chamber__arc[data-rows="1"] {
+  --seat-base: 26%;
+}
+.chamber__arc[data-rows="1"] .chamber__row--1 {
+  --rx: 40%;
+  --ry: 52%;
+}
+.chamber__arc[data-rows="2"] {
+  --seat-base: 34%;
+}
+.chamber__arc[data-rows="2"] .chamber__row--1 {
+  --rx: 28%;
+  --ry: 26%;
+}
+.chamber__arc[data-rows="2"] .chamber__row--2 {
+  --rx: 44%;
+  --ry: 46%;
+}
+.chamber__arc[data-rows="3"] {
+  --seat-base: 40%;
+}
+.chamber__arc[data-rows="3"] .chamber__row--1 {
+  --rx: 26%;
+  --ry: 18%;
+}
+.chamber__arc[data-rows="3"] .chamber__row--2 {
+  --rx: 36%;
+  --ry: 32%;
+}
+.chamber__arc[data-rows="3"] .chamber__row--3 {
+  --rx: 46%;
+  --ry: 46%;
+}
+
+/* --- The rostrum, drawn as the head of the room --------------------------- */
+
+/* The rostrum block overlaps the foot of the arc, so it too has to stand
+   aside for the seats behind it — only its own desk chair takes the pointer. */
 .chamber__rostrum {
   position: absolute;
   left: 50%;
-  bottom: 4%;
+  bottom: 0;
   translate: -50% 0;
-  width: 30%;
-  padding: var(--sp-2) var(--sp-3);
+  display: grid;
+  justify-items: center;
+  width: max-content;
+  pointer-events: none;
+}
+
+/* The presiding cousin is a seat like any other, only bigger, ringed in brass
+   and pinned to the rostrum instead of to the arc. */
+.chamber__seat--chair {
+  --seat-size: clamp(32px, 11cqw, 46px);
+  position: relative;
+  left: auto;
+  bottom: auto;
+  translate: none;
+}
+
+/* The chair's label gets the width of the desk it sits behind, not the width
+   an arc seat would have — nobody should have to hover to read who presides. */
+.chamber__seat--chair .chamber__name {
+  width: 9rem;
+}
+
+.chamber__seat--chair .chamber__face {
+  box-shadow: 0 0 0 2px var(--seat-color, var(--absent)),
+    0 0 0 5px color-mix(in oklab, var(--c-yellow-500) 65%, transparent);
+}
+
+/* The plate is the desk, not a caption: it is wide enough to read as the
+   furniture the chair sits behind, and it clears the name label above it. */
+.chamber__plate {
+  margin-top: 1.15rem;
+  min-width: 8rem;
   text-align: center;
+  padding: 3px var(--sp-3);
   background: var(--c-blue-900);
   color: var(--c-yellow-400);
   border-radius: var(--r-sm) var(--r-sm) 0 0;
@@ -301,60 +515,11 @@
   font-weight: 700;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.chamber__arc {
-  position: absolute;
-  inset: 0;
-}
-
-.chamber__row {
-  position: absolute;
-  inset: 0;
-}
-
-/*
- * Seats sit on a semicircular arc computed with CSS trigonometry: each seat's
- * angle comes from its index (--i) and row size (--n), and the row's radii
- * (--rx/--ry, in container percentages) keep the arc responsive. No script
- * measures anything.
- */
-.chamber__seat {
-  --angle: calc(180deg - var(--i) / (var(--n) - 1) * 180deg);
-  position: absolute;
-  left: calc(50% + cos(var(--angle)) * var(--rx));
-  bottom: calc(sin(var(--angle)) * var(--ry) + 12%);
-  translate: -50% 50%;
-  width: clamp(12px, 4.2cqw, 22px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 0;
-  padding: 0;
-  background: var(--seat-color, var(--absent));
-  box-shadow: 0 0 0 2px var(--bg);
-  cursor: pointer;
-  transition: scale var(--dur-2) var(--ease-spring), background-color var(--dur-3) var(--ease-out),
-    box-shadow var(--dur-2) var(--ease-out);
-}
-
-.chamber__seat:hover,
-.chamber__seat:focus-visible {
-  scale: 1.5;
-  box-shadow: 0 0 0 2px var(--bg), 0 0 0 5px color-mix(in oklab, var(--seat-color, var(--absent)) 45%, transparent);
-  z-index: 2;
-}
-
-.chamber__row--1 {
-  --rx: 26%;
-  --ry: 42%;
-}
-.chamber__row--2 {
-  --rx: 36%;
-  --ry: 60%;
-}
-.chamber__row--3 {
-  --rx: 46%;
-  --ry: 78%;
+.chamber__rostrum--vacant .chamber__face {
+  opacity: 0.55;
 }
 
 /* Trigonometry is required for the arc; without it, show the roster only. */
@@ -364,45 +529,403 @@
   }
 }
 
-.chamber__seat--present {
+/* --- Presence colours, shared by the seats and the legend ------------------ */
+
+.chamber__seat--present,
+.chamber__key-item--present {
   --seat-color: var(--c-green-500);
 }
-.chamber__seat--voting {
+.chamber__seat--voting,
+.chamber__key-item--voting {
   --seat-color: var(--c-blue-600);
 }
-.chamber__seat--remote {
+.chamber__seat--remote,
+.chamber__key-item--remote {
   --seat-color: var(--c-yellow-500);
 }
-.chamber__seat--away {
+.chamber__seat--away,
+.chamber__key-item--away {
   --seat-color: var(--absent);
 }
 
 .chamber__key {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-5);
+  gap: var(--sp-1) var(--sp-3);
   justify-content: center;
-  margin-top: var(--sp-5);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
   font-family: var(--font-mono);
+  color: var(--text-muted);
 }
 
-.chamber__key span {
+.chamber__key-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.5em;
-}
-.chamber__key span::before {
-  content: "";
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: currentColor;
+  gap: 0.4em;
 }
 
-@media (max-width: 40rem) {
-  .chamber {
+.chamber__key-item::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--seat-color, var(--absent));
+}
+
+/* The legend carries the head count too — a key that only names colours stops
+   being read after the first visit. */
+.chamber__key-count {
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* --------------------------------------------------------------------------
+   The Floor console
+   -------------------------------------------------------------------------- */
+
+/*
+ * The Floor is the page people leave open all evening, so it is laid out as a
+ * console rather than as a document: three panes share one screen and scroll
+ * inside themselves, and the page itself never scrolls. Everything the old
+ * stacked layout held is still here — it moved, it did not go away.
+ */
+
+/* Its header is a strip, not a hero: the title, the lede and the live meta
+   share one row so the panes below get the screen. Every other page keeps the
+   full-height header. */
+.page-head--strip {
+  padding-block: var(--sp-5);
+  border-bottom-width: 4px;
+}
+
+.page-head__strip {
+  display: grid;
+  gap: var(--sp-2) var(--sp-6);
+  align-items: end;
+}
+
+.page-head--strip h1 {
+  font-size: var(--fs-2xl);
+  max-width: none;
+}
+
+.page-head--strip .crumbs {
+  margin-bottom: var(--sp-1);
+}
+
+.page-head--strip .page-head__lede {
+  margin-top: 0;
+  font-size: var(--fs-sm);
+}
+
+.page-head--strip .page-head__meta {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.page-head__session {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+@media (min-width: 64rem) {
+  .page-head__strip {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+}
+
+/* On a phone the lede is the first thing to go: the three tab labels below it
+   say the same thing in a tenth of the height. The live meta stays — it is the
+   only place the sitting number and the quorum appear on this screen. */
+@media (max-width: 47.99rem) {
+  .page-head--strip {
+    padding-block: var(--sp-4);
+  }
+
+  .page-head--strip .page-head__lede {
     display: none;
+  }
+
+  .page-head--strip .page-head__meta,
+  .page-head--strip .page-head__session {
+    gap: var(--sp-2) var(--sp-3);
+    font-size: var(--fs-2xs);
+  }
+}
+
+.floor {
+  padding-block: var(--sp-5);
+}
+
+/*
+ * --floor-chrome is everything above and below the console that the console
+ * cannot have: masthead, ticker, link banner, the header strip and the
+ * section padding. Measured once rather than computed, because half of that
+ * chrome is injected by the shell and none of it is a CSS variable.
+ */
+.floor-app {
+  --floor-chrome: 27rem;
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.floor-app__tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-1);
+  padding: var(--sp-1);
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+/* Kept in the accessibility tree and in the tab order — the labels are only
+   the paint. Hiding with `display:none` would take the radio group with it. */
+.floor-app__radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.floor-app__tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out);
+}
+
+.floor-app__tab .ico {
+  width: 1.05em;
+  height: 1.05em;
+}
+
+.floor-app__radio:focus-visible + .floor-app__tab {
+  outline: 2px solid var(--c-blue-600);
+  outline-offset: 2px;
+}
+
+.floor-app:has(.floor-app__radio:nth-of-type(1):checked) .floor-app__tab:nth-of-type(1),
+.floor-app:has(.floor-app__radio:nth-of-type(2):checked) .floor-app__tab:nth-of-type(2),
+.floor-app:has(.floor-app__radio:nth-of-type(3):checked) .floor-app__tab:nth-of-type(3) {
+  background: var(--bg-raised);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-1);
+}
+
+.floor-pane {
+  display: none;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-height: 0;
+  /* The pane owns its overflow. Without this a pane whose pinned head matter
+     outgrows the console would spill over the card edge and over the pane
+     below it, which is exactly the long scroll this layout exists to end. */
+  overflow: hidden;
+  padding: var(--sp-4);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.floor-app:has(.floor-app__radio:nth-of-type(1):checked) .floor-pane:nth-of-type(1),
+.floor-app:has(.floor-app__radio:nth-of-type(2):checked) .floor-pane:nth-of-type(2),
+.floor-app:has(.floor-app__radio:nth-of-type(3):checked) .floor-pane:nth-of-type(3) {
+  display: flex;
+}
+
+.floor-pane__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex: 0 0 auto;
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+.floor-pane__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  line-height: 1.1;
+}
+
+.floor-pane__note {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+
+/* The head matter of a pane — the parts that must stay put while the list
+   under them scrolls. */
+.floor-pane__fixed {
+  display: grid;
+  gap: var(--sp-3);
+  flex: 0 0 auto;
+}
+
+/* The pane scrolls, not the page. This is the whole trick behind the single
+   fold: overflow moves from the document to the region that owns it. */
+.floor-pane__scroll {
+  display: grid;
+  gap: var(--sp-3);
+  align-content: start;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: var(--sp-1);
+}
+
+.floor-propose {
+  flex: 0 0 auto;
+  /* A flex item's automatic minimum size does not account for a <details>
+     summary, so inside the column this collapsed to a 2px sliver and the whole
+     propose desk became unclickable — present in the DOM, impossible to open.
+     fit-content pins it to the height its summary actually needs. */
+  min-height: fit-content;
+}
+
+.floor-propose > summary {
+  font-size: var(--fs-sm);
+}
+
+.floor-checkin {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: var(--sp-2);
+}
+
+/* The rail carries two lists at once; they share the leftover height rather
+   than one pushing the other off the screen. */
+.floor-rail {
+  display: grid;
+  grid-template-rows: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: var(--sp-3);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.floor-rail__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-height: 0;
+}
+
+.floor-rail__title {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-faint);
+}
+
+.floor-rail__block > :not(.floor-rail__title) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Compact skins for the shared list components, used only inside the console
+   where vertical room is the scarce resource. */
+.roster--compact {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10.5rem), 1fr));
+  gap: var(--sp-2);
+}
+
+.roster--compact .member {
+  padding: var(--sp-2) var(--sp-3);
+  gap: 0 var(--sp-2);
+}
+
+.roster--compact .member__avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 0.78rem;
+}
+
+.roster--compact .member__avatar::after {
+  width: 10px;
+  height: 10px;
+  box-shadow: 0 0 0 2px var(--bg-raised);
+}
+
+.status-feed--compact .status-item {
+  padding: var(--sp-3);
+  gap: 0 var(--sp-2);
+}
+
+.status-feed--compact .member__avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 0.72rem;
+}
+
+.status-feed--compact .member__avatar::after {
+  width: 9px;
+  height: 9px;
+  box-shadow: 0 0 0 2px var(--bg-raised);
+}
+
+.timeline--compact .timeline__item {
+  padding-bottom: var(--sp-4);
+}
+
+.timeline--compact .timeline__note {
+  font-size: var(--fs-2xs);
+}
+
+/* Phone: one pane at a time, sized to the screen so the tabs sit at a thumb
+   and nothing below the fold is ever the only copy of something. */
+@media (max-width: 63.99rem) {
+  .floor-pane {
+    height: clamp(22rem, calc(100dvh - var(--floor-chrome)), 60rem);
+    padding: var(--sp-3);
+  }
+
+  /* A flatter chamber on a phone. The semicircle is still legible at 360px,
+     and the ~25px it gives back is the difference between the check-in
+     buttons being on screen and being a scroll away. */
+  .chamber {
+    aspect-ratio: 2 / 1.05;
+  }
+}
+
+@media (min-width: 64rem) {
+  .floor-app {
+    --floor-chrome: 23rem;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr) minmax(0, 21rem);
+    align-items: stretch;
+    height: clamp(26rem, calc(100dvh - var(--floor-chrome)), 46rem);
+  }
+
+  /* All three panes are on screen together, so the tab strip has nothing left
+     to switch and steps out of the way. */
+  .floor-app__tabs {
+    display: none;
+  }
+
+  .floor-pane {
+    display: flex;
   }
 }
 

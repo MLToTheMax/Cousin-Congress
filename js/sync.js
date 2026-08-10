@@ -7,7 +7,8 @@
  *   hello  { vv }   introduce ourselves and advertise what we hold
  *   vv     { vv }   a digest, sent on connect and on every anti-entropy sweep
  *   ops    { ops }  a delta, or a freshly authored op being gossiped
- *   signal { data } WebRTC handshake, relayed by the server for peers
+ *   signal { data } WebRTC handshake, relayed by the server — or, with no
+ *                   server, carried the last hop by another tab or another peer
  *   peers  { list } roster of other replicas online, sent by the relay
  *
  * The exchange is deliberately tiny and terminating: a `hello` is answered
@@ -27,6 +28,10 @@ import WalkieTalkie from "./walkie.js";
 import { migrations } from "./migrate.js";
 
 const ROOM_SECRET_KEY = "cc.roomsecret";
+/** How far a signalling frame may travel through the mesh before it is dropped.
+ *  Three hops covers "new tab → an already-connected tab → the peer" with room
+ *  to spare, and bounds the gossip if a routing table ever goes stale. */
+const SIGNAL_MAX_HOPS = 3;
 
 export class SyncCoordinator extends EventTarget {
   constructor(store) {
@@ -178,7 +183,12 @@ export class SyncCoordinator extends EventTarget {
     // the room key lands the quarantine is re-checked against it. So the mesh
     // can start immediately — which keeps our identity announcement propagating
     // promptly — without a window in which unauthenticated ops could be folded.
-    this.provision().catch((err) => console.error("[cousin-congress] identity", err));
+    this.provision()
+      // Peers redial themselves from start(), but a link that opens before the
+      // signing identity exists is torn down at the handshake — so nudge once
+      // more the moment there is an identity to shake hands with.
+      .then(() => this.peers?.redial({ reset: true }))
+      .catch((err) => console.error("[cousin-congress] identity", err));
 
     // Fetch any schema converters this deployment points at, so an op from a
     // future build can be understood rather than merely quarantined.
@@ -227,7 +237,12 @@ export class SyncCoordinator extends EventTarget {
       this.store.guestScopeId = e.detail?.id || null;
     });
 
-    this.server?.addEventListener("open", () => this.#broadcast(this.#hello()));
+    // The relay coming up is the moment a brokered redial can actually succeed:
+    // until then the nudges and offers had nowhere to go.
+    this.server?.addEventListener("open", () => {
+      this.#broadcast(this.#hello());
+      this.peers?.redial({ reset: true });
+    });
     this.server?.addEventListener("poll", () => this.#pullFromServer());
 
     // Locally authored ops go out immediately; nothing waits on them.
@@ -246,12 +261,12 @@ export class SyncCoordinator extends EventTarget {
 
     addEventListener("online", () => {
       this.sweep();
-      this.#reconnect();
+      this.#reconnect(true);
     });
     addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {
         this.sweep();
-        this.#reconnect();
+        this.#reconnect(true);
       }
     });
     // A parting digest lets peers notice the gap sooner.
@@ -282,12 +297,18 @@ export class SyncCoordinator extends EventTarget {
   }
 
   /**
-   * Re-establish the mesh after a nap. The relay knows who is online; ask it to
-   * re-announce so we re-dial anyone we have dropped. With no relay, a parting
-   * peer is recovered when it re-pairs or when another peer gossips it back.
+   * Re-establish the mesh after a nap or a reload. Two halves: the relay knows
+   * who is online, so ask it to re-announce; and the peer transport holds a
+   * durable roster of everyone we have ever shaken hands with, so it calls them
+   * back itself. Reaching any one of them is enough — roster gossip returns the
+   * rest — which is why this is safe to run on every wake.
+   *
+   * @param {boolean} wake  true for a real event (online, visible, relay up),
+   *   which clears the per-peer attempt caps; false for a routine keepalive tick.
    */
-  #reconnect() {
+  #reconnect(wake = false) {
     if (this.server?.state === "connected") this.#broadcast(this.#hello(), this.peers);
+    this.peers?.redial({ reset: wake });
   }
 
   /**
@@ -408,7 +429,11 @@ export class SyncCoordinator extends EventTarget {
       }
 
       case "signal": {
-        if (msg.to === this.actor) this.peers?.onSignal(msg.from, msg.data).catch(() => {});
+        if (msg.to === this.actor) {
+          this.peers?.onSignal(msg.from, msg.data).catch(() => {});
+          break;
+        }
+        this.#forwardSignal(msg, transport, peer);
         break;
       }
 
@@ -454,8 +479,72 @@ export class SyncCoordinator extends EventTarget {
     );
   }
 
+  /**
+   * Get a WebRTC handshake frame to a peer we have no channel to yet.
+   *
+   * The relay does this in one hop when there is one. When there is not — the
+   * shipped default — the frame is handed to whatever CAN reach the target: a
+   * peer we are already linked to, or another tab on this device that is. That
+   * second path is what lets a freshly opened tab dial the family directly
+   * instead of living forever on the back of its sibling's connection.
+   *
+   * Carrying somebody's handshake grants nothing: the link it produces still has
+   * to prove the room secret in the application handshake before an op crosses
+   * it, which is exactly why an untrusted relay was always safe to use.
+   */
   #relaySignal(to, data) {
-    this.server?.send({ t: "signal", actor: this.actor, from: this.actor, to, data });
+    const msg = {
+      t: "signal",
+      actor: this.actor,
+      from: this.actor,
+      to,
+      data,
+      sid: `${this.actor}:${(this.signalSeq = (this.signalSeq || 0) + 1)}`,
+      h: 0,
+    };
+    if (this.server?.state === "connected") {
+      this.server.send(msg);
+      return true;
+    }
+    if (this.peers?.hasPeer(to)) {
+      this.peers.send(msg, to);
+      return true;
+    }
+    // Last resort: shout it into the mesh and across our own tabs, in case
+    // someone can carry it the last hop. Report whether there was anybody at
+    // all to carry it — a device with no relay, no live peer and no sibling tab
+    // has NO path to the peer it wants, and the caller needs to know that
+    // rather than wait forever for an answer nobody could have heard.
+    const viaTabs = Boolean(this.tabs);
+    const viaPeers = (this.peers?.peerList || []).length > 0;
+    this.tabs?.send(msg);
+    this.peers?.relay(msg);
+    return viaTabs || viaPeers;
+  }
+
+  /**
+   * Carry someone else's signalling frame one hop closer. Deduped by `sid` and
+   * hop-capped, for the same reason the walkie flood is: a frame must reach a
+   * peer that is two links away without being able to circle the mesh.
+   */
+  #forwardSignal(msg, from, peer) {
+    const hops = (msg.h | 0) + 1;
+    if (hops > SIGNAL_MAX_HOPS || !msg.sid) return;
+    this.signalSeen ||= new Set();
+    if (this.signalSeen.has(msg.sid)) return;
+    this.signalSeen.add(msg.sid);
+    if (this.signalSeen.size > 2048) this.signalSeen.delete(this.signalSeen.values().next().value);
+
+    const forwarded = { ...msg, h: hops };
+    // A direct link to the target ends the journey here rather than gossiping.
+    if (this.peers?.hasPeer(msg.to)) {
+      this.peers.send(forwarded, msg.to);
+      return;
+    }
+    for (const transport of this.transports) {
+      if (transport !== from && transport !== this.peers) transport.send(forwarded);
+    }
+    this.peers?.relay(forwarded, from === this.peers ? peer : undefined);
   }
 
   async #pullFromServer() {
@@ -522,6 +611,12 @@ export class SyncCoordinator extends EventTarget {
       known: VV.size(this.store.vv),
       transports: this.transports.map((t) => t.status),
       peers: this.peers?.peerList ?? [],
+      // True while known peers are still being called back. The banner needs
+      // this to tell "we are on our way back" apart from "nobody has ever
+      // paired with this device" — two situations that look identical from a
+      // peer count of zero and read very differently to a cousin.
+      reconnecting: Boolean(this.peers?.reconnecting),
+      knownPeers: this.peers?.knownPeers?.length ?? 0,
       storageHealthy: this.store.storageHealthy,
       online: navigator.onLine,
     };
@@ -530,6 +625,34 @@ export class SyncCoordinator extends EventTarget {
   #emitStatus() {
     this.dispatchEvent(new CustomEvent("status", { detail: this.status }));
   }
+}
+
+/**
+ * One reading of a status object for the connection banner, so every surface
+ * that shows "are we connected?" says the same thing.
+ *
+ * The point of the extra state: a device with peers in its roster that it is
+ * actively calling back is NOT "not connected yet" — that phrasing sends a
+ * cousin off to re-pair a link that was about to come back on its own. It gets
+ * its own word, and its own dot.
+ */
+export function describeLink(status) {
+  const peers = status.peers?.filter?.((p) => p.state === "secure" || p.state === "open").length || 0;
+  const relayLive = status.transports?.find((t) => t.name === "server")?.state === "connected";
+  const live = peers > 0 || relayLive;
+  return {
+    peers,
+    relayLive,
+    state: live ? "live" : status.reconnecting ? "reconnecting" : status.online ? "local" : "offline",
+    text:
+      peers > 0
+        ? `${peers} device${peers === 1 ? "" : "s"} connected`
+        : status.reconnecting
+          ? "reconnecting…"
+          : relayLive
+            ? "waiting on the relay"
+            : "not connected yet",
+  };
 }
 
 export default SyncCoordinator;

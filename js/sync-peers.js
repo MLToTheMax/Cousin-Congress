@@ -33,7 +33,34 @@ const ICE_TIMEOUT_MS = 3500;
 // slow or blocked we must NOT make the human stare at a spinner for the full
 // ICE_TIMEOUT_MS waiting for gathering to formally "complete".
 const ICE_GRACE_MS = 1200;
-const PAIRING_VERSION = 2;
+// v2 tickets carry a whole SDP; v3 carries only the parts a data-channel SDP
+// cannot derive and rebuilds the rest from a template. Both are still decoded,
+// because a Seal Card printed last month is still a valid invitation.
+const PAIRING_VERSION = 3;
+const LEGACY_PAIRING_VERSION = 2;
+
+/** Never hold more live links than this. A family mesh is a dozen devices at
+ *  most, so a larger number means something is dialling us in a loop — and an
+ *  unbounded peer map is an unbounded pile of RTCPeerConnections. */
+const MAX_LINKS = 24;
+
+/* Reconnection. Actor ids of peers we have completed a handshake with, so a
+   reload or a fresh tab can re-dial them instead of waiting for a human to
+   pair again. Deliberately NOT secret: an actor id is a random device id plus
+   a tab suffix, useless without the room secret (which is not stored here and
+   never travels over any of these paths). */
+const KNOWN_PEERS_KEY = "cc.peers";
+const KNOWN_PEERS_MAX = 24;
+const KNOWN_PEERS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/* Attempt schedule. Capped rather than infinite: a tab that closed for good
+   leaves an actor id behind, and dialling a ghost forever would burn battery
+   and keep the banner lying about being mid-reconnect. An explicit wake —
+   coming back online, the tab becoming visible, the relay reconnecting —
+   resets the counters, which is the only thing that should. */
+const REDIAL_BACKOFF_MS = [800, 2500, 7000, 18000, 45000];
+// Long enough for a handshake that has to cross STUN and a slow network, short
+// enough that a dead actor is given up on inside a minute.
+const REDIAL_TIMEOUT_MS = 12000;
 
 /* --------------------------------------------------------------------------
    Invite codes
@@ -135,11 +162,249 @@ function slimSdp(sdp) {
   return out.join("\r\n") + "\r\n";
 }
 
+/**
+ * A session description as plain data.
+ *
+ * RTCSessionDescription is a host object: JSON.stringify knows how to flatten it
+ * (which is why the WebSocket relay never minded), but structuredClone does NOT
+ * — and a BroadcastChannel uses structuredClone. Sending the live object made
+ * every offer routed between tabs vanish into a caught exception.
+ */
+const plainSdp = (desc) => (desc ? { type: desc.type, sdp: desc.sdp } : null);
+
 /** Pull the DTLS fingerprint out of an SDP so the app handshake can bind to it. */
 function dtlsFingerprint(sdp) {
   const match = /a=fingerprint:sha-256 ([0-9A-Fa-f:]+)/.exec(sdp || "");
   return match ? match[1].toUpperCase() : null;
 }
+
+/* --------------------------------------------------------------------------
+   SDP templating
+
+   Slimming the candidate list was only half the payload. What is left of a
+   data-channel-only SDP is almost entirely boilerplate — the version line, the
+   origin line, the BUNDLE group, the m= and c= lines, the msid semantic — none
+   of which varies between two browsers negotiating the same thing. Only a
+   handful of fields actually differ: the ICE ufrag and password, the DTLS
+   fingerprint, the setup role, the mid, the SCTP port, and the candidates.
+
+   So a v3 ticket sends those fields and rebuilds the rest from a template on
+   the far side. That is the difference between a QR a phone reads instantly and
+   one it has to be nursed into focus.
+
+   The risk of templating is silently dropping something that mattered, so the
+   parser is a strict allowlist: any line it does not model makes it give up and
+   the ticket falls back to carrying the whole SDP. Better a bigger code than a
+   pairing that fails for reasons nobody can see.
+   -------------------------------------------------------------------------- */
+
+const SETUP_ROLES = ["actpass", "active", "passive", "holdconn"];
+
+/**
+ * "a=candidate:<foundation> <component> udp <priority> <ip> <port> typ <type>
+ *  [raddr <ip> rport <port>] [extras…]" reduced to its connective tissue.
+ *
+ * The extras Chrome appends — generation, network-id, network-cost, ufrag — are
+ * either local scheduling hints or ICE-restart bookkeeping. None of them changes
+ * which address gets tried or whether the check succeeds, and `priority` (which
+ * we do keep) already carries the ordering.
+ */
+function parseCandidate(line) {
+  const p = line.slice("a=candidate:".length).split(" ");
+  if (p.length < 8 || p[6] !== "typ") return null;
+  if (p[2].toLowerCase() !== "udp") return null;
+  let raddr = null;
+  let rport = null;
+  for (let i = 8; i + 1 < p.length; i += 2) {
+    if (p[i] === "raddr") raddr = p[i + 1];
+    else if (p[i] === "rport") rport = Number(p[i + 1]);
+  }
+  return [p[0], Number(p[1]), Number(p[3]), p[4], Number(p[5]), p[7], raddr, rport];
+}
+
+function buildCandidate([foundation, component, priority, ip, port, type, raddr, rport]) {
+  const base = `a=candidate:${foundation} ${component} udp ${priority} ${ip} ${port} typ ${type}`;
+  return raddr == null ? base : `${base} raddr ${raddr} rport ${rport ?? 0}`;
+}
+
+/**
+ * Reduce a data-channel SDP to the fields a template cannot infer, or return
+ * null if this SDP is not one we can faithfully rebuild.
+ */
+function templateSdp(sdp) {
+  if (typeof sdp !== "string" || !sdp) return null;
+  const t = { cands: [] };
+  let sections = 0;
+
+  for (const line of sdp.split(/\r?\n/)) {
+    if (!line) continue;
+
+    // Fixed boilerplate: identical in every offer and answer, so it is dropped
+    // here and re-emitted verbatim by rebuildSdp.
+    if (line === "v=0" || line === "s=-" || line === "t=0 0") continue;
+    // The origin line names the SESSION, not the connection. Nothing in an
+    // offer/answer exchange compares it across peers, so it is regenerated —
+    // but only when it is the stock browser form, in case some future UA puts
+    // something meaningful there.
+    if (line.startsWith("o=")) {
+      if (!/^o=- \d+ \d+ IN IP4 127\.0\.0\.1$/.test(line)) return null;
+      continue;
+    }
+
+    if (line.startsWith("m=")) {
+      sections += 1;
+      const m = /^m=application (\d+) UDP\/DTLS\/SCTP webrtc-datachannel$/.exec(line);
+      if (!m) return null; // audio/video or a legacy sctpmap m-line: not our shape
+      t.port = Number(m[1]);
+      continue;
+    }
+    if (line.startsWith("c=")) {
+      t.conn = line.slice(2);
+      continue;
+    }
+    if (line.startsWith("a=group:BUNDLE ")) {
+      t.bundle = line.slice("a=group:BUNDLE ".length);
+      continue;
+    }
+    if (line === "a=extmap-allow-mixed") {
+      t.mixed = 1;
+      continue;
+    }
+    if (line.startsWith("a=msid-semantic:")) {
+      t.msid = line.slice("a=msid-semantic:".length);
+      continue;
+    }
+    if (line.startsWith("a=ice-ufrag:")) {
+      t.u = line.slice("a=ice-ufrag:".length);
+      continue;
+    }
+    if (line.startsWith("a=ice-pwd:")) {
+      t.p = line.slice("a=ice-pwd:".length);
+      continue;
+    }
+    if (line.startsWith("a=ice-options:")) {
+      t.opts = line.slice("a=ice-options:".length);
+      continue;
+    }
+    if (line.startsWith("a=fingerprint:")) {
+      // Only sha-256 is templated, because the ticket already carries exactly
+      // that digest as a top-level field and lends it back at rebuild time.
+      if (!/^a=fingerprint:sha-256 [0-9A-Fa-f:]+$/.test(line)) return null;
+      t.fp = line.slice("a=fingerprint:sha-256 ".length);
+      continue;
+    }
+    if (line.startsWith("a=setup:")) {
+      t.s = SETUP_ROLES.indexOf(line.slice("a=setup:".length));
+      if (t.s < 0) return null;
+      continue;
+    }
+    if (line.startsWith("a=mid:")) {
+      t.mid = line.slice("a=mid:".length);
+      continue;
+    }
+    if (line.startsWith("a=sctp-port:")) {
+      t.sctp = Number(line.slice("a=sctp-port:".length));
+      continue;
+    }
+    if (line.startsWith("a=max-message-size:")) {
+      t.mms = Number(line.slice("a=max-message-size:".length));
+      continue;
+    }
+    if (line.startsWith("a=candidate:")) {
+      const c = parseCandidate(line);
+      if (!c) return null;
+      t.cands.push(c);
+      continue;
+    }
+    if (line === "a=end-of-candidates") continue;
+
+    return null; // an attribute we do not model — carry the SDP whole instead
+  }
+
+  if (sections !== 1 || !t.u || !t.p || !t.fp || t.mid == null || t.s == null || !t.sctp) return null;
+  return t;
+}
+
+/** Rebuild a full SDP from a template. `lentFingerprint` is the ticket's own
+ *  `dtls` field, which lets the template omit its (identical) copy. */
+function rebuildSdp(t, lentFingerprint = null) {
+  if (!t || typeof t !== "object") return null;
+  const fp = t.fp || lentFingerprint;
+  if (!fp || !t.u || !t.p || t.mid == null) return null;
+
+  const lines = ["v=0", "o=- 1 2 IN IP4 127.0.0.1", "s=-", "t=0 0"];
+  if (t.bundle != null) lines.push(`a=group:BUNDLE ${t.bundle}`);
+  if (t.mixed) lines.push("a=extmap-allow-mixed");
+  if (t.msid != null) lines.push(`a=msid-semantic:${t.msid}`);
+  lines.push(`m=application ${t.port ?? 9} UDP/DTLS/SCTP webrtc-datachannel`);
+  lines.push(`c=${t.conn || "IN IP4 0.0.0.0"}`);
+  for (const c of t.cands || []) lines.push(buildCandidate(c));
+  lines.push(`a=ice-ufrag:${t.u}`, `a=ice-pwd:${t.p}`);
+  if (t.opts != null) lines.push(`a=ice-options:${t.opts}`);
+  lines.push(`a=fingerprint:sha-256 ${fp}`);
+  lines.push(`a=setup:${SETUP_ROLES[t.s] ?? "actpass"}`, `a=mid:${t.mid}`);
+  lines.push(`a=sctp-port:${t.sctp ?? 5000}`);
+  if (t.mms != null) lines.push(`a=max-message-size:${t.mms}`);
+  return `${lines.join("\r\n")}\r\n`;
+}
+
+/**
+ * Everything in an SDP that decides whether a connection happens, normalised
+ * and sorted. Two SDPs with the same essence negotiate the same session, so
+ * this is what the encoder compares a rebuild against before trusting it —
+ * a template that would lose a candidate or mangle the ufrag is caught on the
+ * sending device, where it can still fall back, rather than at the far end.
+ */
+function sdpEssence(sdp) {
+  const keep = [];
+  for (const line of String(sdp).split(/\r?\n/)) {
+    if (!line) continue;
+    if (line.startsWith("m=") || line.startsWith("c=")) keep.push(line);
+    else if (/^a=(ice-ufrag|ice-pwd|setup|mid|sctp-port|max-message-size):/.test(line)) keep.push(line);
+    else if (line.startsWith("a=fingerprint:")) keep.push(line.toUpperCase());
+    else if (line.startsWith("a=candidate:")) {
+      const c = parseCandidate(line);
+      keep.push(c ? `cand:${c.join(" ")}` : line);
+    }
+  }
+  return keep.sort().join("\n");
+}
+
+/**
+ * The DTLS fingerprint a ticket asserts, always as uppercase colon-hex — the
+ * one form the session handshake compares against.
+ *
+ * v2 wrote it as colon-hex (`dtls`), which is a display format: 97 characters
+ * to carry 32 bytes. v3 writes the bytes (`fp`), which is 43. Everything past
+ * this function still sees colon-hex, so the binding check is untouched.
+ */
+function ticketFingerprint(t) {
+  if (typeof t?.fp === "string" && t.fp) {
+    try {
+      const bytes = unb64(t.fp);
+      if (bytes.length !== 32) return null;
+      return [...bytes].map((byte) => byte.toString(16).padStart(2, "0").toUpperCase()).join(":");
+    } catch {
+      return null;
+    }
+  }
+  return typeof t?.dtls === "string" && t.dtls ? t.dtls.toUpperCase() : null;
+}
+
+/**
+ * The SDP a received ticket describes: v2 carries it whole, v3 rebuilds it.
+ * A ticket with neither is from a build this one does not understand, and
+ * saying so plainly beats a WebRTC error the user cannot act on.
+ */
+export function ticketSdp(t) {
+  if (typeof t?.sdp === "string" && t.sdp) return t.sdp;
+  const rebuilt = rebuildSdp(t?.sd, ticketFingerprint(t));
+  if (!rebuilt) throw new Error("That code came from a newer version — update this device and try again.");
+  return rebuilt;
+}
+
+/** Exported for tests: the round-trip that the encoder itself gates on. */
+export const _sdpTemplating = { templateSdp, rebuildSdp, sdpEssence, slimSdp };
 
 /* ========================================================================== */
 
@@ -168,6 +433,11 @@ export class PeerTransport extends EventTarget {
      *  inspect — who authenticated, when, member or guest. Spotting an
      *  unfamiliar fingerprint here is how you notice an uninvited device. */
     this.connectionLog = [];
+    /** actorId -> last handshake (ms). Durable, so a reload has somebody to call. */
+    this.known = this.#loadKnown();
+    /** actorId -> { tries, timer }. One entry per peer we are trying to reach;
+     *  its presence is exactly what "reconnecting" means. */
+    this.dials = new Map();
   }
 
   #guestScope;
@@ -198,13 +468,46 @@ export class PeerTransport extends EventTarget {
   get status() {
     const links = [...this.peers.values()];
     const open = links.filter((p) => p.secured).length;
+    const redialing = this.dials.size;
     return {
       name: this.name,
-      state: !this.supported ? "unsupported" : open ? "connected" : "idle",
+      // "reconnecting" is a third state on purpose: a device that has peers to
+      // call and is calling them is not in the same position as one that has
+      // never paired, and the banner must not describe them the same way.
+      state: !this.supported ? "unsupported" : open ? "connected" : redialing ? "reconnecting" : "idle",
       peers: open,
       connecting: links.length - open,
-      label: open ? `${open} peer${open === 1 ? "" : "s"}` : "no peers",
+      reconnecting: redialing,
+      known: this.known.size,
+      label: open
+        ? `${open} peer${open === 1 ? "" : "s"}`
+        : redialing
+          ? "reconnecting…"
+          : "no peers",
     };
+  }
+
+  /** True while at least one known peer is still being re-dialled. */
+  get reconnecting() {
+    return this.dials.size > 0;
+  }
+
+  /** Peers we have completed a handshake with before, newest first. */
+  get knownPeers() {
+    return [...this.known.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+  }
+
+  /**
+   * Can we hand a message straight to this actor right now? Used by the
+   * coordinator to route a signalling frame the last hop.
+   *
+   * SECURED, not merely present: connectTo registers its link in the peer map
+   * before it has an offer to send, so a "do we know them?" test would route
+   * that offer down the very channel it is trying to open — where it waits in
+   * an outbox forever and the dial silently never completes.
+   */
+  hasPeer(actor) {
+    return Boolean(this.peers.get(actor)?.secured);
   }
 
   get peerList() {
@@ -220,12 +523,173 @@ export class PeerTransport extends EventTarget {
 
   start() {
     this.stopped = false;
+    // A reload tore down every data channel but changed nothing else: we still
+    // hold the room secret, the peers still hold theirs, and their actor ids
+    // are on disk. So the live channel is ours to rebuild, without asking
+    // anyone to pair again.
+    this.redial({ reset: true });
   }
 
   stop() {
     this.stopped = true;
+    for (const dial of this.dials.values()) clearTimeout(dial.timer);
+    this.dials.clear();
     for (const [, link] of this.peers) this.#close(link);
     this.peers.clear();
+    this.#status();
+  }
+
+  /* --- the known-peer roster ---------------------------------------------- */
+
+  #loadKnown() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(KNOWN_PEERS_KEY) || "null");
+      if (!saved || saved.room !== CONFIG.room) return new Map();
+      const cutoff = Date.now() - KNOWN_PEERS_TTL_MS;
+      return new Map(
+        Object.entries(saved.peers || {}).filter(
+          ([id, at]) => typeof at === "number" && at > cutoff && id !== this.actor
+        )
+      );
+    } catch {
+      // No storage, or somebody hand-edited it. An empty roster costs a pairing,
+      // not correctness.
+      return new Map();
+    }
+  }
+
+  #saveKnown() {
+    try {
+      const trimmed = [...this.known].sort((a, b) => b[1] - a[1]).slice(0, KNOWN_PEERS_MAX);
+      this.known = new Map(trimmed);
+      localStorage.setItem(
+        KNOWN_PEERS_KEY,
+        JSON.stringify({ room: CONFIG.room, peers: Object.fromEntries(trimmed) })
+      );
+    } catch {
+      /* private window: the roster lives for this session only */
+    }
+  }
+
+  /**
+   * Record a peer we have actually completed a room-authenticated handshake
+   * with. Only those: an actor id gossiped by somebody else is a rumour, and a
+   * roster of rumours is a roster this device would dial forever.
+   */
+  #remember(actor) {
+    if (!actor || actor === this.actor) return;
+    // A scoped guest is a stranger passing through one room; it must not build
+    // up — or persist — a picture of the chamber's devices.
+    if (this.#guestScope) return;
+    // Skip our own other tabs. A replica id is "<device>.<tab>", so they share
+    // our prefix — and they are already reachable over BroadcastChannel. Storing
+    // them would let a browser that has opened thirty tabs this month evict the
+    // actual cousins from a roster kept deliberately small.
+    if (actor.split(".")[0] === this.actor.split(".")[0]) return;
+    this.known.set(actor, Date.now());
+    this.#saveKnown();
+  }
+
+  /* --- reconnection ------------------------------------------------------- */
+
+  /**
+   * Call every known peer we are not already connected to.
+   *
+   * Reaching ONE of them is enough: the roster gossip in #secure() hands us
+   * everybody else, so the mesh reassembles itself from a single answered call.
+   * That is why this can afford to be gentle — staggered, backed off, capped,
+   * and deduped per peer — rather than hammering the whole roster at once. A
+   * device with six tabs open must not become six simultaneous dialers.
+   *
+   * @param {{reset?: boolean}} opts  reset the attempt counters, for a genuine
+   *   wake (back online, tab visible, relay reconnected) rather than a tick.
+   */
+  redial({ reset = false } = {}) {
+    if (this.stopped || !this.supported) return 0;
+    // A scoped guest belongs to one sharer for the life of one link. Re-dialling
+    // the chamber's devices is not its business.
+    if (this.#guestScope) return 0;
+    if (reset) {
+      for (const dial of this.dials.values()) dial.tries = 0;
+      // A wake means everything we merely THOUGHT we had is suspect. Clear out
+      // our own dials that never completed: a half-open link left in the peer
+      // map would otherwise look like a connection in progress forever and quietly
+      // block this peer from ever being called again.
+      for (const [actor, link] of [...this.peers]) {
+        if (link.autoDial && !link.secured && Date.now() - link.since > REDIAL_TIMEOUT_MS) {
+          this.#drop(actor, "stale dial");
+        }
+      }
+    }
+
+    let started = 0;
+    for (const actor of this.known.keys()) {
+      if (this.peers.has(actor)) continue; // already linked, or already trying
+      const dial = this.dials.get(actor) || { tries: 0, timer: null };
+      if (dial.timer) continue; // in flight — one call per peer, never a stampede
+      if (dial.tries >= REDIAL_BACKOFF_MS.length) continue; // given up until a wake
+      this.dials.set(actor, dial);
+      // Jitter: cousins reload after the same nudge ("try it again now"), and a
+      // synchronised roster-wide dial is exactly the stampede backoff exists to
+      // prevent.
+      const wait = REDIAL_BACKOFF_MS[dial.tries] * (0.75 + Math.random() * 0.5);
+      dial.timer = setTimeout(() => this.#attemptDial(actor), wait);
+      started += 1;
+    }
+    if (started) this.#status();
+    return started;
+  }
+
+  async #attemptDial(actor) {
+    const dial = this.dials.get(actor);
+    if (!dial) return;
+    dial.timer = null;
+    dial.tries += 1;
+    if (this.stopped || this.#guestScope) return this.#endDial(actor);
+
+    const existing = this.peers.get(actor);
+    if (existing) {
+      // Someone got through, or a human is mid-pairing on this very link: either
+      // way it is not ours to retry. Only our own timed-out attempt is cleared.
+      if (existing.secured || !existing.autoDial) return this.#endDial(actor);
+      this.#drop(actor, "redial timed out");
+    }
+
+    if (this.actor < actor) {
+      // We sort first, so we place the call — the same deterministic-dialer rule
+      // the brokered path uses, so two devices coming back at the same moment
+      // never both send an offer and glare.
+      await this.connectTo(actor).catch(() => {});
+    } else {
+      // We sort second and may not offer, so we ask to be rung back. The nudge
+      // grants nothing: whatever link it produces still has to prove the room
+      // secret before a single op crosses it.
+      const delivered = this.signal?.(actor, { kind: "dial" });
+
+      // ...but a nudge nobody can carry is a deadlock, and it is the DEFAULT
+      // case: with no relay configured, a device that sorts second and has just
+      // reloaded has no live peer and no sibling tab, so the request to be rung
+      // back reaches nobody and it waits forever for a call the other side does
+      // not know to place. When there is demonstrably no path, place the call
+      // ourselves. Glare is the thing the sort order exists to prevent, and it
+      // cannot happen here: the other side cannot have heard us, so it is not
+      // dialling. connectTo() is keyed by actor, so a duplicate is a no-op.
+      if (delivered === false) await this.connectTo(actor).catch(() => {});
+    }
+
+    // Nothing reports a call that nobody answered, so the only evidence is
+    // silence — wait, then try again until the cap.
+    if (dial.tries >= REDIAL_BACKOFF_MS.length) return this.#endDial(actor);
+    dial.timer = setTimeout(() => this.#attemptDial(actor), REDIAL_TIMEOUT_MS);
+    this.#status();
+    return undefined;
+  }
+
+  #endDial(actor) {
+    const dial = this.dials.get(actor);
+    if (!dial) return;
+    clearTimeout(dial.timer);
+    this.dials.delete(actor);
     this.#status();
   }
 
@@ -411,6 +875,10 @@ export class PeerTransport extends EventTarget {
       fingerprint: link.session?.peerFingerprint || null,
     });
     this.#captureAddress(remoteActor, link);
+    // This peer has now proven the room secret, so it is worth calling back
+    // after a reload — and whatever redial brought us here is finished.
+    if (!link.guestScope) this.#remember(remoteActor);
+    this.#endDial(remoteActor);
     this.#status();
     this.dispatchEvent(new CustomEvent("peeropen", { detail: { peer: remoteActor, safety: link.safety } }));
 
@@ -551,8 +1019,12 @@ export class PeerTransport extends EventTarget {
   async connectTo(remoteActor) {
     if (!this.supported || this.stopped || this.peers.has(remoteActor)) return;
     if (this.actor >= remoteActor) return; // deterministic dialer
+    if (this.peers.size >= MAX_LINKS) return; // see MAX_LINKS
 
     const link = this.#newConnection(remoteActor, "out");
+    // Marks this link as OURS to abandon: the redial loop may tear down a dial
+    // that never completed, but must never touch a link a human is mid-pairing.
+    link.autoDial = true;
     const channel = link.pc.createDataChannel(CHANNEL, { ordered: true });
 
     link.pc.onicecandidate = (event) => {
@@ -562,7 +1034,7 @@ export class PeerTransport extends EventTarget {
     const offer = await link.pc.createOffer();
     await link.pc.setLocalDescription(offer);
     link.pendingLocalSdp = link.pc.localDescription.sdp;
-    this.signal?.(remoteActor, { kind: "offer", sdp: link.pc.localDescription });
+    this.signal?.(remoteActor, { kind: "offer", sdp: plainSdp(link.pc.localDescription) });
     this.#attachWhenReady(remoteActor, link, channel);
   }
 
@@ -583,6 +1055,15 @@ export class PeerTransport extends EventTarget {
 
   async onSignal(from, data) {
     if (!this.supported || this.stopped || !data) return;
+
+    if (data.kind === "dial") {
+      // A peer that sorts after us cannot place the call itself, so it asked to
+      // be rung back. Honouring it is safe — the link still has to pass the room
+      // handshake — and MAX_LINKS inside connectTo bounds what a flood of these
+      // can cost us.
+      this.connectTo(from).catch(() => {});
+      return;
+    }
 
     if (data.kind === "offer") {
       let link = this.peers.get(from);
@@ -609,7 +1090,7 @@ export class PeerTransport extends EventTarget {
       await link.pc.setRemoteDescription(data.sdp);
       const answer = await link.pc.createAnswer();
       await link.pc.setLocalDescription(answer);
-      this.signal?.(from, { kind: "answer", sdp: link.pc.localDescription });
+      this.signal?.(from, { kind: "answer", sdp: plainSdp(link.pc.localDescription) });
       return;
     }
 
@@ -635,21 +1116,38 @@ export class PeerTransport extends EventTarget {
    *  travel by QR / picture code — never over the relay. A `scope` marks a
    *  guest ticket: the holder may read exactly one item and nothing else. */
   async #ticket(role, id, sdp, scope = null) {
+    const slim = slimSdp(sdp);
+    const dtls = dtlsFingerprint(sdp);
+
+    // Template the SDP, but only ship the template if rebuilding it here and
+    // now yields the same connection. The check runs on the sending device
+    // precisely because that is the last place a fallback is still possible.
+    let sd = templateSdp(slim);
+    if (sd && sdpEssence(rebuildSdp(sd)) !== sdpEssence(slim)) sd = null;
+    // The fingerprint is already a top-level ticket field; sending it twice is a
+    // hundred characters of QR for nothing. rebuildSdp lends it back on arrival.
+    if (sd && dtls && sd.fp?.toUpperCase() === dtls) delete sd.fp;
+    const packed = sd && dtls ? b64(Uint8Array.from(dtls.split(":"), (h) => parseInt(h, 16))) : null;
+
     return {
-      v: PAIRING_VERSION,
+      v: sd ? PAIRING_VERSION : LEGACY_PAIRING_VERSION,
       role,
       room: CONFIG.room,
       actor: this.actor,
       id,
       idKey: this.security.identity ? b64(this.security.identity.spki) : null,
-      // (sdp is slimmed below — see slimSdp)
       // A guest ticket carries NO room secret: a scoped reader must not be
       // handed the key to the whole chamber. Its session uses a per-share
       // secret instead, so it literally cannot decrypt anything but its item.
       psk: scope ? b64(scope.secret) : this.security.roomSecret ? b64(this.security.roomSecret) : null,
       scope: scope ? { shareId: scope.shareId, type: scope.type, id: scope.id } : null,
-      dtls: dtlsFingerprint(sdp),
-      sdp: slimSdp(sdp),
+      // Exactly one pair is present: `fp`+`sd` on a v3 ticket, `dtls`+`sdp` on
+      // the v2 fallback. JSON.stringify drops the undefined ones for us, and
+      // ticketFingerprint/ticketSdp read either form on the way back in.
+      fp: packed || undefined,
+      dtls: packed ? undefined : dtls,
+      sd: sd || undefined,
+      sdp: sd ? undefined : slim,
     };
   }
 
@@ -693,6 +1191,9 @@ export class PeerTransport extends EventTarget {
     if (t.role !== "offer") throw new Error("That looks like a reply code, not an invite.");
     if (t.room !== CONFIG.room) throw new Error(`That invite is for a different room ("${t.room}").`);
     if (t.actor === this.actor) throw new Error("That invite came from this device.");
+    // Resolve the SDP BEFORE absorbing anything: a ticket we cannot rebuild must
+    // not have already talked this device into joining its room.
+    const offerSdp = ticketSdp(t);
 
     // Adopt the room secret and pin the inviter's identity from the code.
     await this.#absorbTicket(t);
@@ -704,7 +1205,7 @@ export class PeerTransport extends EventTarget {
       channel.onopen = () => {
         link.state = "open";
         link.localFp = dtlsFingerprint(link.pc.localDescription?.sdp);
-        link.remoteFp = t.dtls;
+        link.remoteFp = ticketFingerprint(t);
         this.#status();
         if (this.actor < t.actor) this.#beginHandshake(t.actor, link);
       };
@@ -713,7 +1214,7 @@ export class PeerTransport extends EventTarget {
       channel.onmessage = (e) => this.#onFrame(t.actor, link, e.data);
     };
 
-    await link.pc.setRemoteDescription({ type: "offer", sdp: t.sdp });
+    await link.pc.setRemoteDescription({ type: "offer", sdp: offerSdp });
     const answer = await link.pc.createAnswer();
     await link.pc.setLocalDescription(answer);
     await this.#gatherIce(link.pc);
@@ -725,6 +1226,9 @@ export class PeerTransport extends EventTarget {
     const t = await decodePayload(answerCode);
     if (t.role !== "answer") throw new Error("That is an invite code, not a reply code.");
     if (t.room !== CONFIG.room) throw new Error(`That reply is for a different room ("${t.room}").`);
+    // Same order as acceptInvite: fail on an unreadable ticket before the
+    // pending invite is consumed, so a bad scan does not burn the code.
+    const answerSdp = ticketSdp(t);
 
     const key = this.pending.has(t.id) ? t.id : [...this.pending.keys()].at(-1);
     const pending = this.pending.get(key);
@@ -742,7 +1246,7 @@ export class PeerTransport extends EventTarget {
     // inviter could never send its hello/confirm and serverless QR / picture-code
     // pairing would open a data channel that then sat mute forever.
     link.channel = channel;
-    link.remoteFp = t.dtls;
+    link.remoteFp = ticketFingerprint(t);
     this.peers.set(t.actor, link);
     channel.onopen = () => {
       link.state = "open";
@@ -754,7 +1258,7 @@ export class PeerTransport extends EventTarget {
     channel.onmessage = (e) => this.#onFrame(t.actor, link, e.data);
     if (channel.readyState === "open") channel.onopen();
 
-    await link.pc.setRemoteDescription({ type: "answer", sdp: t.sdp });
+    await link.pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
     this.#status();
     return t.actor;
   }

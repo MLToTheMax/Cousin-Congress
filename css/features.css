@@ -624,6 +624,36 @@
   min-width: 0;
 }
 
+/*
+ * The Floor's console has no room for a full filter bar above the roster, so
+ * this variant drops the visible labels (they survive as visually-hidden text
+ * on the controls) and pulls everything onto one line.
+ */
+.filterbar--slim {
+  gap: var(--sp-2);
+  align-items: center;
+  padding: var(--sp-2);
+}
+
+.filterbar--slim .search {
+  flex: 1 1 7rem;
+}
+
+.filterbar--slim .select {
+  flex: 0 1 9rem;
+  min-width: 0;
+}
+
+.filterbar--slim .input,
+.filterbar--slim .select {
+  padding-block: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.filterbar--slim .search .input {
+  padding-inline-start: 2.4em;
+}
+
 .search {
   position: relative;
   flex: 1 1 18rem;

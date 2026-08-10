@@ -356,3 +356,14 @@
   box-shadow: inset 0 0 0 1px var(--line);
 }
 .seat-qr svg { display: block; width: 100%; height: auto; }
+
+/* Where the record's weight sits — a bar per table, heaviest first. */
+.statebar { display: grid; grid-template-columns: 7rem 1fr auto; gap: var(--sp-3); align-items: center; font-size: var(--fs-2xs); }
+.statebar__name { font-weight: 600; }
+.statebar__track { height: .5rem; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.statebar__fill { display: block; height: 100%; background: var(--c-blue-600); border-radius: 999px; }
+.statebar__meta { color: var(--ink-3); white-space: nowrap; }
+@media (max-width: 640px) {
+  .statebar { grid-template-columns: 1fr; gap: var(--sp-1); }
+  .statebar__meta { white-space: normal; }
+}

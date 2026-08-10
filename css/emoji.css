@@ -245,3 +245,555 @@
     scale: 1;
   }
 }
+
+/* ==========================================================================
+   The decorator — turning a badge into MY badge.
+
+   Every choice on this screen is a radio group. That is not a stylistic
+   preference: a radio group already gives arrow-key movement, one tab stop
+   per row and a `:checked` state, so the selected swatch is styled by the
+   same attribute the form submits. No class has to be kept in sync with it.
+   ========================================================================== */
+
+.dec {
+  display: grid;
+  gap: var(--sp-4);
+  justify-items: center;
+  text-align: center;
+  min-width: 0;
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   Preview
+   -------------------------------------------------------------------------- */
+
+.dec__stage {
+  display: grid;
+  gap: var(--sp-2);
+  justify-items: center;
+}
+
+/* The SVG carries width/height attributes so it is correct when re-rendered
+   somewhere without our stylesheet; here the box wins, and viewport units keep
+   the badge from eating a 360px screen. */
+.dec__preview .cc-avatar {
+  display: block;
+  width: min(8.5rem, 42vw);
+  height: auto;
+  filter: drop-shadow(0 6px 16px color-mix(in oklab, var(--c-ink-900) 22%, transparent));
+}
+
+.dec__caption {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  max-width: 30ch;
+}
+
+/* A one-shot pop, restarted by the mount code removing and re-adding the
+   class. Confirms the change landed on a screen where the swatch a thumb is
+   covering is the only other feedback there is. */
+.dec.is-fresh .dec__preview .cc-avatar {
+  animation: dec-pop var(--dur-3) var(--ease-spring) both;
+}
+
+@keyframes dec-pop {
+  from {
+    scale: 0.86;
+  }
+  to {
+    scale: 1;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   The badge picker, behind a disclosure
+
+   <details> rather than a tab or a second dialog: the picker is 700 options
+   tall and would push the four decoration rows off the bottom of every phone,
+   but it must still be one keyboard step away, and a disclosure is the only
+   one of the three that costs no JavaScript.
+   -------------------------------------------------------------------------- */
+
+.dec__badge {
+  width: 100%;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  overflow: hidden;
+}
+
+.dec__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 48px;
+  padding: var(--sp-2) var(--sp-3);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  list-style: none;
+}
+
+.dec__summary::-webkit-details-marker {
+  display: none;
+}
+
+.dec__summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+.dec__summary-glyph {
+  font-family: var(--font-body);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.dec__summary-text {
+  flex: 1 1 auto;
+  text-align: start;
+}
+
+/* Chevron drawn in CSS — one border corner, rotated. Cheaper than reaching
+   for the icon sprite for a mark that only ever means "this opens". */
+.dec__summary::after {
+  content: "";
+  width: 0.5em;
+  height: 0.5em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  rotate: 45deg;
+  transition: rotate var(--dur-2) var(--ease-out);
+}
+
+.dec__badge[open] .dec__summary::after {
+  rotate: -135deg;
+}
+
+.dec__picker {
+  padding: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+
+/* --------------------------------------------------------------------------
+   Choice rows
+   -------------------------------------------------------------------------- */
+
+.dec__rows {
+  display: grid;
+  gap: var(--sp-3);
+  width: 100%;
+}
+
+.dec__row {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  justify-items: center;
+}
+
+.dec__legend {
+  padding: 0;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dec__opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  justify-content: center;
+}
+
+.dec__opt {
+  position: relative;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dec__swatch {
+  display: grid;
+  place-items: center;
+  /* 44px is the floor everywhere in this app; these are meant for thumbs on a
+     tablet held by someone who has not finished learning to aim yet. */
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--sw, var(--bg-raised));
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 1.35rem;
+  line-height: 1;
+  transition: border-color var(--dur-2) var(--ease-out), scale var(--dur-2) var(--ease-spring);
+}
+
+.dec__swatch svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* "None" reads as an empty slot with a line through it, so it is visibly a
+   choice rather than a swatch that failed to load. */
+.dec__swatch[data-none] {
+  background: var(--bg-sunken);
+  background-image: linear-gradient(
+    to top right,
+    transparent calc(50% - 1px),
+    var(--line-strong) calc(50% - 1px),
+    var(--line-strong) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+
+.dec__opt:hover .dec__swatch {
+  border-color: var(--accent);
+  scale: 1.08;
+}
+
+/* The ring lives on the swatch, not the hidden input, so the outline hugs the
+   thing being chosen instead of a 1px box in the corner of the screen. */
+.dec__radio:focus-visible + .dec__swatch {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  scale: 1.08;
+}
+
+/* Selected: a heavier border, a lift and a tick. Three signals, because a
+   colour swatch cannot say "chosen" by changing colour. */
+.dec__radio:checked + .dec__swatch {
+  border-color: var(--accent);
+  scale: 1.12;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.dec__radio:checked + .dec__swatch::after {
+  content: "✓";
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 1.25em;
+  height: 1.25em;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* Shape silhouettes take the ink colour so they read in both palettes; the
+   colour rows already carry their own fill. */
+.dec__swatch--shape {
+  color: var(--text);
+  background: var(--bg-raised);
+}
+
+.dec__surprise {
+  justify-self: center;
+}
+
+@media (max-width: 24rem) {
+  .dec__swatch {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dec.is-fresh .dec__preview .cc-avatar {
+    animation: none;
+  }
+  .dec__swatch,
+  .dec__summary::after {
+    transition: none;
+  }
+  .dec__opt:hover .dec__swatch,
+  .dec__radio:focus-visible + .dec__swatch,
+  .dec__radio:checked + .dec__swatch {
+    scale: 1;
+  }
+}
+
+/* ==========================================================================
+   Onboarding — one dialog, four steps.
+
+   The dialog itself is `.ask`, styled in features.css; everything below is
+   only what a multi-step form adds. Steps are all in the DOM at once and
+   switched by an attribute, so going back never re-creates a field and never
+   loses what was typed in it.
+   ========================================================================== */
+
+.ob-dialog {
+  width: min(100% - 2 * var(--gutter), 30rem);
+}
+
+.ob {
+  /* .ask__form centres its children, which is right for a question and wrong
+     for a form: an input centred at its natural width is unusable. */
+  justify-items: stretch;
+  gap: var(--sp-5);
+}
+
+.ob__step {
+  display: none;
+  gap: var(--sp-3);
+  justify-items: center;
+  min-width: 0;
+}
+
+/* Written out rather than generated: four pairs is less machinery than a
+   `:has()` chain, and it is obvious at a glance which step is which. */
+.ob[data-step="1"] .ob__step[data-index="1"],
+.ob[data-step="2"] .ob__step[data-index="2"],
+.ob[data-step="3"] .ob__step[data-index="3"],
+.ob[data-step="4"] .ob__step[data-index="4"] {
+  display: grid;
+}
+
+.ob__icon {
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.ob__icon .ico {
+  width: 1.6rem;
+  height: 1.6rem;
+  margin: 0;
+}
+
+.ob__field {
+  width: 100%;
+  justify-items: center;
+  text-align: center;
+}
+
+.ob__field .field__label {
+  text-align: center;
+}
+
+.ob__input {
+  text-align: center;
+  font-size: var(--fs-lg);
+  font-weight: 650;
+}
+
+/* Reserves no space when empty: an error slot that always occupies a line
+   makes the dialog jump every time a step is validated. */
+.ob__error:empty {
+  display: none;
+}
+
+.ob__error {
+  margin: 0;
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  color: var(--c-red-600);
+}
+
+/* --------------------------------------------------------------------------
+   Preferences
+   -------------------------------------------------------------------------- */
+
+.ob__prefs {
+  display: grid;
+  gap: var(--sp-3);
+  width: 100%;
+  text-align: start;
+}
+
+.ob__status {
+  display: flex;
+  align-items: start;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  font-size: var(--fs-sm);
+}
+
+.ob__status .ico {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--text-faint);
+}
+
+.ob__status[data-state="on"] {
+  border-color: color-mix(in oklab, var(--yea) 45%, transparent);
+  background: var(--yea-soft);
+}
+
+.ob__status[data-state="on"] .ico {
+  color: var(--yea);
+}
+
+.ob__status > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ob__status-hint {
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.ob__toggle {
+  display: flex;
+  align-items: start;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+}
+
+.ob__check {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* A switch, not a checkbox: at this size a tick box is a small target and a
+   vague statement, and "on or off" is exactly what these two settings are. */
+.ob__track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 46px;
+  height: 27px;
+  margin-top: 1px;
+  border-radius: var(--r-pill);
+  background: var(--absent-soft);
+  border: 1.5px solid var(--line-strong);
+  transition: background-color var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
+}
+
+.ob__track::after {
+  content: "";
+  position: absolute;
+  inset-block: 2px;
+  inset-inline-start: 2px;
+  width: 19px;
+  border-radius: 50%;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-1);
+  transition: translate var(--dur-2) var(--ease-spring);
+}
+
+.ob__check:checked + .ob__track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.ob__check:checked + .ob__track::after {
+  translate: 19px 0;
+}
+
+.ob__check:focus-visible + .ob__track {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.ob__toggle-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Footer: dots and the two buttons
+   -------------------------------------------------------------------------- */
+
+.ob__foot {
+  display: grid;
+  gap: var(--sp-4);
+  justify-items: center;
+}
+
+.ob__dots {
+  display: flex;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  transition: background-color var(--dur-2) var(--ease-out), width var(--dur-3) var(--ease-spring);
+}
+
+.ob__dot[data-state="done"] {
+  background: var(--accent-ink);
+}
+
+/* The current step is a capsule rather than a bigger dot: it survives a
+   forced-colours mode that flattens the fill, where size alone would not. */
+.ob__dot[data-state="now"] {
+  width: 26px;
+  background: var(--accent);
+}
+
+.ob__actions {
+  width: 100%;
+}
+
+.ob__actions .btn {
+  flex: 1 1 8rem;
+  justify-content: center;
+  min-height: 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob__dot,
+  .ob__track,
+  .ob__track::after {
+    transition: none;
+  }
+}
+
+/* The decorator is the one tall step, and a preview that scrolls off the top
+   turns "pick a colour" into guesswork — on a phone the swatch row and the
+   badge cannot both be in shot. Pinning the stage to the top of the dialog's
+   own scrollport keeps the badge visible while the choices move under it. */
+.ob .dec__stage {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  justify-self: stretch;
+  padding-block: var(--sp-2);
+  background: var(--bg-raised);
+}
+
+.ob .dec__preview .cc-avatar {
+  width: min(6.5rem, 28vw);
+}
+
+/* Held down by the sticky stage above it, so it must not slide under it. */
+.ob .dec__badge {
+  z-index: 1;
+}

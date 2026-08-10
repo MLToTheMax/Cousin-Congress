@@ -11,6 +11,7 @@
  */
 
 import { select } from "./crdt.js";
+import { memberAvatar } from "./emoji-decorate.js";
 import { esc, fmtDate, fmtTime, h, initials, pct, raw, relTime, timeOfStamp } from "./ui.js";
 
 const PRESENCE_LABEL = {
@@ -31,10 +32,13 @@ const STAGE_LABEL = {
 
 const memberName = (state, id) => select.member(state, id)?.name || "Unassigned";
 
-/** Emoji avatar when the member has picked one, initials otherwise. */
+/** A cousin's decorated badge when they have one, plain emoji or initials otherwise. */
 function avatarOf(member, extraClass = "") {
-  if (member?.icon) {
-    return h`<div class="member__avatar member__avatar--icon ${raw(extraClass)}" aria-hidden="true">${member.icon}</div>`;
+  // A decorated badge is a five-key spec, not markup, so it re-renders from the
+  // current palette every time. memberAvatar also understands a bare `icon`, so
+  // cousins who never opened the decorator keep exactly the avatar they had.
+  if (member?.avatar || member?.icon) {
+    return h`<div class="member__avatar member__avatar--icon ${raw(extraClass)}" aria-hidden="true">${raw(memberAvatar(member, 44))}</div>`;
   }
   return h`<div class="member__avatar ${raw(extraClass)}" aria-hidden="true">${initials(member?.name)}</div>`;
 }
@@ -71,36 +75,131 @@ function renderQuorum(state) {
     </div>`;
 }
 
+/**
+ * Titles that mean "this cousin presides". Matched instead of a dedicated
+ * field because the roster already carries a free-text role and a second
+ * source of truth would only be able to disagree with it.
+ */
+const CHAIR_ROLE = /^(speaker|chair|chairman|chairwoman|president|presiding officer)$/i;
+
+/** A presence we have a colour and a label for; anything else reads as away. */
+const seatPresence = (m) => (PRESENCE_LABEL[m?.presence] ? m.presence : "away");
+
+/**
+ * How many cousins sit in each arc, front row first. Real chambers put fewer
+ * desks in the front row than the back, and the same shape here keeps the
+ * name labels from colliding: sparse rows get the short radii where there is
+ * least arc to share.
+ */
+function seatRows(total) {
+  if (total <= 6) return [total];
+  if (total <= 16) {
+    const front = Math.max(1, Math.floor(total * 0.42));
+    return [front, total - front];
+  }
+  const front = Math.max(1, Math.floor(total * 0.24));
+  const middle = Math.max(1, Math.floor(total * 0.33));
+  return [front, middle, total - front - middle];
+}
+
+/**
+ * One desk. The emoji rides in the disc and the name sits under it, because
+ * a coloured dot alone forced everyone to hover to answer "who is that?".
+ * The accessible name lives on the button so screen readers never depend on
+ * the label being the visible one — CSS hides it on crowded rows.
+ */
+function seatButton(member, extraClass, positionStyle, roleNote) {
+  const presence = seatPresence(member);
+  const face = member.icon
+    ? h`<span class="chamber__face" aria-hidden="true">${member.icon}</span>`
+    : h`<span class="chamber__face chamber__face--text" aria-hidden="true">${initials(member.name)}</span>`;
+  return h`<button type="button"
+      class="chamber__seat chamber__seat--${raw(presence)}${raw(extraClass)}"
+      style="${raw(positionStyle)}"
+      data-action="member-detail" data-member="${member.id}"
+      aria-label="${member.name}${roleNote} — ${PRESENCE_LABEL[presence]}">
+      ${raw(face)}
+      <span class="chamber__name" aria-hidden="true">${member.name}</span>
+    </button>`;
+}
+
 function renderChamber(state) {
   const members = select.members(state);
-  const rows = [7, 10, 13];
+  if (!members.length) {
+    return h`<p class="empty">No seats claimed yet. The chamber fills in as cousins arrive.</p>`;
+  }
+
+  // The rostrum used to be a caption sitting beside the diagram. Drawing the
+  // presiding cousin *at* the head of the room instead makes the picture one
+  // chamber rather than a chart plus a label — and it is the only seat whose
+  // position carries meaning on its own.
+  const chairIndex = members.findIndex((m) => CHAIR_ROLE.test(String(m.role || "").trim()));
+  const chair = chairIndex >= 0 ? members[chairIndex] : null;
+  const seated = chair ? members.filter((_, i) => i !== chairIndex) : members;
+
+  const rows = seatRows(seated.length);
   let cursor = 0;
-  let markup = "";
+  let arc = "";
 
   rows.forEach((capacity, rowIndex) => {
-    const seats = members.slice(cursor, cursor + capacity);
+    const seats = seated.slice(cursor, cursor + capacity);
     cursor += capacity;
     if (!seats.length) return;
-    const n = Math.max(seats.length, 2);
-    markup += h`<div class="chamber__row chamber__row--${raw(String(rowIndex + 1))}" style="--n:${n}">
+    // The seat's place on the arc is handed to CSS as a 0..1 fraction rather
+    // than an index, so a one-seat row lands dead centre instead of dividing
+    // by zero at the end of the arc.
+    const span = seats.length - 1;
+    // How many names a row can show before they touch. A three-deep chamber
+    // packs its arcs closer together than a shallow one, so the same head
+    // count runs out of room sooner; past the budget the row falls back to
+    // emoji-only and hands the names to hover and keyboard focus.
+    const budget = (rows.length === 3 ? [5, 6, 7] : [7, 8, 9])[rowIndex];
+    const dense = seats.length > budget ? " chamber__row--dense" : "";
+    arc += h`<div class="chamber__row chamber__row--${raw(String(rowIndex + 1))}${raw(dense)}"
+      style="--n:${seats.length}">
       ${raw(
         seats
-          .map(
-            (m, i) => h`<button type="button"
-                class="chamber__seat chamber__seat--${raw(esc(m.presence || "away"))}"
-                style="--i:${i}"
-                data-action="member-detail" data-member="${m.id}"
-                aria-label="${m.name} — ${PRESENCE_LABEL[m.presence] || "Away"}">
-                <span class="u-visually-hidden">${m.name}</span>
-              </button>`
-          )
+          .map((m, i) => {
+            const t = span ? Math.round((i / span) * 1e4) / 1e4 : 0.5;
+            return seatButton(m, "", `--t:${t}`, "");
+          })
           .join("")
       )}
     </div>`;
   });
 
-  return h`<div class="chamber__arc">${raw(markup)}</div>
-    <div class="chamber__rostrum">Rostrum</div>`;
+  const rostrum = chair
+    ? h`<div class="chamber__rostrum">
+        ${raw(seatButton(chair, " chamber__seat--chair", "", `, ${chair.role || "in the chair"}`))}
+        <span class="chamber__plate">Rostrum</span>
+      </div>`
+    : h`<div class="chamber__rostrum chamber__rostrum--vacant">
+        <span class="chamber__seat chamber__seat--chair chamber__seat--away" aria-hidden="true">
+          <span class="chamber__face">🪑</span>
+        </span>
+        <span class="chamber__plate">Rostrum · vacant</span>
+      </div>`;
+
+  return h`<div class="chamber__arc" data-rows="${rows.length}">${raw(arc)}</div>${raw(rostrum)}`;
+}
+
+/**
+ * The legend doubles as a head count: the same four colours the seats use,
+ * each carrying how many cousins are in that state right now. A legend that
+ * only names colours goes unread after the first visit.
+ */
+function renderChamberKey(state) {
+  const counts = select.presenceCounts(state);
+  // Shorter than PRESENCE_LABEL on purpose: the legend has to survive four
+  // chips on one 360px row, where "Attending remotely" wraps and the colours
+  // stop lining up with the seats they explain.
+  const short = { present: "On the floor", voting: "At the rostrum", remote: "Remote", away: "Away" };
+  return ["present", "voting", "remote", "away"]
+    .map(
+      (key) => h`<span class="chamber__key-item chamber__key-item--${raw(key)}">
+        <span class="chamber__key-count">${counts[key]}</span>${short[key]}</span>`
+    )
+    .join("");
 }
 
 function renderRoster(state) {
@@ -174,9 +273,12 @@ function tallyBar(tally) {
 
 function ballotForm(state, vote, myId) {
   if (!myId) {
+    // .notice lays its children out as flex items, so the sentence has to
+    // travel as one element — unwrapped it split into three columns the
+    // moment the card was narrower than the text.
     return h`<p class="notice notice--info">
-      🪑 Take your seat on the <a href="members.html">Members page</a> first —
-      then these big vote buttons light up for you.
+      <span>🪑 Take your seat on the <a href="members.html">Members page</a> first —
+      then these big vote buttons light up for you.</span>
     </p>`;
   }
   const mine = select.ballotOf(state, vote.id, myId);
@@ -875,6 +977,7 @@ export const VIEWS = {
   session: renderSession,
   quorum: renderQuorum,
   chamber: renderChamber,
+  chamberKey: renderChamberKey,
   roster: renderRoster,
   statusFeed: renderStatusFeed,
   openVotes: renderOpenVotes,
