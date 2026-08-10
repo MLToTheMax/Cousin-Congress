@@ -222,3 +222,46 @@ body:not(.is-chair)  [data-chair-only] { display: none !important; }
 body.is-chair        [data-chair-locked] { display: none !important; }
 body:not(.is-seated) [data-seat-only]  { display: none !important; }
 body.is-seated       [data-seat-locked] { display: none !important; }
+
+/* ==========================================================================
+   The home appbar on a phone
+   ==========================================================================
+   It is one row of seven things — brand, congress seal, spacer, connection
+   banner, and three or four icons — which is comfortably wider than a 390px
+   screen, so the icons at the end (including Settings) were pushed off the
+   edge entirely. Let it wrap onto two rows and drop the parts that are labels
+   rather than controls, so every tappable thing stays reachable. */
+@media (max-width: 34rem) {
+  .appbar {
+    flex-wrap: wrap;
+    row-gap: var(--sp-2);
+    padding-inline: var(--sp-3);
+  }
+  .appbar__spacer { display: none; }
+  .appbar__congress-label { display: none; }
+  /* The banner takes its own full-width row under the brand and icons, where
+     it has space to say something useful instead of being squeezed to nothing. */
+  .appbar .link-banner {
+    order: 10;
+    flex: 1 0 100%;
+    justify-content: flex-start;
+    padding-inline: 0;
+    background: none;
+    color: inherit;
+  }
+}
+
+/* A grid/flex item's automatic minimum size is its CONTENT, not zero, so a
+   panel holding a long unbroken string (a code, a URL, a wide form row) pushes
+   its whole column wider than the track it was given. min-width: 0 lets the
+   track win, which is what the layout intended. */
+.floor-grid > *,
+.floor-aside > *,
+.propose { min-width: 0; }
+.propose input,
+.propose select,
+.propose textarea { max-width: 100%; }
+
+/* Tab labels are icon + word, so the icon needs the same gap the nav uses. */
+.tabbar label { display: inline-flex; align-items: center; gap: .45em; }
+.mode-switch label { display: inline-flex; align-items: center; gap: .4em; }

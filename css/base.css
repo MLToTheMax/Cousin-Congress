@@ -231,3 +231,14 @@ hr {
 [data-live-state="loading"] [data-live] {
   opacity: 0.45;
 }
+
+/* ==========================================================================
+   Horizontal overflow
+   ==========================================================================
+   The slide-in drawers park off-canvas at translateX(101%), and a fixed element
+   sitting to the right of the viewport still counts toward scrollWidth — so
+   every page could be dragged 5px sideways, and further on a phone. `clip`
+   rather than `hidden` because hidden on the root silently breaks
+   position: sticky, which the masthead and several panel headers rely on. */
+html { overflow-x: clip; }
+body { overflow-x: clip; }

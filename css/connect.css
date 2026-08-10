@@ -610,3 +610,40 @@
   .choice .ico--xl { grid-row: span 2; }
   .pair__qr { width: min(15rem, 70vw); }
 }
+
+/* ==========================================================================
+   Mobile chrome
+   ==========================================================================
+   The connection banner is one flex row of six things. On a phone that row is
+   wider than the screen, so the "Add a device" action — the whole point of the
+   banner — was pushed off the right edge where nobody could reach it. Let it
+   wrap, and let the text shrink before the action does. */
+@media (max-width: 30rem) {
+  .link-banner {
+    flex-wrap: wrap;
+    row-gap: var(--sp-1);
+    padding-inline: var(--sp-4);
+    font-size: var(--fs-xs);
+  }
+  /* The label is the only expendable part: it can ellipsis away, while the
+     count and the call to action keep their full size. */
+  .link-banner__text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .link-banner__seal { display: none; }
+  .link-banner__cta { margin-left: auto; flex: none; }
+}
+
+/* Thumb-sized tap targets. An icon that reads fine with a mouse is a miss with
+   a thumb: 44px is the long-standing minimum and these were ~25px. */
+.nav__icon,
+.appbar__icon {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  display: inline-grid;
+  place-items: center;
+}
