@@ -138,7 +138,12 @@ const EMOJI_FONTS = "'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji','Tw
  * here because nothing guarantees the value came from our own picker).
  */
 export function normaliseSpec(spec) {
-  const input = spec && typeof spec === "object" ? spec : {};
+  // A bare string is the pre-decorator shape of this field — members enrolled
+  // before this existed carry a lone glyph in `icon`. Reading it as {emoji}
+  // means the roster renders their badge on the default circle instead of
+  // showing them a default face, and no migration has to run first.
+  const input =
+    typeof spec === "string" ? { emoji: spec } : spec && typeof spec === "object" ? spec : {};
   const glyph = [...String(input.emoji ?? "")][0] || DEFAULT_AVATAR.emoji;
   return {
     emoji: glyph,
@@ -218,6 +223,18 @@ export function renderAvatar(spec, size = 64, { label = "", cls = "" } = {}) {
     `</svg>`
   );
 }
+
+/**
+ * A member's badge, wherever they happen to keep it.
+ *
+ * Exists so the roster does not have to know which generation a member is
+ * from: `avatar` is the decorated spec, `icon` is the lone glyph older records
+ * carry, and a member with neither still gets a badge rather than a hole. This
+ * is the function views.js should call — one line there instead of a
+ * conditional at every avatar in the app.
+ */
+export const memberAvatar = (member, size = 64, options) =>
+  renderAvatar(member?.avatar ?? member?.icon ?? DEFAULT_AVATAR, size, options);
 
 /** The same badge as a data: URL, for the places that need an <img> src. */
 export const avatarDataUrl = (spec, size = 64) =>

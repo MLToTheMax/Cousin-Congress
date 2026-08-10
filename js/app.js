@@ -183,7 +183,11 @@ async function boot() {
   watchReveal = initReveal();
 
   const sync = new SyncCoordinator(store);
-  initActions(store, sync);
+  // One shared context for every subsystem. The chair's state tools write a
+  // measurement onto it and repaint through it, so actions and the dashboard
+  // must be looking at the same object.
+  const appCtx = {};
+  initActions(store, sync, appCtx);
 
   // Seat picker is plain markup, so it is wired here rather than in actions.
   document.addEventListener("change", (event) => {
@@ -217,7 +221,7 @@ async function boot() {
   // can extend the global rather than race the base assignment.
   window.CousinCongress = { store, sync, select, config: CONFIG };
 
-  await wireExtras(sync);
+  await wireExtras(sync, appCtx);
 
   // Deep links into a single bill re-render just that region.
   addEventListener("hashchange", () => schedulePaint(sync));
@@ -229,7 +233,12 @@ async function boot() {
    Kept in one place so boot() stays legible.
    -------------------------------------------------------------------------- */
 
-async function wireExtras(sync) {
+/**
+ * @param {object} appCtx The one shared context, also handed to initActions —
+ *   the chair's state tools write a measurement onto it and repaint through it,
+ *   so both halves must be looking at the same object.
+ */
+async function wireExtras(sync, appCtx = {}) {
   /* Connect-first gating: the primary calls to action change once at least one
      other device is on the mesh, so a newcomer is pointed at pairing before
      they can act on demo data they think is real. */
@@ -367,7 +376,7 @@ async function wireExtras(sync) {
   window.CousinCongress.securityLog = securityLog;
 
   /* Now that the watchdog and security log exist, mount the Chair dashboard. */
-  chair.mountChairDashboard(store, sync, { watchdog, securityLog });
+  chair.mountChairDashboard(store, sync, Object.assign(appCtx, { watchdog, securityLog }));
 
   /* Frozen overlay: if the Chair has frozen this seat, lock the screen. */
   const paintFrozen = () => {

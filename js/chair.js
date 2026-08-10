@@ -41,6 +41,7 @@ export function mountChairDashboard(store, sync, ctx) {
         ${membersPanel(members, session)}
         ${devicesPanel(store)}
         ${deviceRosterPanel(store)}
+        ${statePanel(store, ctx)}
         ${connectionsPanel(traffic, sync)}
         ${securityPanel(flags, security)}
         ${historyPanel(log)}
@@ -49,6 +50,9 @@ export function mountChairDashboard(store, sync, ctx) {
   };
 
   paint();
+  // The state tools stash their report on ctx and repaint through this, so the
+  // panel can show a measurement without turning it into replicated state.
+  ctx.repaintChair = paint;
   store.addEventListener("change", paint);
   sync.addEventListener("status", paint);
   ctx.watchdog?.addEventListener("flag", paint);
@@ -204,6 +208,62 @@ function deviceRosterPanel(store) {
       <h3>Devices that have joined</h3>
       <p class="u-muted" style="font-size:var(--fs-xs)">Barring a device disconnects it and blocks it everywhere, not just here.</p>
       <div class="stack">${rows}</div>
+    </section>`;
+}
+
+/**
+ * Where the shared record's weight actually sits, and the caretaker tools.
+ *
+ * The log is append-only — that is what makes it converge — so a chamber that
+ * has been chatting for a year needs someone able to see what is heavy and act
+ * on it. The three actions are deliberately labelled by their CONSEQUENCE
+ * rather than their mechanism, because they are easy to confuse: compacting
+ * speeds up start-up without shrinking anything, pruning shrinks this device
+ * only, and retracting makes the log bigger while removing a record everywhere.
+ */
+function statePanel(store, ctx) {
+  const m = ctx?.stateReport;
+  if (!m) {
+    return `<section class="dash__panel" style="grid-column:1/-1">
+      <h3>The shared record</h3>
+      <button class="btn btn--sm" data-action="measure-state">Measure the record</button>
+      <p class="u-muted" style="font-size:var(--fs-xs)">See where the bytes are, and tidy up.</p>
+    </section>`;
+  }
+  const rows = m.byTable
+    .slice(0, 8)
+    .map((t) => {
+      const share = m.bytes ? Math.round((t.bytes / m.bytes) * 100) : 0;
+      const rec = m.records[t.table];
+      return `<div class="statebar">
+        <span class="statebar__name">${esc(t.table)}</span>
+        <span class="statebar__track"><span class="statebar__fill" style="width:${share}%"></span></span>
+        <span class="statebar__meta u-mono">${esc(fmtBytes(t.bytes))} · ${t.ops} ops${
+          rec ? ` · ${rec.live} live${rec.deleted ? `, ${rec.deleted} deleted` : ""}` : ""
+        }</span>
+      </div>`;
+    })
+    .join("");
+
+  return `<section class="dash__panel" style="grid-column:1/-1">
+      <h3>The shared record</h3>
+      <p class="u-muted" style="font-size:var(--fs-xs)">
+        ${m.ops} operations · ${esc(fmtBytes(m.bytes))} · ${m.replicas} ${m.replicas === 1 ? "device has" : "devices have"} written ·
+        ${m.tombstones} deleted ${m.tombstones === 1 ? "record" : "records"} still on file.
+      </p>
+      <div class="stack" style="margin:var(--sp-3) 0">${rows}</div>
+      <div class="cluster">
+        <button class="btn btn--ghost btn--sm" data-action="measure-state">Refresh</button>
+        <button class="btn btn--sm" data-action="prune-state" ${m.prunable ? "" : "disabled"}>
+          Tidy up${m.prunable ? ` (${m.prunable} superseded)` : " — nothing to do"}
+        </button>
+        <button class="btn btn--ghost btn--sm" data-action="compact-state">Compact for faster start-up</button>
+      </div>
+      <p class="u-muted" style="font-size:var(--fs-2xs);margin-top:var(--sp-2)">
+        <strong>Tidy up</strong> drops superseded operations from <em>this</em> device only, and never changes
+        what the record says — it checks before it acts. <strong>Compact</strong> speeds up start-up without
+        shrinking anything. To remove a record for everyone, retract it in the explorer below.
+      </p>
     </section>`;
 }
 

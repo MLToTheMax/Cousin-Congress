@@ -341,6 +341,56 @@ const CLICK_ACTIONS = {
     await registerChair(store, ctx?.sync);
   },
 
+  /** Measure the shared record, so the Chair can see where the weight is. */
+  async "measure-state"(store, el, ctx) {
+    if (!(await requireChair())) return;
+    const { measure } = await import("./statetools.js");
+    ctx.stateReport = measure(store);
+    ctx.repaintChair?.();
+  },
+
+  /**
+   * Drop superseded operations from THIS device. Never changes what the record
+   * says — statetools proves that before it touches anything — and never asks
+   * other devices to forget, because a chamber where one device can erase
+   * history everywhere is a chamber whose record cannot be trusted.
+   */
+  async "prune-state"(store, el, ctx) {
+    if (el.dataset.confirmed !== "true") {
+      el.dataset.confirmed = "true";
+      el.textContent = "Tidy up this device?";
+      setTimeout(() => {
+        el.dataset.confirmed = "false";
+        ctx.repaintChair?.();
+      }, 5000);
+      return;
+    }
+    if (!(await requireChair())) return;
+    const { measure, prune, fmtBytes } = await import("./statetools.js");
+    const result = await prune(store);
+    if (result.refused) {
+      toast(`Left it alone — ${result.why}.`, "warn");
+      return;
+    }
+    ctx.stateReport = measure(store);
+    ctx.repaintChair?.();
+    toast(
+      result.removed
+        ? `Tidied up: ${result.removed} superseded operations dropped, ${fmtBytes(result.bytesFreed)} freed. The record is unchanged.`
+        : "Nothing to tidy — every operation still matters."
+    );
+  },
+
+  /** Fold the log into a checkpoint. Faster start-up; the log is retained. */
+  async "compact-state"(store, el, ctx) {
+    if (!(await requireChair())) return;
+    store.log.compact();
+    const { measure } = await import("./statetools.js");
+    ctx.stateReport = measure(store);
+    ctx.repaintChair?.();
+    toast("Compacted — this device will start up faster. Nothing was removed.");
+  },
+
   /** Chair bars a device from the chamber — everywhere, not just here. */
   async "revoke-device"(store, el, ctx) {
     if (!(await requireChair())) return;
@@ -920,8 +970,15 @@ export function initDraftStudio(store) {
    Wiring
    ========================================================================== */
 
-export function initActions(store, sync) {
-  const ctx = { store, sync };
+/**
+ * @param {object} shared A context object the caller also hands to the other
+ *   subsystems. It MUST be the same object the chair dashboard receives: the
+ *   state tools stash a measurement on it and then ask the dashboard to
+ *   repaint, and two separate context objects meant the report was written
+ *   where the panel could never read it.
+ */
+export function initActions(store, sync, shared = {}) {
+  const ctx = Object.assign(shared, { store, sync });
 
   document.addEventListener("click", (event) => {
     const el = event.target.closest("[data-action]");

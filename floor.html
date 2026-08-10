@@ -91,135 +91,176 @@
     <div class="shell announce-rail" data-render="announcements"></div>
 
     <main id="main">
-      <header class="page-head">
+      <header class="page-head page-head--strip">
         <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
-        <div class="shell">
-          <ol class="crumbs"><li><a href="index.html">Home</a></li><li>The Floor</li></ol>
-          <h1 data-enter>The Floor</h1>
+        <div class="shell shell--wide page-head__strip">
+          <div>
+            <ol class="crumbs"><li><a href="index.html">Home</a></li><li>The Floor</li></ol>
+            <h1 data-enter>The Floor</h1>
+          </div>
           <p class="page-head__lede" data-enter style="--i:1">
-            Who is in the building, where they are sitting, and what the chamber is doing
-            right now — updated the instant any member's device learns something new.
+            Who is here, where they are sitting, and what the chamber is doing right now.
           </p>
           <div class="page-head__meta" data-enter style="--i:2">
             <span data-clock>--:--:--</span>
-            <span data-render="session" style="display:inline-flex;gap:var(--sp-4);flex-wrap:wrap">
+            <span class="page-head__session" data-render="session">
               <span class="badge badge--live">In session</span>
             </span>
           </div>
         </div>
       </header>
 
-      <!-- The current vote, front and centre on the floor -->
-      <section class="section section--tight">
-        <div class="shell">
-          <header class="section__head">
-            <p class="section__eyebrow u-caps" data-reveal>Happening now</p>
-            <h2 data-reveal>On the floor right now</h2>
-          </header>
-          <div class="stack stack--lg" data-render="openVotes">
-            <div class="skeleton" style="height:12rem"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Propose: one editor, a toggle between a quick Motion and a full Bill -->
-      <section class="section section--sunken">
-        <div class="shell">
-          <header class="section__head">
-            <p class="section__eyebrow u-caps" data-reveal>Propose something</p>
-            <h2 data-reveal>Start a motion or a bill</h2>
-            <p class="u-muted" data-reveal>A <strong>motion</strong> is a quick yes/no question for
-              the chamber. A <strong>bill</strong> is a written rule that moves through the pipeline.
-              Same desk — just flip the switch.</p>
-          </header>
-
-          <div class="switcher" data-reveal>
-            <input class="switcher__radio" type="radio" name="propose" id="propose-motion" checked>
-            <input class="switcher__radio" type="radio" name="propose" id="propose-bill">
-            <div class="switcher__tabs" role="tablist">
-              <label class="switcher__tab" for="propose-motion">🙋 Quick motion</label>
-              <label class="switcher__tab" for="propose-bill">📜 Write a bill</label>
+      <!--
+        The Floor is the one page people leave open all evening, so it is built
+        as a console rather than as a document: three panes that share a single
+        screen and scroll inside themselves. On a phone the same three panes
+        become tabs — same markup, same render hooks, no duplicated regions.
+      -->
+      <section class="section section--tight floor">
+        <div class="shell shell--wide">
+          <h2 class="u-visually-hidden">The floor console</h2>
+          <div class="floor-app">
+            <div class="floor-app__tabs" role="radiogroup" aria-label="Which panel to show">
+              <input class="floor-app__radio" type="radio" name="floor-pane" id="floor-tab-now" checked>
+              <label class="floor-app__tab" for="floor-tab-now">
+                <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-gavel"></use></svg>Now</label>
+              <input class="floor-app__radio" type="radio" name="floor-pane" id="floor-tab-chamber">
+              <label class="floor-app__tab" for="floor-tab-chamber">
+                <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-users"></use></svg>Chamber</label>
+              <input class="floor-app__radio" type="radio" name="floor-pane" id="floor-tab-feed">
+              <label class="floor-app__tab" for="floor-tab-feed">
+                <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chat"></use></svg>Feed</label>
             </div>
-            <div class="switcher__panels">
-              <!-- Motion -->
-              <div class="switcher__panel">
-                <form class="panel stack" data-action="open-vote">
-                  <p class="u-muted" style="font-size:var(--fs-sm)">🔨 Calling a vote needs the
-                    Chair's password. It appears on every device at once.</p>
-                  <div class="field">
-                    <label class="field__label" for="m-title">The question</label>
-                    <input class="input" id="m-title" name="title" required maxlength="140"
-                           placeholder="Shall we order pizza tonight?">
-                  </div>
-                  <div class="form-grid form-grid--2">
-                    <div class="field">
-                      <label class="field__label" for="m-threshold">Passes with</label>
-                      <select class="select" id="m-threshold" name="threshold">
-                        <option value="majority" selected>More than half</option>
-                        <option value="twothirds">Two-thirds</option>
-                        <option value="unanimous">Everyone</option>
-                      </select>
-                    </div>
-                    <div class="field">
-                      <label class="field__label" for="m-minutes">Open for</label>
-                      <select class="select" id="m-minutes" name="minutes">
-                        <option value="">Until closed</option>
-                        <option value="10">10 minutes</option>
-                        <option value="60">1 hour</option>
-                        <option value="1440">1 day</option>
-                      </select>
-                    </div>
-                  </div>
-                  <button class="btn btn--danger" type="submit">🔨 Put the question</button>
-                </form>
-              </div>
-              <!-- Bill -->
-              <div class="switcher__panel">
-                <form class="panel stack" data-action="submit-bill">
-                  <div class="field">
-                    <label class="field__label" for="b-title">Short title</label>
-                    <input class="input" id="b-title" name="title" required maxlength="120"
-                           placeholder="The Backyard Campout Act">
-                  </div>
-                  <div class="field">
-                    <label class="field__label" for="b-summary">What it does</label>
-                    <input class="input" id="b-summary" name="summary" required maxlength="280"
-                           placeholder="One line for the tracker.">
-                  </div>
-                  <div class="field">
-                    <label class="field__label" for="b-text">The rule itself</label>
-                    <textarea class="textarea" id="b-text" name="text" required style="min-height:8rem"
-                              placeholder="SECTION 1. …"></textarea>
-                  </div>
-                  <p class="field__hint" data-me="seat">Claim your seat below to sponsor a bill.</p>
-                  <button class="btn" type="submit">📜 Introduce the bill</button>
-                  <p class="field__hint">Want the full studio with a live parchment preview?
-                    <a href="draft.html">Open the drafting studio →</a></p>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      <!-- Quorum + seating -->
-      <section class="section">
-        <div class="shell">
-          <div class="sidebar-layout sidebar-layout--aside-first">
-            <aside class="sidebar-layout__aside stack" data-reveal="left">
-              <div class="panel stack">
-                <h2 style="font-size:var(--fs-lg)">Quorum call</h2>
+            <!-- Pane 1 · the question before the chamber, plus the propose desk -->
+            <section class="floor-pane floor-pane--now" aria-label="On the floor right now">
+              <header class="floor-pane__head">
+                <h3 class="floor-pane__title">On the floor right now</h3>
+                <span class="floor-pane__note u-caps">Happening now</span>
+              </header>
+
+              <div class="floor-pane__scroll">
+                <div class="stack" data-render="openVotes">
+                  <div class="skeleton" style="height:12rem"></div>
+                </div>
+
+                <!--
+                  Proposing is rare next to watching, so the whole editor lives
+                  behind a disclosure. A <details> was chosen over a CSS radio
+                  toggle because the browser already gives it the right
+                  keyboard and screen-reader semantics for free.
+                -->
+                <details class="disclosure floor-propose">
+                  <summary>Propose a motion or a bill</summary>
+                  <div class="disclosure__body">
+                    <p class="field__hint">A <strong>motion</strong> is a quick yes/no question for the
+                      chamber. A <strong>bill</strong> is a written rule that moves through the pipeline.
+                      Same desk — just flip the switch.</p>
+
+                    <div class="switcher">
+                      <input class="switcher__radio" type="radio" name="propose" id="propose-motion" checked>
+                      <input class="switcher__radio" type="radio" name="propose" id="propose-bill">
+                      <div class="switcher__tabs" role="tablist">
+                        <label class="switcher__tab" for="propose-motion">🙋 Quick motion</label>
+                        <label class="switcher__tab" for="propose-bill">📜 Write a bill</label>
+                      </div>
+                      <div class="switcher__panels">
+                        <!-- Motion -->
+                        <div class="switcher__panel">
+                          <form class="stack" data-action="open-vote">
+                            <p class="field__hint">🔨 Calling a vote needs the Chair's password. It
+                              appears on every device at once.</p>
+                            <div class="field">
+                              <label class="field__label" for="m-title">The question</label>
+                              <input class="input" id="m-title" name="title" required maxlength="140"
+                                     placeholder="Shall we order pizza tonight?">
+                            </div>
+                            <div class="form-grid form-grid--2">
+                              <div class="field">
+                                <label class="field__label" for="m-threshold">Passes with</label>
+                                <select class="select" id="m-threshold" name="threshold">
+                                  <option value="majority" selected>More than half</option>
+                                  <option value="twothirds">Two-thirds</option>
+                                  <option value="unanimous">Everyone</option>
+                                </select>
+                              </div>
+                              <div class="field">
+                                <label class="field__label" for="m-minutes">Open for</label>
+                                <select class="select" id="m-minutes" name="minutes">
+                                  <option value="">Until closed</option>
+                                  <option value="10">10 minutes</option>
+                                  <option value="60">1 hour</option>
+                                  <option value="1440">1 day</option>
+                                </select>
+                              </div>
+                            </div>
+                            <button class="btn btn--danger btn--sm" type="submit">🔨 Put the question</button>
+                          </form>
+                        </div>
+                        <!-- Bill -->
+                        <div class="switcher__panel">
+                          <form class="stack" data-action="submit-bill">
+                            <div class="field">
+                              <label class="field__label" for="b-title">Short title</label>
+                              <input class="input" id="b-title" name="title" required maxlength="120"
+                                     placeholder="The Backyard Campout Act">
+                            </div>
+                            <div class="field">
+                              <label class="field__label" for="b-summary">What it does</label>
+                              <input class="input" id="b-summary" name="summary" required maxlength="280"
+                                     placeholder="One line for the tracker.">
+                            </div>
+                            <div class="field">
+                              <label class="field__label" for="b-text">The rule itself</label>
+                              <textarea class="textarea" id="b-text" name="text" required style="min-height:6rem"
+                                        placeholder="SECTION 1. …"></textarea>
+                            </div>
+                            <p class="field__hint" data-me="seat">Claim your seat to sponsor a bill.</p>
+                            <button class="btn btn--sm" type="submit">📜 Introduce the bill</button>
+                            <p class="field__hint">Want the full studio with a live parchment preview?
+                              <a href="draft.html">Open the drafting studio →</a></p>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            </section>
+
+            <!-- Pane 2 · seating, quorum, check-in and the roster in one place -->
+            <section class="floor-pane floor-pane--chamber" aria-label="The chamber, quorum and roster">
+              <header class="floor-pane__head">
+                <h3 class="floor-pane__title">The chamber</h3>
+                <span class="floor-pane__note u-caps">Tap a seat</span>
+              </header>
+
+              <div class="floor-pane__fixed">
+                <div class="chamber" data-render="chamber">
+                  <div class="chamber__arc" data-rows="1"></div>
+                  <div class="chamber__rostrum">
+                    <span class="chamber__plate">Rostrum</span>
+                  </div>
+                </div>
+                <div class="chamber__key" data-render="chamberKey">
+                  <span class="chamber__key-item chamber__key-item--present">On the floor</span>
+                  <span class="chamber__key-item chamber__key-item--voting">At the rostrum</span>
+                  <span class="chamber__key-item chamber__key-item--remote">Remote</span>
+                  <span class="chamber__key-item chamber__key-item--away">Away</span>
+                </div>
+
                 <div data-render="quorum">
                   <div class="skeleton" style="height:34px"></div>
                 </div>
-                <p class="field__hint">A majority of enrolled members must be present —
-                  in the room or by video — before the chamber may conduct business.</p>
               </div>
 
-              <div class="panel stack">
-                <h2 style="font-size:var(--fs-lg)">Check in</h2>
-                <p class="field__hint">One tap marks your presence on every cousin's device.</p>
-                <div class="cluster">
+              <!--
+                Only the diagram, the key and the quorum bar are pinned. Check-in,
+                the seat hints and the roster scroll together underneath, because
+                that block grows with the family and the pinned part must not.
+              -->
+              <div class="floor-pane__scroll">
+                <div class="floor-checkin">
                   <button class="btn btn--sm" data-action="check-in" data-presence="present"
                           data-location="Main chamber (the living room)">On the floor</button>
                   <button class="btn btn--gold btn--sm" data-action="check-in" data-presence="remote"
@@ -230,127 +271,92 @@
                 <p class="field__hint" data-me="seat">No seat claimed on this device yet —
                   pick yours on the <a href="members.html">Members page</a>.</p>
                 <p class="field__hint" data-me="seated" hidden>Signed in as <strong data-me="name">—</strong>.</p>
-              </div>
-            </aside>
 
-            <div class="stack stack--lg">
-              <div class="panel panel--flush" data-reveal>
-                <div class="panel__head">
-                  <h2 style="font-size:var(--fs-lg)">The chamber</h2>
-                  <span class="u-caps u-muted">Hover a seat</span>
-                </div>
-                <div class="panel__body">
-                  <div class="chamber" data-render="chamber">
-                    <div class="chamber__rostrum">Rostrum</div>
-                  </div>
-                  <div class="chamber__key" aria-hidden="true">
-                    <span style="color:var(--c-green-500)">On the floor</span>
-                    <span style="color:var(--c-blue-600)">At the rostrum</span>
-                    <span style="color:var(--c-yellow-500)">Remote</span>
-                    <span style="color:var(--absent)">Away</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Presence board -->
-              <section class="stack" data-reveal>
-                <div class="filterbar">
+                <div class="filterbar filterbar--slim">
                   <div class="search">
                     <label class="u-visually-hidden" for="roster-search">Search members</label>
-                    <input class="input" id="roster-search" type="search" placeholder="Search members or locations…"
-                           data-search-for="roster">
+                    <input class="input" id="roster-search" type="search"
+                           placeholder="Search members or locations…" data-search-for="roster">
                   </div>
-                  <div class="field">
-                    <label class="field__label" for="roster-presence">Presence</label>
-                    <select class="select" id="roster-presence" data-filter-for="roster" data-facet="presence">
-                      <option value="all">Everyone</option>
-                      <option value="present">On the floor</option>
-                      <option value="voting">At the rostrum</option>
-                      <option value="remote">Remote</option>
-                      <option value="away">Away</option>
-                    </select>
-                  </div>
-                  <span class="u-mono u-muted" style="font-size:var(--fs-xs)">
+                  <label class="u-visually-hidden" for="roster-presence">Presence</label>
+                  <select class="select" id="roster-presence" data-filter-for="roster" data-facet="presence">
+                    <option value="all">Everyone</option>
+                    <option value="present">On the floor</option>
+                    <option value="voting">At the rostrum</option>
+                    <option value="remote">Remote</option>
+                    <option value="away">Away</option>
+                  </select>
+                  <span class="u-mono u-muted" style="font-size:var(--fs-2xs)">
                     <span data-count-for="roster">—</span> shown
                   </span>
                 </div>
 
-                <div class="roster" id="roster" data-filter-scope data-render="roster">
-                  <div class="skeleton" style="height:4.5rem"></div>
-                  <div class="skeleton" style="height:4.5rem"></div>
-                  <div class="skeleton" style="height:4.5rem"></div>
-                  <div class="skeleton" style="height:4.5rem"></div>
+                <div class="roster roster--compact" id="roster" data-filter-scope data-render="roster">
+                  <div class="skeleton" style="height:3.5rem"></div>
+                  <div class="skeleton" style="height:3.5rem"></div>
                 </div>
                 <p class="empty" data-empty-for="roster" hidden>Nobody matches that filter.</p>
-              </section>
-            </div>
-          </div>
-        </div>
-      </section>
+              </div>
+            </section>
 
-      <!-- Status updates -->
-      <section class="section section--sunken">
-        <div class="shell">
-          <header class="section__head section__head--split">
-            <div>
-              <p class="section__eyebrow u-caps" data-reveal>From the floor</p>
-              <h2 data-reveal>Status updates</h2>
-            </div>
-            <p class="u-muted" data-reveal="right">Short, on-the-record notes. Posting also
-              refreshes your presence and location in one stroke.</p>
-          </header>
+            <!-- Pane 3 · the side rail: what is being said, and what happens next -->
+            <section class="floor-pane floor-pane--rail" aria-label="Status updates and the docket">
+              <header class="floor-pane__head">
+                <h3 class="floor-pane__title">From the floor</h3>
+                <a class="floor-pane__note u-caps" href="docket.html">Full calendar</a>
+              </header>
 
-          <div class="sidebar-layout">
-            <ul class="status-feed" data-render="statusFeed">
-              <li class="skeleton" style="height:5rem"></li>
-              <li class="skeleton" style="height:5rem"></li>
-            </ul>
-
-            <aside class="sidebar-layout__aside">
-              <form class="panel composer" data-action="post-status" data-reveal="right">
-                <h3 style="font-size:var(--fs-md);font-family:var(--font-body);font-weight:700">Take the floor</h3>
-                <div class="field">
-                  <label class="field__label" for="status-text">Your update</label>
-                  <textarea class="textarea" id="status-text" name="text" required maxlength="240"
-                            placeholder="The snack hearing is moving to the porch…" style="min-height:6rem"></textarea>
-                </div>
-                <div class="composer__row composer__row--split">
-                  <div class="field">
-                    <label class="field__label" for="status-presence">Presence</label>
-                    <select class="select" id="status-presence" name="presence">
-                      <option value="">Leave as is</option>
-                      <option value="present">On the floor</option>
-                      <option value="remote">Remote</option>
-                      <option value="away">Away</option>
-                    </select>
+              <div class="floor-pane__fixed">
+                <details class="disclosure floor-propose">
+                  <summary>Take the floor</summary>
+                  <div class="disclosure__body">
+                    <form class="composer" data-action="post-status">
+                      <div class="field">
+                        <label class="u-visually-hidden" for="status-text">Your update</label>
+                        <textarea class="textarea" id="status-text" name="text" required maxlength="240"
+                                  placeholder="The snack hearing is moving to the porch…"
+                                  style="min-height:4.5rem"></textarea>
+                      </div>
+                      <div class="composer__row composer__row--split">
+                        <div class="field">
+                          <label class="u-visually-hidden" for="status-presence">Presence</label>
+                          <select class="select" id="status-presence" name="presence">
+                            <option value="">Leave presence as is</option>
+                            <option value="present">On the floor</option>
+                            <option value="remote">Remote</option>
+                            <option value="away">Away</option>
+                          </select>
+                        </div>
+                        <div class="field">
+                          <label class="u-visually-hidden" for="status-location">Location</label>
+                          <input class="input" id="status-location" name="location" maxlength="60"
+                                 placeholder="The kitchen">
+                        </div>
+                      </div>
+                      <button class="btn btn--sm" type="submit">Post to the floor</button>
+                    </form>
                   </div>
-                  <div class="field">
-                    <label class="field__label" for="status-location">Location</label>
-                    <input class="input" id="status-location" name="location" maxlength="60"
-                           placeholder="The kitchen">
-                  </div>
-                </div>
-                <button class="btn" type="submit">Post to the floor</button>
-              </form>
-            </aside>
-          </div>
-        </div>
-      </section>
+                </details>
+              </div>
 
-      <!-- Today's order of business -->
-      <section class="section">
-        <div class="shell">
-          <header class="section__head section__head--split">
-            <div>
-              <p class="section__eyebrow u-caps" data-reveal>Order of business</p>
-              <h2 data-reveal>The running docket</h2>
-            </div>
-            <a class="link-arrow" href="docket.html" data-reveal="right">Full calendar</a>
-          </header>
-          <ol class="timeline" data-render="docket">
-            <li class="skeleton" style="height:4rem"></li>
-            <li class="skeleton" style="height:4rem"></li>
-          </ol>
+              <div class="floor-rail">
+                <div class="floor-rail__block">
+                  <h4 class="floor-rail__title">Status updates</h4>
+                  <ul class="status-feed status-feed--compact" data-render="statusFeed">
+                    <li class="skeleton" style="height:4rem"></li>
+                    <li class="skeleton" style="height:4rem"></li>
+                  </ul>
+                </div>
+                <div class="floor-rail__block">
+                  <h4 class="floor-rail__title">Order of business</h4>
+                  <ol class="timeline timeline--compact" data-render="docket">
+                    <li class="skeleton" style="height:3rem"></li>
+                    <li class="skeleton" style="height:3rem"></li>
+                  </ol>
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
       </section>
     </main>

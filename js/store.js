@@ -678,6 +678,34 @@ export class Store extends EventTarget {
     return accepted.length;
   }
 
+  /**
+   * Replace this replica's log with a subset of itself and refold.
+   *
+   * The caretaker operation behind the Chair's prune tool. LOCAL ONLY: it never
+   * asks another device to forget anything, because a chamber where one device
+   * can erase history everywhere is a chamber whose record cannot be trusted.
+   * Other replicas keep their copies and anti-entropy may hand some of it back —
+   * which is the honest behaviour, and why this is housekeeping rather than
+   * erasure.
+   *
+   * The version vector is deliberately left intact: it records what we have
+   * SEEN, and pretending we never saw a pruned op would make peers resend it
+   * immediately, undoing the prune and wasting the bandwidth twice over.
+   */
+  async replaceLog(ops) {
+    const seenVv = { ...this.log.vv };
+    this.log = new Log();
+    this.log.insert(ops);
+    for (const [actor, seq] of Object.entries(seenVv)) VV.observe(this.log.vv, actor, seq);
+
+    if (this.storage?.clearOps) {
+      await this.storage.clearOps();
+      await this.storage.putOps(ops);
+    }
+    this.#emit("change", { reason: "pruned", ops: [] });
+    return this.log.size;
+  }
+
   /** Wipe this replica only. Peers and the server keep their copies. */
   async reset() {
     await this.storage?.clearOps();
