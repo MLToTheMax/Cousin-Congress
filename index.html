@@ -54,9 +54,13 @@
     <!-- Chair-only: a gavel button that appears in the bar only once the gavel
          is unlocked on this device, opening the Chair's command center. -->
     <label class="appbar__icon appbar__icon--gavel" data-chair-only for="drawer-chair"
-           title="Chair tools" aria-label="Chair tools">🔨</label>
-    <label class="appbar__icon" for="drawer-notif" title="Notifications" aria-label="Notifications">🔔<span data-notif-count hidden>0</span></label>
-    <label class="appbar__icon" for="drawer-settings" title="Settings" aria-label="Settings">⚙️</label>
+           title="Chair tools" aria-label="Chair tools"><svg class="ico" aria-hidden="true"><use href="#i-gavel"></use></svg></label>
+    <!-- Push-to-talk sits beside the bell: both are "reach the chamber right
+         now" controls, and keeping them together means one place to look. -->
+    <a class="appbar__icon" href="connect.html#talkie" data-when="authed"
+       title="Push to talk" aria-label="Push to talk"><svg class="ico" aria-hidden="true"><use href="#i-talkie"></use></svg></a>
+    <label class="appbar__icon" for="drawer-notif" title="Notifications" aria-label="Notifications"><svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span data-notif-count hidden>0</span></label>
+    <label class="appbar__icon" for="drawer-settings" title="Settings" aria-label="Settings"><svg class="ico" aria-hidden="true"><use href="#i-settings"></use></svg></label>
   </header>
 
   <!-- ===== Tabs (pure CSS) ===== -->
@@ -65,10 +69,10 @@
   <input type="radio" name="tab" id="tab-members" class="tabin">
   <input type="radio" name="tab" id="tab-connect" class="tabin">
   <nav class="tabbar" aria-label="Sections">
-    <label for="tab-floor">🪑 Floor</label>
-    <label for="tab-news">📰 Newsroom</label>
-    <label for="tab-members">👥 Members</label>
-    <label for="tab-connect">🔗 Connect</label>
+    <label for="tab-floor"><svg class="ico" aria-hidden="true"><use href="#i-floor"></use></svg>Floor</label>
+    <label for="tab-news"><svg class="ico" aria-hidden="true"><use href="#i-news"></use></svg>Newsroom</label>
+    <label for="tab-members"><svg class="ico" aria-hidden="true"><use href="#i-members"></use></svg>Members</label>
+    <label for="tab-connect"><svg class="ico" aria-hidden="true"><use href="#i-connect"></use></svg>Connect</label>
   </nav>
 
   <div class="shell announce-rail" data-render="announcements"></div>
@@ -98,8 +102,8 @@
               <h2 data-reveal>The chamber</h2>
             </div>
             <div class="mode-switch" role="tablist" aria-label="Floor or calendar">
-              <label for="mode-floor">🪑 Floor</label>
-              <label for="mode-cal">📅 Calendar</label>
+              <label for="mode-floor"><svg class="ico" aria-hidden="true"><use href="#i-floor"></use></svg>Floor</label>
+              <label for="mode-cal"><svg class="ico" aria-hidden="true"><use href="#i-docket"></use></svg>Calendar</label>
             </div>
           </header>
 
