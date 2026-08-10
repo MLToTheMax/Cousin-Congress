@@ -155,6 +155,50 @@ export function mountPairFlow(sync) {
   onPeers();
 
   show("choose");
+
+  // Arrived by scanning a code with the phone's own camera? The ticket is in the
+  // address bar. Use it straight away and scrub it, so the whole journey for the
+  // joining cousin is: point camera, tap the notification, done.
+  const scanned = pairCodeFromLocation();
+  if (scanned) {
+    try {
+      history.replaceState(null, "", location.pathname + location.search);
+    } catch {
+      /* best effort */
+    }
+    toast("Joining your cousin's chamber…");
+    consumeScannedCode(sync, scanned);
+  }
+}
+
+/**
+ * Wrap a pairing ticket in a link to this app.
+ *
+ * A QR holding a bare ticket is useless to the thing most people point at it:
+ * the phone's built-in camera. It sees text it cannot act on and offers nothing,
+ * so pairing appears simply not to work unless you already knew to open the app
+ * and use its in-page scanner first.
+ *
+ * As a URL, the camera offers to open it, the app loads, and the fragment is
+ * consumed on arrival. The ticket rides in the FRAGMENT, which browsers never
+ * send to a server — the same reason seat codes use one.
+ */
+export const PAIR_PREFIX = "#p=";
+
+export function pairLink(payload, loc = location) {
+  const path = loc.pathname.replace(/\/[^/]*$/, "/");
+  return `${loc.origin}${path}connect.html${PAIR_PREFIX}${encodeURIComponent(payload)}`;
+}
+
+/** A pairing ticket carried in this page's address bar, if we arrived by scan. */
+export function pairCodeFromLocation(loc = location) {
+  const hash = loc.hash || "";
+  if (!hash.startsWith(PAIR_PREFIX)) return null;
+  try {
+    return decodeURIComponent(hash.slice(PAIR_PREFIX.length)) || null;
+  } catch {
+    return null;
+  }
 }
 
 /* --- showing our own code -------------------------------------------------- */
@@ -171,6 +215,7 @@ async function wireShow(sync) {
     try {
       const { code, compact } = await sync.createInvite();
       await paintCode(frame, compact); // QR/card use the short form; text uses the picture code
+      ensureScannable(frame);
       const raw = qs("[data-code-text]");
       if (raw) raw.value = code;
       qs("[data-code-out]")?.removeAttribute("hidden");
@@ -224,8 +269,159 @@ async function paintCode(frame, payload) {
     }
   }
   frame.classList.remove("qr-frame--card");
-  // Level M tolerates a phone camera at an angle; the code is our own bytes.
-  frame.innerHTML = qrToSvg(encodeQR(payload, { ecl: "M" }), { margin: 3 });
+  paintQr(frame, pairLink(payload));
+}
+
+/**
+ * Draw a scannable QR into a frame, and make it enlargeable.
+ *
+ * Scannability is a pixel budget, not a rendering detail. A pairing ticket is
+ * ~750 bytes, which lands around a version-20 symbol — 97 modules to a side.
+ * A phone camera needs roughly 3-4 CSS pixels per module at arm's length, so
+ * that code has to be drawn at ~300px or more. Squeeze the frame down to fit a
+ * layout and the code is still *correct* and still completely unreadable, which
+ * is exactly how this page broke: 111 modules inside 155px is 1.4px a module.
+ *
+ * Two defences. Error-correction level L rather than M, because these codes are
+ * shown on a clean backlit screen at close range and never printed — the extra
+ * capacity buys a smaller symbol, which is worth far more here than redundancy
+ * we do not need. And a tap enlarges the code to fill the screen, which is the
+ * only reliable answer when the sharing device is itself a narrow phone.
+ */
+function paintQr(frame, text) {
+  frame.innerHTML = qrToSvg(encodeQR(text, { ecl: "L" }), { margin: 3 });
+  const svg = frame.querySelector("svg");
+  // Remember the module count so we can judge later whether what we drew is
+  // actually large enough to read. Only plain QRs get this: the Seal Card is a
+  // whole illustrated card and its viewBox says nothing about module size.
+  frame.dataset.qrModules = Number((svg?.getAttribute("viewBox") || "").split(" ")[2]) || 0;
+  frame.classList.add("pair__qr--zoomable");
+  frame.setAttribute("role", "button");
+  frame.setAttribute("tabindex", "0");
+  frame.setAttribute("title", "Tap to enlarge");
+  frame.setAttribute("aria-label", "Pairing code — activate to enlarge for scanning");
+  if (!frame.__zoomWired) {
+    frame.__zoomWired = true;
+    const open = () => zoomQr(frame.querySelector("svg"));
+    frame.addEventListener("click", open);
+    frame.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        open();
+      }
+    });
+  }
+}
+
+/* A code smaller than this cannot be read by a camera, so we would rather spill
+   a little than draw something decorative. Past the upper bound the extra size
+   buys nothing and only eats the fold. */
+const MIN_QR_PX = 240;
+const MAX_QR_PX = 384;
+
+/**
+ * Give the pairing code every pixel the fold has left.
+ *
+ * Sizing this in `vh` was guesswork that had to be retuned for each viewport
+ * and was wrong on all the ones nobody measured: at 360x640 the code came out
+ * 266px across, which is 2.7 pixels per module — small enough that the app's own
+ * decoder cannot read its own output. The chrome above the code (masthead, live
+ * connection banner, pane heading, action row) varies by device and by page
+ * state, so the only reliable number is a measured one.
+ *
+ * Collapse the code to nothing, read what the rest of the fold actually costs,
+ * then spend the remainder on the code — the same trick fitFloorConsole uses.
+ */
+export function fitPairCode() {
+  const pair = document.querySelector(".pair");
+  if (!pair) return;
+
+  const apply = () => {
+    const frame = pair.querySelector(".pair__pane:not([hidden]) .pair__qr");
+    if (!frame) return;
+    // Clear first, so each pass measures the layout rather than its predecessor.
+    pair.style.removeProperty("--pair-qr");
+    pair.style.setProperty("--pair-qr", "0px");
+    const room = document.documentElement.clientHeight - pair.getBoundingClientRect().bottom;
+    const width = Math.min(
+      MAX_QR_PX,
+      Math.max(MIN_QR_PX, Math.floor(room)),
+      Math.floor(frame.parentElement.clientWidth),
+    );
+    pair.style.setProperty("--pair-qr", `${width}px`);
+  };
+
+  apply();
+
+  let pending = false;
+  const schedule = () => {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      apply();
+    });
+  };
+  addEventListener("resize", schedule, { passive: true });
+  addEventListener("orientationchange", schedule);
+  // Panes swap without a resize, and each one leaves a different amount of room.
+  new MutationObserver(schedule).observe(pair, {
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["hidden"],
+  });
+  const banner = document.querySelector("[data-link-banner]");
+  if (banner && typeof ResizeObserver !== "undefined") new ResizeObserver(schedule).observe(banner);
+}
+
+/**
+ * Below this a code is decoration. Measured, not guessed: the app's own decoder
+ * reads its own output reliably at 3.1 px per module and fails outright at 2.5,
+ * so anything under ~2.9 is a code we should not be asking a camera to try.
+ */
+const MIN_PX_PER_MODULE = 2.9;
+
+/**
+ * On a short screen the fold cannot hold both the page chrome and a code big
+ * enough to scan. Rather than draw an unreadable one and let someone stand
+ * there failing to scan it, hand them the fullscreen version straight away —
+ * which is still a single screen, just one entirely given over to the code.
+ */
+function ensureScannable(frame) {
+  // Two frames before judging. The first lets layout settle after the paint;
+  // the second lets fitPairCode's own rAF-scheduled measurement land, since it
+  // is what decides the final width. Checking any earlier reads the stylesheet
+  // fallback and concludes a 251px code is fine when it is about to be 251px.
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      const modules = Number(frame?.dataset.qrModules) || 0;
+      if (!modules) return;
+      const width = frame.getBoundingClientRect().width;
+      if (!width || width / modules >= MIN_PX_PER_MODULE) return;
+      zoomQr(frame.querySelector("svg"));
+    }),
+  );
+}
+
+/** Blow a code up to fill the screen — the largest a device can possibly show. */
+function zoomQr(svg) {
+  if (!svg) return;
+  const back = document.querySelector(".qr-zoom");
+  if (back) back.remove();
+  const layer = document.createElement("div");
+  layer.className = "qr-zoom";
+  layer.innerHTML = `<div class="qr-zoom__code">${svg.outerHTML}</div>
+    <p class="qr-zoom__hint">Point your cousin's camera at this. Tap anywhere to close.</p>`;
+  const close = () => {
+    layer.remove();
+    document.removeEventListener("keydown", onKey);
+  };
+  const onKey = (event) => {
+    if (event.key === "Escape") close();
+  };
+  layer.addEventListener("click", close);
+  document.addEventListener("keydown", onKey);
+  document.body.append(layer);
 }
 
 /* --- scanning with the camera --------------------------------------------- */
@@ -370,6 +566,11 @@ async function consumeScannedCode(sync, text) {
   // A seat code from the Chair ("here is your seat") is not a pairing ticket —
   // it says who this device is. Handle it first, since it is the flow most
   // cousins will use: scan the code the Chair gave you and you are seated.
+  // A camera hands us whatever the QR literally said, which is now a URL. Unwrap
+  // a pairing link back to its ticket before anything tries to decode it.
+  const fromLink = pairCodeFromLocation({ hash: String(text).slice(String(text).indexOf("#")) });
+  if (fromLink) text = fromLink;
+
   const { readSeatCode } = await import("./seatcode.js");
   const seat = readSeatCode(text);
   if (seat) {
@@ -386,8 +587,15 @@ async function consumeScannedCode(sync, text) {
       qs("[data-answer-out-wrap]")?.removeAttribute("hidden");
     }
     // Also render the reply as a QR so the other phone can scan it straight back.
+    // Deliberately the bare ticket, not a pair link: the inviter reads this with
+    // the in-page scanner while their offer is still pending in memory. A link
+    // would navigate their page, and the reload would throw that pending offer
+    // away — leaving them with a reply for a connection that no longer exists.
     const frame = qs("[data-reply-frame]");
-    if (frame) frame.innerHTML = qrToSvg(encodeQR(compact, { ecl: "M" }), { margin: 3 });
+    if (frame) {
+      paintQr(frame, compact);
+      ensureScannable(frame);
+    }
     qs("[data-pair-flow]")?.__showPane?.("reply");
     toast("Scanned! Show your reply code back to your cousin.");
   } catch (error) {
