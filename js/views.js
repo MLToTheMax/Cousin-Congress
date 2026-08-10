@@ -86,20 +86,55 @@ const CHAIR_ROLE = /^(speaker|chair|chairman|chairwoman|president|presiding offi
 const seatPresence = (m) => (PRESENCE_LABEL[m?.presence] ? m.presence : "away");
 
 /**
- * How many cousins sit in each arc, front row first. Real chambers put fewer
- * desks in the front row than the back, and the same shape here keeps the
- * name labels from colliding: sparse rows get the short radii where there is
- * least arc to share.
+ * Split the chamber into arcs.
+ *
+ * Row capacity is not uniform: each arc sits at a larger radius than the one in
+ * front, so it is physically longer and seats more without crowding. The split
+ * therefore weights rows by their distance from the rostrum rather than dividing
+ * evenly.
+ *
+ * The row COUNT has to grow too. It used to stop at three, which is fine for a
+ * family and wrong for a reunion: past roughly two dozen cousins the back arc
+ * was asked to hold more seats than fit along it and the discs overlapped. Rows
+ * are now added until no arc exceeds what it can seat, so a chamber of forty
+ * lays out as cleanly as a chamber of four.
  */
-function seatRows(total) {
+const MAX_ROWS = 6;
+/** Seats an arc can hold before its discs start touching, front row outward. */
+const rowCapacity = (index) => 6 + index * 3;
+
+export function seatRows(total) {
   if (total <= 6) return [total];
-  if (total <= 16) {
-    const front = Math.max(1, Math.floor(total * 0.42));
-    return [front, total - front];
+
+  // Fewest rows that can seat everyone without any arc going over capacity.
+  let rows = 2;
+  while (rows < MAX_ROWS) {
+    const capacity = Array.from({ length: rows }, (_, i) => rowCapacity(i)).reduce((a, b) => a + b, 0);
+    if (capacity >= total) break;
+    rows += 1;
   }
-  const front = Math.max(1, Math.floor(total * 0.24));
-  const middle = Math.max(1, Math.floor(total * 0.33));
-  return [front, middle, total - front - middle];
+
+  // Distribute by capacity so the front arc stays sparse and the back fills up,
+  // which is what a real chamber looks like from the rostrum.
+  const weights = Array.from({ length: rows }, (_, i) => rowCapacity(i));
+  const weightSum = weights.reduce((a, b) => a + b, 0);
+  const out = weights.map((w) => Math.max(1, Math.floor((total * w) / weightSum)));
+
+  // Rounding leaves a few seats unplaced; give them to the back rows, which
+  // have the most room for them.
+  let placed = out.reduce((a, b) => a + b, 0);
+  for (let i = out.length - 1; placed < total; i = i === 0 ? out.length - 1 : i - 1) {
+    out[i] += 1;
+    placed += 1;
+  }
+  // And if rounding overshot, take them back off the front.
+  for (let i = 0; placed > total; i = (i + 1) % out.length) {
+    if (out[i] > 1) {
+      out[i] -= 1;
+      placed -= 1;
+    }
+  }
+  return out;
 }
 
 /**
