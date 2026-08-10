@@ -399,6 +399,13 @@
     background: var(--bg-raised);
     border-bottom: 3px solid var(--c-blue-600);
     box-shadow: var(--shadow-3);
+    /* The sheet is taller than a short phone. Cap it at what is left below the
+       masthead and let it scroll inside itself — otherwise its overflow lands
+       on the document (every page gains phantom scroll) and the items past the
+       fold are unreachable, because a fixed element does not scroll with it. */
+    max-height: calc(100dvh - var(--header-h));
+    overflow-y: auto;
+    overscroll-behavior: contain;
     /* Collapsed state — clipped rather than display:none so it transitions. */
     clip-path: inset(0 0 100% 0);
     opacity: 0;

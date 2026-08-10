@@ -594,6 +594,10 @@
   text-align: center; margin: var(--sp-5) 0 0;
   font-size: var(--fs-2xs); color: var(--ink-3);
 }
+/* This page hides the colophon to win back the fold, which also hides the build
+   stamp that lives there. "Which version are you on?" is the first question
+   asked about any pairing problem, so it comes along to the one line left. */
+.pair__version { margin-inline-start: var(--sp-3); opacity: 0.75; }
 .pair__founder a { color: var(--ink-3); text-decoration: underline; text-underline-offset: 3px; }
 .pair__founder a:hover { color: var(--c-blue-600); }
 
@@ -656,3 +660,83 @@ body:has(.pair) .ticker { display: none; }
 body:has(.pair) .announce-rail:empty { display: none; }
 body:has(.pair) .colophon { display: none; }
 body:has(.pair) .pair { padding-block: var(--sp-4); }
+
+
+/* The pairing page is a single action, so it is sized to the action rather than
+   to the viewport. It used to claim a full screen's min-height and centre inside
+   it, which on any real laptop (a 1512x760 viewport, not a 900px design canvas)
+   pushed it past the fold with empty space above and below. */
+.pair { min-height: 0; padding-block: var(--sp-5); }
+.pair__grid { align-items: start; }
+.pair__flow { min-height: 0; }
+.pair__choices { gap: var(--sp-3); }
+.choice { padding: var(--sp-4); }
+.pair__founder { margin-top: var(--sp-4); }
+
+/* The code has to be big enough to READ, which is a constraint the rest of this
+   page does not get a vote on. A pairing ticket is around 97 modules to a side
+   and a camera wants 3-4px per module, so anything under ~300px is decorative.
+   Height is the binding limit on a laptop and width on a phone, hence both — and
+   the fullscreen zoom below is the escape hatch when neither is enough. */
+.pair__qr { width: var(--pair-qr, min(24rem, 76vw, 48vh)); padding: var(--sp-2); }
+
+/* Showing a code is a single-purpose screen: the code is the content and
+   everything else is chrome competing with it for the fold. Stand the chrome
+   down so the symbol can be drawn at a size a camera can actually resolve. */
+.pair:has([data-pane="host"]:not([hidden])) .pair__founder,
+.pair:has([data-pane="reply"]:not([hidden])) .pair__founder { display: none; }
+.pair:has([data-pane="host"]:not([hidden])),
+.pair:has([data-pane="reply"]:not([hidden])) { padding-block: var(--sp-3); }
+.pair:has([data-pane="host"]:not([hidden])) .pair__pane,
+.pair:has([data-pane="reply"]:not([hidden])) .pair__pane { gap: var(--sp-2); }
+.pair:has([data-pane="host"]:not([hidden])) .pair__flow,
+.pair:has([data-pane="reply"]:not([hidden])) .pair__flow { padding: var(--sp-4); }
+.pair:has([data-pane="host"]:not([hidden])) .pair__qr,
+.pair:has([data-pane="reply"]:not([hidden])) .pair__qr { width: var(--pair-qr, min(24rem, 76vw, 41vh)); }
+.pair__zoomhint { margin: 0; text-align: center; }
+.pair__qr--zoomable { cursor: zoom-in; }
+.pair__qr--zoomable:focus-visible { outline: 3px solid var(--c-blue-600); outline-offset: 3px; }
+
+.qr-zoom {
+  position: fixed; inset: 0; z-index: 90;
+  display: grid; place-content: center; gap: var(--sp-4); justify-items: center;
+  padding: var(--sp-4);
+  background: rgb(0 0 0 / 0.82);
+  cursor: zoom-out;
+  animation: reveal-fade var(--dur-2) var(--ease-out) both;
+}
+.qr-zoom__code {
+  background: #fff; padding: var(--sp-3); border-radius: var(--radius-md);
+  width: min(92vw, 78vh); aspect-ratio: 1;
+}
+.qr-zoom__code svg { width: 100%; height: 100%; display: block; }
+.qr-zoom__hint { color: #fff; font-size: var(--fs-sm); text-align: center; margin: 0; max-width: 28rem; }
+
+@media (max-width: 860px) {
+  .pair__steps { order: 0; }
+  .pair__lede { margin-bottom: var(--sp-2); }
+}
+
+/* On a phone the padding, not the content, was the problem: 666px of content
+   was sitting inside 982px of page. Tighten the gaps and shrink the heading so
+   the choice buttons — the only thing anyone came here to press — are on screen
+   without a scroll. */
+@media (max-width: 860px) {
+  .pair { padding-block: var(--sp-3); }
+  .pair__grid { gap: var(--sp-3); }
+  .pair__title { font-size: 1.4rem; margin-bottom: var(--sp-1); }
+  .pair__lede { font-size: var(--fs-xs); margin-bottom: 0; }
+  .pair__flow { padding: var(--sp-3); gap: var(--sp-3); }
+  .choice { padding: var(--sp-3); }
+  .choice span { font-size: var(--fs-2xs); }
+  .pair__note { padding: var(--sp-2); font-size: var(--fs-2xs); }
+  .pair__founder { margin-top: var(--sp-3); }
+  /* Showing a code is the only thing on screen at that point — the intro can
+     stand down and let the code have the room. */
+  .pair:has([data-pane="host"]:not([hidden])) .pair__steps,
+  .pair:has([data-pane="reply"]:not([hidden])) .pair__steps { display: none; }
+  /* A phone has width to spare here and no height: let the code use it. */
+  .pair__qr,
+  .pair:has([data-pane="host"]:not([hidden])) .pair__qr,
+  .pair:has([data-pane="reply"]:not([hidden])) .pair__qr { width: var(--pair-qr, min(24rem, 86vw, 44vh)); }
+}

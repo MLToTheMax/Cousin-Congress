@@ -164,10 +164,17 @@ hr {
 
 /* --- Utilities ------------------------------------------------------------ */
 
+/* Screen-reader-only. The !important is load-bearing, not laziness: component
+   rules for form controls (`.textarea`, `.select`) are single-class too and are
+   defined in a later sheet, so they were winning `width: 100%` and `min-height`
+   here. A "hidden" textarea was rendering 1512px wide and absolutely positioned,
+   which pushed the document's scrollWidth out by 565px. A utility whose entire
+   contract is "takes up no space" has to be able to enforce that. */
 .u-visually-hidden {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
   padding: 0;
   margin: -1px;
   overflow: hidden;

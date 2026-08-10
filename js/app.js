@@ -308,8 +308,10 @@ async function wireExtras(sync, appCtx = {}) {
   connect.mountConnect(sync);
   connect.mountPairFlow(sync);
 
-  /* The Floor console measures its own headroom (see fitFloorConsole). */
+  /* The Floor console and the pairing code both measure their own headroom
+     rather than trusting a hard-coded viewport fraction. */
   fitFloorConsole();
+  connect.fitPairCode();
   connect.mountWalkie(sync.walkie);
   connect.mountEventLog(store, sync);
 

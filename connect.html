@@ -99,35 +99,11 @@
       <section class="pair">
         <div class="shell shell--wide pair__grid">
 
-          <!-- Left: the three steps -->
+          <!-- Left: one line of orientation. The flow IS the instructions. -->
           <aside class="pair__steps">
             <h1 class="pair__title">Add a device</h1>
-            <p class="pair__lede">Two devices swap one code and then keep each other
-              up to date — no account, no server.</p>
-
-            <ol class="steps">
-              <li class="steps__item">
-                <span class="steps__n">1</span>
-                <div>
-                  <strong>Pick a side</strong>
-                  <span>Are you joining a cousin's chamber, or letting them into yours?</span>
-                </div>
-              </li>
-              <li class="steps__item">
-                <span class="steps__n">2</span>
-                <div>
-                  <strong>Show or scan the code</strong>
-                  <span>One phone shows a code, the other points its camera at it.</span>
-                </div>
-              </li>
-              <li class="steps__item">
-                <span class="steps__n">3</span>
-                <div>
-                  <strong>Sign in to your seat</strong>
-                  <span>The record arrives on its own. Your password proves which cousin you are.</span>
-                </div>
-              </li>
-            </ol>
+            <p class="pair__lede">One of you shows a code, the other scans it with their
+              camera. That's the whole thing — no account, no server.</p>
 
             <p class="pair__safety" data-pair-safety hidden>
               <svg class="ico" aria-hidden="true"><use href="#i-shield"></use></svg>
@@ -194,6 +170,7 @@
                 <h2>Show this code</h2>
               </div>
               <div class="pair__qr" data-qr-frame></div>
+              <p class="field__hint pair__zoomhint">Hard to scan? Tap the code to make it fill the screen.</p>
               <div class="pair__actions">
                 <button class="btn" data-action="show-code" type="button">
                   <svg class="ico" aria-hidden="true"><use href="#i-qr"></use></svg>New code
@@ -220,6 +197,7 @@
                 <h2>Show them this reply</h2>
               </div>
               <div class="pair__qr" data-reply-frame></div>
+              <p class="field__hint pair__zoomhint">Tap the code to make it fill the screen.</p>
               <textarea class="textarea" data-answer-out readonly rows="2"></textarea>
               <p class="field__hint">Let your cousin scan this (or paste it back to them) and you're connected.</p>
             </div>
@@ -244,6 +222,7 @@
         <p class="pair__founder">
           Nobody to join?
           <a href="#" data-action="register-chair">Register a new chamber</a>
+          <span class="u-mono pair__version" data-version title="Build version">v—</span>
         </p>
       </section>
     </main>
