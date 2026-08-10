@@ -140,12 +140,16 @@ export function authorize(state, op) {
       return chair; // administering others' keys is the chair's alone
 
     case "chair.petition":
-    case "chair.unpetition":
-      // A cousin may only endorse in their OWN name, and only for a seat that
-      // exists. Whether the endorsement counts for anything — the supermajority
-      // and the dormant-Chair test — is decided in the reducer, on every
-      // replica, from the log alone.
-      return Boolean(p.memberId) && ownsMember(state, p.memberId, kid) && Boolean(state.members?.[p.seat]);
+    case "chair.unpetition": {
+      // A cousin may only endorse in their OWN name, for a seat that exists,
+      // and neither party may be a tombstone. member.retract merges
+      // `_deleted: true` and leaves `keys` behind, so ownsMember() alone still
+      // holds for a retracted seat — which let a cousin retract themselves and
+      // keep voting. Whether the endorsement CARRIES is still the reducer's
+      // decision, taken on every replica from the log alone.
+      const live = (id) => Boolean(id && state.members?.[id] && !state.members[id]._deleted);
+      return Boolean(p.memberId) && live(p.memberId) && live(p.seat) && ownsMember(state, p.memberId, kid);
+    }
 
     case "chair.request":
     case "member.requestKey":

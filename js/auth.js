@@ -46,14 +46,46 @@ export function newSalt() {
 const normalize = (pin) => String(pin).trim().toLowerCase();
 
 /**
- * Salted hash of a normalized password. WebCrypto needs a secure context
- * (https, localhost, file); plain-http LAN hosting falls back to an FNV-based
- * digest. The algorithm is recorded in the hash prefix so verification always
- * uses the algorithm the password was created with.
+ * Password stretching, matched to the recovery blob.
+ *
+ * This used to be a single SHA-256, and that was the weak link in a chain
+ * nobody looked at end to end. The Chair's recovery key is wrapped under
+ * PBKDF2 at 310,000 iterations precisely because it replicates to every
+ * device — but the SAME password was also stored here as one SHA-256, in the
+ * SAME replicated record. An attacker never grinds the expensive verifier when
+ * a cheap one for the same secret sits beside it: one hash per candidate
+ * instead of 310,000, and on a GPU that is a factor of about a million. The
+ * expensive KDF was decorative.
+ *
+ * Seat passwords are stretched the same way and for the same reason: they are
+ * salted hashes in a record every cousin holds. A few hundred milliseconds once
+ * at sign-in is not a cost anyone notices.
+ *
+ * The algorithm rides in the hash prefix, so a chamber founded before this
+ * change keeps verifying against the algorithm its passwords were made with:
+ *   p:  PBKDF2-SHA-256, PIN_KDF_ITERATIONS      (current)
+ *   s:  single SHA-256                          (legacy, verify only)
+ *   f:  FNV fallback for a non-secure context   (no WebCrypto available)
  */
-export async function hashPin(pin, salt) {
+const PIN_KDF_ITERATIONS = 310000;
+
+async function pbkdf2Pin(material, salt) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(material), "PBKDF2", false, [
+    "deriveBits",
+  ]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: new TextEncoder().encode(String(salt)), iterations: PIN_KDF_ITERATIONS, hash: "SHA-256" },
+    base,
+    256
+  );
+  return `p:${hex(bits)}`;
+}
+
+export async function hashPin(pin, salt, algorithm = "p") {
   const material = `cc:${salt}:${normalize(pin)}`;
   if (globalThis.crypto?.subtle) {
+    if (algorithm === "p") return pbkdf2Pin(material, salt);
+    // Legacy verification only — never chosen for a new password.
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(material));
     return `s:${hex(digest)}`;
   }
@@ -67,16 +99,30 @@ export async function hashPin(pin, salt) {
   return `f:${h1.toString(16).padStart(8, "0")}${h2.toString(16).padStart(8, "0")}`;
 }
 
+/**
+ * Is this stored hash made with a weaker algorithm than we now use?
+ *
+ * Upgrading the algorithm only protects chambers founded afterwards; every
+ * chamber that already exists keeps its cheap hash in a record every cousin
+ * holds, which is exactly the thing that made the expensive recovery KDF
+ * pointless. So a password proved against a legacy hash is re-stored at full
+ * strength on the spot — the one moment we legitimately have the plaintext.
+ */
+export const needsRehash = (auth) => Boolean(auth?.hash) && !auth.hash.startsWith("p:");
+
 export async function verifyPin(pin, auth) {
   if (!auth?.salt || !auth?.hash) return false;
-  if (auth.hash.startsWith("s:") && !globalThis.crypto?.subtle) {
+  if ((auth.hash.startsWith("s:") || auth.hash.startsWith("p:")) && !globalThis.crypto?.subtle) {
     toast(
       "This browser can't check passwords over an insecure connection — open the site the same way it was set up.",
       "err"
     );
     return false;
   }
-  return (await hashPin(pin, auth.salt)) === auth.hash;
+  // Verify with the algorithm the password was CREATED with, which the prefix
+  // records — otherwise every pre-existing chamber locks its cousins out.
+  const algorithm = auth.hash.startsWith("p:") ? "p" : auth.hash.startsWith("s:") ? "s" : "f";
+  return (await hashPin(pin, auth.salt, algorithm)) === auth.hash;
 }
 
 export async function makeAuth(pin) {
@@ -168,6 +214,10 @@ export async function claimSeat(memberId) {
     });
     if (pin === null) return false;
     if (await verifyPin(pin, member.auth)) {
+      // Re-store at current strength while we have the plaintext in hand.
+      if (needsRehash(member.auth)) {
+        store.dispatch("member.auth", { memberId, auth: await makeAuth(pin) });
+      }
       const otherDevice = claimedByAnotherDevice(memberId);
       store.setIdentity({ memberId, displayName: member.name });
       if (otherDevice) {
@@ -440,6 +490,15 @@ export async function requireChair() {
     });
     if (pin === null) return false;
     if (await verifyPin(pin, auth)) {
+      // Same upgrade for the gavel. Only a device that already IS a chair
+      // device may rewrite chairAuth, so a recovering device skips this and
+      // gets the upgrade on its next unlock once it is enrolled.
+      if (needsRehash(auth) && !chairUnenrolled()) {
+        store.dispatch("session.set", {
+          chairAuth: await makeAuth(pin),
+          chairRecovery: await mintRecovery(pin),
+        });
+      }
       rememberChairUnlock();
       if (chairUnenrolled()) {
         // Try to self-enrol by proving the password to the whole chamber. This

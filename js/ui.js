@@ -20,6 +20,23 @@ const ENTITIES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "
 export const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (ch) => ENTITIES[ch]);
 
+/**
+ * Sanitise a value that is about to become part of a CSS class name.
+ *
+ * esc() is correct for element content and for quoted attribute values an
+ * attacker cannot break out of — but it does not escape the SPACE character,
+ * and a space inside class="…" ends one token and starts another. A member who
+ * set their own presence to `away frozen-overlay` therefore added the Chair's
+ * chamber-lock class to their own roster card: position:fixed, inset:0, over
+ * the whole viewport, carrying their own name and text. A convincing "the Chair
+ * has locked the chamber, send the password to…" screen, built out of the app's
+ * own CSS, replicated to every device and surviving reload.
+ *
+ * So: identifier characters only. Prefer an allow-list of known tokens where
+ * one exists (see seatPresence in views.js); use this where the set is open.
+ */
+export const cls = (value) => String(value ?? "").replace(/[^A-Za-z0-9_-]/g, "");
+
 class Raw {
   constructor(value) {
     this.value = value;

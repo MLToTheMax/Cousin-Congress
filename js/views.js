@@ -12,7 +12,7 @@
 
 import { select } from "./crdt.js";
 import { memberAvatar } from "./emoji-decorate.js";
-import { esc, fmtDate, fmtTime, h, initials, pct, raw, relTime, timeOfStamp } from "./ui.js";
+import { cls, esc, fmtDate, fmtTime, h, initials, pct, raw, relTime, timeOfStamp } from "./ui.js";
 
 const PRESENCE_LABEL = {
   present: "On the floor",
@@ -244,7 +244,7 @@ function renderRoster(state) {
   return members
     .map(
       (m) => h`
-      <article class="member member--${raw(esc(m.presence || "away"))}" data-item
+      <article class="member member--${raw(cls(m.presence || "away"))}" data-item
                data-text="${m.name} ${m.district || ""} ${m.location || ""}"
                data-presence="${m.presence || "away"}">
         ${raw(avatarOf(m))}
@@ -650,7 +650,7 @@ function renderBillDetail(state, node) {
             comments.length
               ? comments
                   .map(
-                    (c) => h`<li class="comment comment--${raw(esc(c.stance || "neutral"))}">
+                    (c) => h`<li class="comment comment--${raw(cls(c.stance || "neutral"))}">
                       <div class="comment__head">
                         <span class="comment__author">${c.author || "Anonymous cousin"}</span>
                         <span class="comment__meta">${relTime(timeOfStamp(c._hlc))}</span>
@@ -777,7 +777,7 @@ function renderCalendar(state) {
       ${raw(
         events
           .map(
-            (e) => h`<a class="calendar__event calendar__event--${raw(esc(e.kind || "session"))}"
+            (e) => h`<a class="calendar__event calendar__event--${raw(cls(e.kind || "session"))}"
                  href="docket.html#event-${e.id}" title="${e.title}">${e.title}</a>`
           )
           .join("")
@@ -958,7 +958,7 @@ function renderAnnouncements(state) {
     .map((a) => {
       const when = timeOfStamp(a._hlc);
       return h`
-        <div class="announce announce--${raw(esc(a.tone || "info"))}" role="status">
+        <div class="announce announce--${raw(cls(a.tone || "info"))}" role="status">
           <span class="announce__icon" aria-hidden="true">${a.icon || "📣"}</span>
           <div class="announce__body">
             <p class="announce__text">${a.text}</p>
