@@ -47,13 +47,16 @@
         <a class="nav__link" href="members.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-members"></use></svg>Members</a>
         <a class="nav__link" href="connect.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-connect"></use></svg>Connect</a>
         <a class="nav__link" href="news.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-news"></use></svg>Newsroom</a>
+        <!-- Voting, the bill tracker, drafting and the docket are all tabs of the
+             Floor now, so this menu points into it rather than away from it.
+             Every entry is a same-page tab except About, which stays a page. -->
         <div class="nav__group">
-          <a class="nav__link" href="voting.html" aria-current="page"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>Votes</a>
+          <a class="nav__link" href="floor.html#votes" aria-current="page"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>Chamber</a>
           <ul class="nav__menu">
-            <li><a href="voting.html">Voting <small>Cast a ballot, watch the tally</small></a></li>
-            <li><a href="bills.html">Bill tracker <small>Every measure on file</small></a></li>
-            <li><a href="draft.html">Drafting studio <small>Write and introduce a bill</small></a></li>
-            <li><a href="docket.html">Docket <small>The order of business</small></a></li>
+            <li><a href="floor.html#votes">Voting <small>Cast a ballot, watch the tally</small></a></li>
+            <li><a href="floor.html#bills">Bill tracker <small>Every measure on file</small></a></li>
+            <li><a href="floor.html#now">Drafting desk <small>Write and introduce a bill</small></a></li>
+            <li><a href="floor.html#docket">Docket <small>The order of business</small></a></li>
             <li><a href="about.html">About &amp; rules <small>How the chamber works</small></a></li>
           </ul>
         </div>
@@ -61,7 +64,7 @@
           <a class="nav__icon" href="connect.html#talkie" data-when="authed" aria-label="Push to talk" title="Push to talk"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-talkie"></use></svg></a>
           <a class="nav__icon notif-bell" href="connect.html#notifications" aria-label="Notifications" title="Notifications"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span data-notif-count hidden>0</span></a>
         </span>
-        <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
+        <a class="btn btn--sm nav__cta" href="floor.html#votes">Cast your vote</a>
       </nav>
     </div>
   </header>
@@ -91,221 +94,21 @@
     <div class="shell announce-rail" data-render="announcements"></div>
 
     <main id="main">
-      <header class="page-head">
-        <div class="deco deco--circle deco--a" data-parallax="spin" aria-hidden="true"></div>
-        <div class="shell">
-          <ol class="crumbs"><li><a href="index.html">Home</a></li><li>Voting</li></ol>
-          <h1 data-enter>The Question Is on the Motion</h1>
-          <p class="page-head__lede" data-enter style="--i:1">
-            Tap Yea, Nay, or Present — big buttons, no wrong way to hold them. Your ballot is
-            saved the instant you tap, then carried to every cousin's device. Switch to the
-            Results tab for the full roll-call archive.
+      <!--
+        Absorbed into the Floor. Kept as a pointer rather than deleted: these
+        URLs are in bookmarks, in the sample data, and on paper QR cards that
+        are already out in the world, and a 404 is a worse answer than a door.
+      -->
+      <section class="section" style="min-height:50svh;display:grid;place-items:center">
+        <div class="shell u-center stack stack--lg" style="justify-items:center;text-align:center">
+          <p class="kicker" data-enter>Moved</p>
+          <h1 data-enter style="--i:1">Voting now lives on the Floor</h1>
+          <p class="u-muted u-prose" data-enter style="--i:2">
+            The chamber now works from one screen — open roll calls and the archive are the <strong>Votes</strong> tab.
           </p>
-          <div class="page-head__meta" data-enter style="--i:2">
-            <span>Yea · Nay · Present</span>
-            <span>Majority, two-thirds, and unanimous-consent thresholds</span>
-            <span>Proxies honoured under Rule 9</span>
+          <div class="cluster" data-enter style="--i:3">
+            <a class="btn btn--lg" href="floor.html#votes">Go to the Floor</a>
           </div>
-        </div>
-      </header>
-
-      <!-- Open votes / Results -->
-      <section class="section">
-        <div class="shell">
-          <div class="switcher">
-            <input class="switcher__radio" type="radio" name="voting-tabs" id="tab-open" checked>
-            <input class="switcher__radio" type="radio" name="voting-tabs" id="tab-results">
-
-            <div class="switcher__tabs" role="tablist" aria-label="Voting views">
-              <label class="switcher__tab" for="tab-open">🙋 Open votes</label>
-              <label class="switcher__tab" for="tab-results">📊 Results</label>
-            </div>
-
-            <div class="switcher__panels">
-              <!-- Open votes -->
-              <div class="switcher__panel">
-                <header class="section__head section__head--split">
-                  <div>
-                    <p class="section__eyebrow u-caps" data-reveal>Now voting</p>
-                    <h2 data-reveal>Open roll calls</h2>
-                  </div>
-                  <p class="u-muted" data-reveal="right" data-me="seat">🪑 No seat claimed on this device
-                    yet — find your card on the <a href="members.html">Members page</a>, say your
-                    password, and the big vote buttons light up.</p>
-                  <p class="u-muted" data-reveal="right" data-me="seated" hidden>
-                    Voting as <strong data-me="name">—</strong>.</p>
-                </header>
-
-                <div class="stack stack--lg" data-render="openVotes">
-                  <div class="skeleton" style="height:22rem"></div>
-                </div>
-
-                <header class="section__head section__head--split" style="margin-top:var(--sp-7)">
-                  <div>
-                    <p class="section__eyebrow u-caps" data-reveal>The count</p>
-                    <h2 data-reveal>Whip board</h2>
-                  </div>
-                  <p class="u-muted" data-reveal="right">Live disposition of the chamber on the pending
-                    question. The whip makes no promises about anyone's cousinly loyalty.</p>
-                </header>
-                <div class="whip" data-render="whip">
-                  <div class="skeleton" style="height:10rem"></div>
-                </div>
-              </div>
-
-              <!-- Results -->
-              <div class="switcher__panel">
-                <div class="kpi-rail" data-reveal data-render="kpis" style="margin-bottom:var(--sp-7)">
-                  <div class="kpi"><span class="kpi__value">—</span><span class="kpi__label">Members enrolled</span></div>
-                  <div class="kpi"><span class="kpi__value">—</span><span class="kpi__label">Bills on file</span></div>
-                  <div class="kpi"><span class="kpi__value">—</span><span class="kpi__label">Roll calls held</span></div>
-                  <div class="kpi"><span class="kpi__value">—</span><span class="kpi__label">Measures enacted</span></div>
-                </div>
-
-                <header class="section__head" data-reveal>
-                  <p class="section__eyebrow u-caps">Division history</p>
-                  <h2>Session at a glance</h2>
-                </header>
-                <div class="panel" data-reveal>
-                  <div class="histogram" data-render="histogram">
-                    <div class="skeleton" style="flex:1;height:60%"></div>
-                    <div class="skeleton" style="flex:1;height:80%"></div>
-                    <div class="skeleton" style="flex:1;height:45%"></div>
-                  </div>
-                  <div class="tally__legend" style="margin-top:var(--sp-4)">
-                    <span style="color:var(--yea)">Yea</span>
-                    <span style="color:var(--nay)">Nay</span>
-                    <span style="color:var(--present)">Present</span>
-                  </div>
-                </div>
-
-                <header class="section__head" style="margin-top:var(--sp-7)">
-                  <p class="section__eyebrow u-caps" data-reveal>The archive</p>
-                  <h2 data-reveal>Completed roll calls</h2>
-                </header>
-
-                <div class="filterbar" data-reveal>
-                  <div class="search">
-                    <label class="u-visually-hidden" for="results-search">Search roll calls</label>
-                    <input class="input" id="results-search" type="search"
-                           placeholder="Search by title or number…" data-search-for="archive">
-                  </div>
-                  <div class="field">
-                    <label class="field__label" for="results-outcome">Outcome</label>
-                    <select class="select" id="results-outcome" data-filter-for="archive" data-facet="outcome">
-                      <option value="all">All outcomes</option>
-                      <option value="passed">Agreed to</option>
-                      <option value="failed">Not agreed to</option>
-                    </select>
-                  </div>
-                  <span class="u-mono u-muted" style="font-size:var(--fs-xs)">
-                    <span data-count-for="archive">—</span> shown
-                  </span>
-                </div>
-
-                <div class="stack stack--lg" id="archive" data-filter-scope data-render="results"
-                     style="margin-top:var(--sp-5)">
-                  <div class="skeleton" style="height:14rem"></div>
-                  <div class="skeleton" style="height:14rem"></div>
-                </div>
-                <p class="empty" data-empty-for="archive" hidden>No roll calls match that filter.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Desks -->
-      <section class="section section--sunken">
-        <div class="shell">
-          <div class="grid grid--2">
-
-            <!-- Chair's desk -->
-            <div class="panel stack" data-reveal="left">
-              <div>
-                <p class="section__eyebrow u-caps">The chair's desk</p>
-                <h2 style="font-size:var(--fs-xl)">Call a vote</h2>
-                <p class="u-muted" style="font-size:var(--fs-sm)">🔨 Chair only — you'll be asked
-                  for the Chair's password. The question lands on every device at once, like a
-                  division bell that never needs winding.</p>
-              </div>
-              <form class="stack" data-action="open-vote">
-                <div class="field">
-                  <label class="field__label" for="vote-title">The question</label>
-                  <input class="input" id="vote-title" name="title" required maxlength="140"
-                         placeholder="On the motion to adopt the summer road-trip playlist">
-                </div>
-                <div class="field">
-                  <label class="field__label" for="vote-summary">Context for the record</label>
-                  <textarea class="textarea" id="vote-summary" name="summary" maxlength="280"
-                            style="min-height:5rem" placeholder="Optional — what members are deciding."></textarea>
-                </div>
-                <div class="form-grid form-grid--2">
-                  <div class="field">
-                    <label class="field__label" for="vote-threshold">Threshold</label>
-                    <select class="select" id="vote-threshold" name="threshold">
-                      <option value="majority" selected>Simple majority</option>
-                      <option value="twothirds">Two-thirds</option>
-                      <option value="unanimous">Unanimous consent</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label class="field__label" for="vote-minutes">Voting window</label>
-                    <select class="select" id="vote-minutes" name="minutes">
-                      <option value="">No time limit</option>
-                      <option value="10">10 minutes</option>
-                      <option value="60">1 hour</option>
-                      <option value="480">8 hours (remote districts)</option>
-                      <option value="1440">24 hours</option>
-                    </select>
-                  </div>
-                </div>
-                <button class="btn btn--danger" type="submit">🔨 Put the question</button>
-              </form>
-            </div>
-
-            <!-- Proxy desk -->
-            <div class="panel stack" data-reveal="right">
-              <div>
-                <p class="section__eyebrow u-caps">Rule 9 — proxies</p>
-                <h2 style="font-size:var(--fs-xl)">Delegate your vote</h2>
-                <p class="u-muted" style="font-size:var(--fs-sm)">Away for exams or a school trip?
-                  Hand your ballot to a trusted cousin. Their vote is counted as yours on any
-                  question you haven't voted on yourself, and you can revoke at any time.</p>
-              </div>
-              <form class="stack" data-action="delegate-proxy">
-                <div class="field">
-                  <label class="field__label" for="proxy-to">Proxy holder</label>
-                  <select class="select" id="proxy-to" name="to" data-render="memberOptions"
-                          data-placeholder="Nobody — revoke my proxy">
-                    <option value="">Nobody — revoke my proxy</option>
-                  </select>
-                  <p class="field__hint">Your own ballot, when you cast one, always outranks the proxy.</p>
-                </div>
-                <button class="btn btn--ghost" type="submit">Record the delegation</button>
-              </form>
-
-              <hr>
-              <div>
-                <h3 style="font-size:var(--fs-md);font-family:var(--font-body);font-weight:700">How thresholds work</h3>
-                <ul class="doc" style="list-style:none;padding:0;display:grid;gap:var(--sp-2);margin-top:var(--sp-3)">
-                  <li><span class="badge badge--yea">Majority</span> More yeas than nays among decisive ballots.</li>
-                  <li><span class="badge badge--present badge--tri">Two-thirds</span> Schedule changes and rule suspensions.</li>
-                  <li><span class="badge badge--info badge--square">Unanimous</span> One nay sinks it. Use sparingly.</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Pointer to scorecards -->
-      <section class="section">
-        <div class="shell u-center stack" style="justify-items:center">
-          <h2 data-reveal>Looking for a member's voting record?</h2>
-          <p class="u-muted u-prose" data-reveal>Attendance, votes cast, and sponsorship counts
-            live on each member's scorecard in the directory.</p>
-          <a class="btn btn--lg" href="members.html" data-reveal>Open the member directory</a>
         </div>
       </section>
     </main>

@@ -47,13 +47,16 @@
         <a class="nav__link" href="members.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-members"></use></svg>Members</a>
         <a class="nav__link" href="connect.html" aria-current="page"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-connect"></use></svg>Connect</a>
         <a class="nav__link" href="news.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-news"></use></svg>Newsroom</a>
+        <!-- Voting, the bill tracker, drafting and the docket are all tabs of the
+             Floor now, so this menu points into it rather than away from it.
+             Every entry is a same-page tab except About, which stays a page. -->
         <div class="nav__group">
-          <a class="nav__link" href="voting.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>Votes</a>
+          <a class="nav__link" href="floor.html#votes"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>Chamber</a>
           <ul class="nav__menu">
-            <li><a href="voting.html">Voting <small>Cast a ballot, watch the tally</small></a></li>
-            <li><a href="bills.html">Bill tracker <small>Every measure on file</small></a></li>
-            <li><a href="draft.html">Drafting studio <small>Write and introduce a bill</small></a></li>
-            <li><a href="docket.html">Docket <small>The order of business</small></a></li>
+            <li><a href="floor.html#votes">Voting <small>Cast a ballot, watch the tally</small></a></li>
+            <li><a href="floor.html#bills">Bill tracker <small>Every measure on file</small></a></li>
+            <li><a href="floor.html#now">Drafting desk <small>Write and introduce a bill</small></a></li>
+            <li><a href="floor.html#docket">Docket <small>The order of business</small></a></li>
             <li><a href="about.html">About &amp; rules <small>How the chamber works</small></a></li>
           </ul>
         </div>
@@ -61,7 +64,7 @@
           <a class="nav__icon" href="connect.html#talkie" data-when="authed" aria-label="Push to talk" title="Push to talk"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-talkie"></use></svg></a>
           <a class="nav__icon notif-bell" href="connect.html#notifications" aria-label="Notifications" title="Notifications"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span data-notif-count hidden>0</span></a>
         </span>
-        <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
+        <a class="btn btn--sm nav__cta" href="floor.html#votes">Cast your vote</a>
       </nav>
     </div>
   </header>
@@ -91,139 +94,110 @@
     <div class="shell announce-rail" data-render="announcements"></div>
 
     <main id="main">
-      <!-- ================================================================
-           Pairing — deliberately ONE SCREEN. Left: what is about to happen,
-           in three steps. Right: the actual flow, which swaps in place rather
-           than growing the page.
-           ================================================================ -->
-      <section class="pair">
-        <div class="shell shell--wide pair__grid">
-
-          <!-- Left: one line of orientation. The flow IS the instructions. -->
-          <aside class="pair__steps">
-            <h1 class="pair__title">Add a device</h1>
-            <p class="pair__lede">One of you shows a code, the other scans it with their
-              camera. That's the whole thing — no account, no server.</p>
-
-            <p class="pair__safety" data-pair-safety hidden>
-              <svg class="ico" aria-hidden="true"><use href="#i-shield"></use></svg>
-              <span>Both screens should show <strong data-safety-word>····</strong></span>
-            </p>
-          </aside>
-
-          <!-- Right: the flow -->
-          <div class="pair__flow" data-pair-flow>
-
-            <!-- Step 1 — choose a side -->
-            <div class="pair__pane" data-pane="choose">
-              <div class="pair__choices">
-                <button class="choice" data-action="pair-mode" data-mode="join" type="button">
-                  <svg class="ico ico--xl" aria-hidden="true"><use href="#i-scan"></use></svg>
-                  <strong>Join a cousin's chamber</strong>
-                  <span>Scan the code on their screen. Everything they have arrives here.</span>
-                </button>
-                <button class="choice" data-action="pair-mode" data-mode="host" type="button">
-                  <svg class="ico ico--xl" aria-hidden="true"><use href="#i-qr"></use></svg>
-                  <strong>Share my chamber</strong>
-                  <span>Show a code for a cousin to scan. They join everything you have.</span>
-                </button>
-              </div>
-              <p class="pair__note">
-                <svg class="ico" aria-hidden="true"><use href="#i-info"></use></svg>
-                One of you shows, the other scans — it does not matter which.
-              </p>
-            </div>
-
-            <!-- Step 2a — scan -->
-            <div class="pair__pane" data-pane="join" hidden>
-              <div class="pair__paneHead">
-                <button class="btn btn--ghost btn--sm" data-action="pair-back" type="button">Back</button>
-                <h2>Scan their code</h2>
-              </div>
-              <div class="scanner" data-scanner hidden>
-                <video playsinline muted></video>
-                <div class="scanner__reticle"></div>
-              </div>
-              <div class="pair__actions">
-                <button class="btn btn--lg" data-action="start-scan" type="button">
-                  <svg class="ico" aria-hidden="true"><use href="#i-camera"></use></svg>Start camera
-                </button>
-                <button class="btn btn--ghost btn--sm" data-action="stop-scan" type="button">Stop</button>
-              </div>
-              <label class="pair__upload">
-                <svg class="ico" aria-hidden="true"><use href="#i-upload"></use></svg>
-                <span>No camera? Upload a picture of the code</span>
-                <input type="file" data-code-file accept="image/*" hidden>
-              </label>
-              <details class="pair__more">
-                <summary>Paste a code instead</summary>
-                <textarea class="textarea" data-paste-code rows="2" placeholder="Paste the code your cousin sent"></textarea>
-                <button class="btn btn--sm" data-action="paste-code" type="button">Use this code</button>
-                <p class="field__hint">If they gave you a reply code, paste it here too.</p>
-              </details>
-            </div>
-
-            <!-- Step 2b — show -->
-            <div class="pair__pane" data-pane="host" hidden>
-              <div class="pair__paneHead">
-                <button class="btn btn--ghost btn--sm" data-action="pair-back" type="button">Back</button>
-                <h2>Show this code</h2>
-              </div>
-              <div class="pair__qr" data-qr-frame></div>
-              <p class="field__hint pair__zoomhint">Hard to scan? Tap the code to make it fill the screen.</p>
-              <div class="pair__actions">
-                <button class="btn" data-action="show-code" type="button">
-                  <svg class="ico" aria-hidden="true"><use href="#i-qr"></use></svg>New code
-                </button>
-                <button class="btn btn--ghost btn--sm" data-action="copy" data-copy-from="[data-code-text]" type="button">
-                  <svg class="ico" aria-hidden="true"><use href="#i-copy"></use></svg>Copy
-                </button>
-                <label class="pair__toggle"><input type="checkbox" data-card-toggle> Pretty card</label>
-              </div>
-              <div data-code-out hidden>
-                <textarea class="textarea u-visually-hidden" data-code-text readonly rows="1"></textarea>
-                <details class="pair__more">
-                  <summary>They scanned it — paste their reply</summary>
-                  <textarea class="textarea" data-answer-box rows="2" placeholder="Paste the reply code"></textarea>
-                  <button class="btn btn--sm" data-action="finish-pair" type="button">Finish pairing</button>
-                </details>
-              </div>
-            </div>
-
-            <!-- Reply code, after scanning someone's offer -->
-            <div class="pair__pane" data-pane="reply" hidden>
-              <div class="pair__paneHead">
-                <button class="btn btn--ghost btn--sm" data-action="pair-back" type="button">Back</button>
-                <h2>Show them this reply</h2>
-              </div>
-              <div class="pair__qr" data-reply-frame></div>
-              <p class="field__hint pair__zoomhint">Tap the code to make it fill the screen.</p>
-              <textarea class="textarea" data-answer-out readonly rows="2"></textarea>
-              <p class="field__hint">Let your cousin scan this (or paste it back to them) and you're connected.</p>
-            </div>
-
-            <!-- Connected -->
-            <div class="pair__pane" data-pane="done" hidden>
-              <div class="pair__done">
-                <svg class="ico ico--xl" aria-hidden="true"><use href="#i-check"></use></svg>
-                <h2>Connected</h2>
-                <p class="u-muted" data-pair-donetext>The record is syncing. Sign in to your seat to take part.</p>
-                <div class="cluster">
-                  <a class="btn" href="members.html">Sign in to my seat</a>
-                  <a class="btn btn--ghost" href="floor.html">Go to the floor</a>
-                </div>
-              </div>
-            </div>
+      <!--
+        Connect is for TALKING to the cousins you are already joined up with —
+        the talkie, the chat, the notification log, and who is on the mesh.
+        ADDING a device is a different job with a different page (pair.html),
+        and conflating the two is how this page previously ended up as a second
+        copy of the pairing flow with the talkie link pointing at nothing.
+      -->
+      <header class="page-head page-head--strip page-head--flat">
+        <div class="shell shell--wide page-head__strip">
+          <div>
+            <h1 data-enter>Connect</h1>
+          </div>
+          <p class="page-head__lede" data-enter style="--i:1">
+            Talk to the cousins already on your mesh.
+          </p>
+          <div class="page-head__meta" data-enter style="--i:2">
+            <a class="btn btn--ghost btn--sm" href="pair.html">
+              <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-qr"></use></svg>Add a device</a>
           </div>
         </div>
+      </header>
 
-        <!-- The quiet way to start a brand-new chamber. Deliberately understated:
-             almost everyone is joining an existing one. -->
-        <p class="pair__founder">
-          Nobody to join?
-          <a href="#" data-action="register-chair">Register a new chamber</a>
-          <span class="u-mono pair__version" data-version title="Build version">v—</span>
-        </p>
+      <section class="section section--tight">
+        <div class="shell shell--wide">
+          <div class="comms">
+
+            <!-- Talkie. Gated: a voice on the mesh has to belong to a seat. -->
+            <section class="comms__card comms__card--talkie" id="talkie">
+              <header class="comms__head">
+                <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-talkie"></use></svg>
+                <h2>Push to talk</h2>
+              </header>
+
+              <div class="comms__body comms__body--center" data-me="seated" hidden>
+                <p class="u-muted">Hold the button, say your piece, let go. Every connected
+                  cousin hears it live.</p>
+                <div class="walkie">
+                  <button class="ptt" data-ptt type="button" data-transmitting="false">
+                    Talk
+                    <small>Hold to talk</small>
+                  </button>
+                  <div class="walkie__status" data-walkie-status>Hold the button to talk.</div>
+                </div>
+              </div>
+
+              <div class="comms__body comms__body--center" data-me="seat">
+                <p class="empty">Sign in to your seat to talk — a voice on the mesh belongs to
+                  a cousin, not to a device.</p>
+                <a class="btn btn--sm" href="members.html">Sign in to my seat</a>
+              </div>
+            </section>
+
+            <!-- Who is on the mesh right now -->
+            <section class="comms__card" id="devices">
+              <header class="comms__head">
+                <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-users"></use></svg>
+                <h2>Who's connected</h2>
+                <span class="comms__count" data-link-banner>
+                  <span data-link-count>0</span>
+                </span>
+              </header>
+              <div class="comms__body comms__body--scroll">
+                <div class="peers" data-peer-list>
+                  <p class="empty">No devices connected yet.
+                    <a href="pair.html">Add one →</a></p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Chamber chat -->
+            <section class="comms__card" id="chat">
+              <header class="comms__head">
+                <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chat"></use></svg>
+                <h2>Chamber chat</h2>
+                <span class="comms__note u-caps" data-chat-note></span>
+              </header>
+              <div class="comms__body comms__body--scroll">
+                <div class="chat__log" data-chat-log><p class="empty">No messages yet.</p></div>
+              </div>
+              <form class="chat__form" data-action="chat-send">
+                <label class="u-visually-hidden" for="chat-input">Message</label>
+                <input class="input" id="chat-input" name="text" maxlength="500"
+                       placeholder="Say something…" autocomplete="off">
+                <button class="btn" type="submit">Send</button>
+              </form>
+            </section>
+
+            <!-- Notifications -->
+            <section class="comms__card" id="notifications">
+              <header class="comms__head">
+                <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg>
+                <h2>What's happened</h2>
+                <span class="cluster comms__note">
+                  <button class="btn btn--ghost btn--sm" data-action="notif-enable">Enable pop-ups</button>
+                  <button class="btn btn--ghost btn--sm" data-action="notif-read-all">Mark all read</button>
+                </span>
+              </header>
+              <div class="comms__body comms__body--scroll" data-render="notifications">
+                <p class="empty">Nothing yet.</p>
+              </div>
+            </section>
+
+          </div>
+        </div>
       </section>
     </main>
 

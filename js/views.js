@@ -1008,6 +1008,26 @@ function renderTicker(state) {
    Registry
    ========================================================================== */
 
+
+/**
+ * One line for the Floor's desk card: what the chamber is actually being asked.
+ *
+ * The card replaced a "Cast your vote" button that said the same thing whether
+ * a roll call was open or the chamber had been quiet for a week. A button that
+ * cannot tell you there is nothing to vote on is furniture, so this says which
+ * question is open, or how many, or that none are.
+ */
+function renderFloorQuestion(state) {
+  // Renderers take the state and RETURN markup — renderAll assigns it. Taking
+  // (node, state) and writing textContent instead returns undefined, and the
+  // region duly renders the word "undefined".
+  if (!state?.votes) return h`See what is before the chamber`;
+  const open = select.openVotes(state);
+  if (!open.length) return h`Nothing before the chamber right now`;
+  if (open.length > 1) return h`${open.length} roll calls open`;
+  return h`${open[0].title || "A question is before the chamber"}`;
+}
+
 export const VIEWS = {
   session: renderSession,
   quorum: renderQuorum,
@@ -1016,6 +1036,7 @@ export const VIEWS = {
   roster: renderRoster,
   statusFeed: renderStatusFeed,
   openVotes: renderOpenVotes,
+  floorQuestion: renderFloorQuestion,
   whip: renderWhip,
   results: renderResults,
   histogram: renderHistogram,

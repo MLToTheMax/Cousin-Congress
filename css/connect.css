@@ -740,3 +740,80 @@ body:has(.pair) .pair { padding-block: var(--sp-4); }
   .pair:has([data-pane="host"]:not([hidden])) .pair__qr,
   .pair:has([data-pane="reply"]:not([hidden])) .pair__qr { width: var(--pair-qr, min(24rem, 86vw, 44vh)); }
 }
+
+/* ==========================================================================
+   Connect — the communication surfaces
+   ==========================================================================
+   Talking to cousins you are already joined with. Adding a device is a
+   different job on a different page; this one is the talkie, the chat, the
+   notification log and the mesh roster, laid out as a console so an evening
+   of use never turns into a scroll. */
+
+.comms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.comms__card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.comms__card--wide { grid-column: 1 / -1; }
+
+.comms__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 0 0 auto;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line-hair);
+}
+.comms__head h2 { margin: 0; font-size: var(--fs-md); }
+.comms__head > .ico { color: var(--c-blue-600); flex: none; }
+.comms__note { margin-inline-start: auto; font-size: var(--fs-2xs); color: var(--text-muted); }
+
+.comms__count {
+  margin-inline-start: auto;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-ink);
+}
+
+.comms__body { padding: var(--sp-4); }
+.comms__body[hidden] { display: none; }
+.comms__body--center { display: grid; gap: var(--sp-3); justify-items: center; text-align: center; }
+
+/* Each card owns its overflow, so a long chat or a busy notification log
+   scrolls inside its own box instead of growing the page. */
+.comms__body--scroll {
+  overflow-y: auto;
+  max-height: min(22rem, 42svh);
+  overscroll-behavior: contain;
+}
+
+.comms__card--talkie .walkie { border: 0; padding: 0; background: none; }
+
+@media (max-width: 52rem) {
+  .comms { grid-template-columns: 1fr; }
+  .comms__card--wide { grid-column: auto; }
+}
+
+/* A page head that is a label, not a hero — used by the console pages, where
+   the content below is the point and the heading should not eat the fold. */
+.page-head--flat { padding-block: var(--sp-4); }
+.page-head--flat h1 { font-size: clamp(1.5rem, 2.6vw, 2rem); margin: 0; }
+
+/* Connect is a console too, so the site colophon stands down here for the same
+   reason it does on the Floor, and the cards share the fold as a 2x2. */
+body:has(.comms) .colophon { display: none; }
+body:has(.comms) .ticker { display: none; }
+.comms__body--scroll { max-height: min(15rem, 30svh); }
