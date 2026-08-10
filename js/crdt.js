@@ -273,6 +273,89 @@ const REDUCERS = {
     };
   },
 
+  /**
+   * A seated cousin endorses moving the gavel to another seat.
+   *
+   * The last resort, for when the Chair's password is gone as well as the Chair's
+   * device — otherwise chair.recover is the answer and this is not needed. It is
+   * deliberately hard to reach in the interface and deliberately hard to use: it
+   * needs a supermajority of the seated chamber AND a Chair who has genuinely
+   * stopped answering.
+   *
+   * "Stopped answering" is not a promise about wall-clock time — replicas
+   * disagree about that — so it is measured in the record itself: the newest
+   * op anyone has authored, against the newest op authored by a Chair device.
+   * And any act by a Chair clears every pending petition outright (see
+   * clearPetitionsOnChairActivity below), so a Chair who is merely quiet for a
+   * fortnight and then speaks up cancels the whole thing by speaking up.
+   */
+  "chair.petition": (s, op) => {
+    const p = op.payload || {};
+    const seat = p.seat;
+    const by = p.memberId;
+    if (!seat || !by || !s.members?.[seat] || !s.members?.[by]) return;
+
+    const petitions = { ...(s.session?.chairPetitions || {}) };
+    const backers = { ...(petitions[seat] || {}) };
+    backers[by] = { at: op.hlc, kid: op.kid };
+    petitions[seat] = backers;
+    s.session = { ...s.session, chairPetitions: petitions };
+
+    // Does this endorsement carry it? Both tests, every time, on every replica.
+    const seated = Object.values(s.members || {}).filter((m) => m && !m._deleted).length;
+    const needed = Math.max(2, Math.ceil((seated * 2) / 3));
+    if (Object.keys(backers).length < needed) return;
+    if (!chairIsDormant(s)) return;
+
+    // Carried. The gavel moves to the seat, and the old Chair's device keys go
+    // with it — leaving them enrolled would hand the lost device the gavel back
+    // the moment it reappeared.
+    s.session = {
+      ...s.session,
+      chairSeat: seat,
+      chairKeys: {},
+      chairRequests: {},
+      chairPetitions: {},
+      chairSuccession: { seat, at: op.hlc, backers: Object.keys(backers).length, of: seated },
+    };
+  },
+
+  /** Withdraw an endorsement. A petition nobody still backs simply lapses. */
+  "chair.unpetition": (s, op) => {
+    const p = op.payload || {};
+    const petitions = { ...(s.session?.chairPetitions || {}) };
+    const backers = { ...(petitions[p.seat] || {}) };
+    delete backers[p.memberId];
+    if (Object.keys(backers).length) petitions[p.seat] = backers;
+    else delete petitions[p.seat];
+    s.session = { ...s.session, chairPetitions: petitions };
+  },
+
+  /**
+   * Self-enrol a Chair device by proving knowledge of the Chair's password.
+   *
+   * The escape hatch for a lost Chair device, where the ordinary route —
+   * "ask an existing Chair device to approve you" — has nobody left to ask.
+   * The op carries a signature over (room, kid, ts) made with a key that only
+   * the Chair's password can unwrap, so every replica checks it independently.
+   * The cryptographic check happens in store.ingest, where op signatures are
+   * already verified; by the time a reducer sees this the proof has held.
+   */
+  "chair.recover": (s, op) => {
+    const kid = op.payload?.kid || op.kid;
+    if (!kid) return;
+    const requests = { ...(s.session?.chairRequests || {}) };
+    delete requests[kid];
+    s.session = {
+      ...s.session,
+      chairKeys: {
+        ...(s.session.chairKeys || {}),
+        [kid]: { actor: op.actor, at: op.hlc, recovered: true },
+      },
+      chairRequests: requests,
+    };
+  },
+
   /** An established chair enrols another device as a chair, clearing any
    *  pending request from that device. */
   "chair.enroll": (s, op) => {
@@ -499,7 +582,42 @@ export const KNOWN_OP_TYPES = Object.freeze(Object.keys(REDUCERS));
 export function applyOp(state, op) {
   const reducer = REDUCERS[op.type];
   if (reducer && authorize(state, op)) reducer(state, op);
+  noteActivity(state, op);
   return state;
+}
+
+/**
+ * The two clocks the succession rule reads.
+ *
+ * `lastOpAt` is the newest moment anyone acted; `chairLastSeen` the newest
+ * moment a Chair device did. Both come out of the op's hybrid logical clock
+ * rather than Date.now(), so every replica computes the same answer from the
+ * same log no matter when it folds it — which is the whole reason a rule this
+ * consequential can live in the fold at all.
+ *
+ * Recorded for EVERY op, authorized or not: an op that fails authorisation
+ * still proves its author was awake, and a Chair whose device is misconfigured
+ * is present, not missing.
+ *
+ * Any act by a Chair device also wipes every pending petition. That is the
+ * "does not work while the Chair is active" rule in its strongest form — a
+ * Chair does not have to notice a petition or argue with it. Simply turning up
+ * ends it.
+ */
+function noteActivity(state, op) {
+  const at = hlcMs(op.hlc);
+  if (!at) return;
+  const session = state.session || {};
+  const next = { ...session };
+  if (at > (session.lastOpAt || 0)) next.lastOpAt = at;
+
+  if (op.kid && isChairKey(state, op.kid)) {
+    if (at > (session.chairLastSeen || 0)) next.chairLastSeen = at;
+    if (session.chairPetitions && Object.keys(session.chairPetitions).length) {
+      next.chairPetitions = {};
+    }
+  }
+  state.session = next;
 }
 
 /** Fold an ordered op list into materialized state. */
@@ -645,6 +763,32 @@ export class Log {
    ========================================================================== */
 
 const alive = (record) => record && !record._deleted;
+/**
+ * How long a Chair may be silent before the chamber may replace them.
+ * Long enough that a holiday, a flat battery or a school term cannot cost
+ * somebody the gavel; short enough that a genuinely lost device is recoverable
+ * within one family's patience.
+ */
+const CHAIR_DORMANT_MS = 21 * 24 * 60 * 60 * 1000;
+
+/** Milliseconds out of a hybrid logical clock stamp ("ms:counter:actor"). */
+const hlcMs = (hlc) => Number(String(hlc || "").split(":")[0]) || 0;
+
+/**
+ * Has the Chair stopped answering?
+ *
+ * Measured inside the record so every replica agrees: the newest moment anyone
+ * acted, against the newest moment a Chair device acted. A chamber with no
+ * Chair at all is trivially dormant; one whose Chair acted recently is not.
+ */
+function chairIsDormant(s) {
+  if (!hasChair(s)) return true;
+  const seen = s.session?.chairLastSeen || 0;
+  const now = s.session?.lastOpAt || 0;
+  if (!seen) return false; // a Chair we have never watched act is not presumed gone
+  return now - seen >= CHAIR_DORMANT_MS;
+}
+
 const listOf = (table) => Object.values(table).filter(alive);
 
 export const select = {
@@ -837,6 +981,16 @@ export const select = {
 
   /** Has any device claimed the chair yet? */
   chairEstablished: (s) => hasChair(s),
+  /** Is the Chair silent long enough that the chamber may replace them? */
+  chairDormant: (s) => chairIsDormant(s),
+  /** Milliseconds of Chair silence, for the interface to explain itself with. */
+  chairSilentFor: (s) => Math.max(0, (s.session?.lastOpAt || 0) - (s.session?.chairLastSeen || 0)),
+  /** How many endorsements a succession needs, and who has given them. */
+  chairPetition: (s, seat) => {
+    const backers = Object.keys(s.session?.chairPetitions?.[seat] || {});
+    const seated = Object.values(s.members || {}).filter((m) => m && !m._deleted).length;
+    return { backers, seated, needed: Math.max(2, Math.ceil((seated * 2) / 3)) };
+  },
   /** Is this key an enrolled chair device? */
   isChairDevice: (s, kid) => isChairKey(s, kid),
   /** Enrolled chair devices, for the Chair's dashboard. */

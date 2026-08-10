@@ -10,7 +10,7 @@
 
 import CONFIG from "./config.js";
 import { select } from "./crdt.js";
-import { copyText, download, qs, qsa, toast } from "./ui.js";
+import { confirmDialog, copyText, download, qs, qsa, toast } from "./ui.js";
 import { changeChairPin, claimSeat, requireChair } from "./auth.js";
 import { iconFingerprint } from "./icons.js";
 
@@ -154,6 +154,42 @@ const CLICK_ACTIONS = {
   /** Bind this browser to a seat — password-checked against the synced hash. */
   async "claim-seat"(store, el) {
     await claimSeat(el.dataset.member);
+  },
+
+  /**
+   * Endorse moving the gavel to another seat.
+   *
+   * The last resort, reached only through the folded-away corner of About, and
+   * inert unless the Chair has genuinely gone quiet. Nothing here decides the
+   * outcome: the endorsement is recorded and every replica counts it against
+   * the supermajority and the dormancy test for itself.
+   */
+  async "chair-petition"(store, el) {
+    const memberId = requireSeat(store);
+    if (!memberId) return;
+    const seat = el.dataset.seat || document.querySelector("[data-succession-seat]")?.value;
+    if (!seat) return toast("Choose which cousin should take the gavel.", "warn");
+    if (!store.select.chairDormant()) {
+      return toast("The Chair has been active recently. Ask them directly.", "warn");
+    }
+    const member = store.select.member(seat);
+    const ok = await confirmDialog({
+      icon: "🔨",
+      title: `Move the gavel to ${member?.name || "this seat"}?`,
+      hint: "This is recorded for everyone to see. It only takes effect if two-thirds of the chamber ask for the same thing and the Chair stays silent.",
+      confirmLabel: "Add my name",
+    });
+    if (!ok) return;
+    store.dispatch("chair.petition", { seat, memberId });
+    const tally = store.select.chairPetition(seat);
+    toast(`Recorded. ${tally.backers.length} of ${tally.needed} needed.`);
+  },
+
+  "chair-unpetition"(store, el) {
+    const memberId = requireSeat(store);
+    if (!memberId) return;
+    store.dispatch("chair.unpetition", { seat: el.dataset.seat, memberId });
+    toast("Your name is off the petition.");
   },
 
   "release-seat"(store) {

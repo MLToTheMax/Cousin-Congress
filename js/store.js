@@ -13,7 +13,7 @@ import CONFIG from "./config.js";
 import { Clock, Log, VV, isValidOp, select } from "./crdt.js";
 import { SCHEMA_VERSION, versionOf, validateEnvelope, LIMITS } from "./schema.js";
 import { migrations } from "./migrate.js";
-import { verifyOp, verifyIdentityOp, macOp, verifyOpMac } from "./crypto.js";
+import { verifyOp, verifyIdentityOp, macOp, verifyOpMac, verifyChairRecovery } from "./crypto.js";
 
 const DB_NAME = "cousin-congress";
 const DB_VERSION = 1;
@@ -545,9 +545,28 @@ export class Store extends EventTarget {
       }
 
       const verdict = await verifyOp(op, this.verifier);
-      if (verdict.ok) toFold.push(op);
-      else if (verdict.reason === "unknown-author") this.#quarantine(op);
-      else this.#emit("forgery", { op: { actor: op.actor, type: op.type }, reason: verdict.reason, source });
+      if (!verdict.ok) {
+        if (verdict.reason === "unknown-author") this.#quarantine(op);
+        else this.#emit("forgery", { op: { actor: op.actor, type: op.type }, reason: verdict.reason, source });
+        continue;
+      }
+
+      // Chair recovery carries its own proof on top of the op signature: a
+      // signature made with a key that only the Chair's password can unwrap.
+      // It is checked HERE rather than in authorize() because it needs
+      // WebCrypto and fold-time authorization is synchronous by design. An op
+      // that fails is a forgery attempt on the gavel itself, so it is reported
+      // as one rather than quietly dropped.
+      if (op.type === "chair.recover" && !(await this.#recoveryProofHolds(op))) {
+        this.#emit("forgery", {
+          op: { actor: op.actor, type: op.type },
+          reason: "bad-chair-recovery-proof",
+          source,
+        });
+        continue;
+      }
+
+      toFold.push(op);
     }
 
     if (!toFold.length) return [];
@@ -565,6 +584,26 @@ export class Store extends EventTarget {
     if (accepted.some((op) => op.type === "id.announce")) await this.#drainQuarantine();
 
     return accepted;
+  }
+
+  /**
+   * Does this chair.recover op carry a valid proof of the Chair's password?
+   *
+   * Verified against the recovery verifier in the CURRENT folded state — the
+   * public half of a keypair whose private half is stored wrapped under the
+   * password. A chamber with no verifier (founded before recovery existed) has
+   * nothing to check against, so recovery is refused rather than waved through.
+   */
+  async #recoveryProofHolds(op) {
+    const recovery = this.state?.session?.chairRecovery;
+    if (!recovery?.pub) return false;
+    const p = op.payload || {};
+    if (!p.kid || p.kid !== op.kid) return false; // must enrol the signer's own key
+    return verifyChairRecovery(recovery, p.proof, {
+      room: CONFIG.room,
+      kid: p.kid,
+      ts: p.ts,
+    });
   }
 
   /** Hold an op we cannot yet authenticate. It still replicates (so it is not

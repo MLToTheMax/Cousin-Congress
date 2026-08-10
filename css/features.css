@@ -1120,6 +1120,36 @@ dialog.ask[open] {
   letter-spacing: 0.04em;
 }
 
+/* Password field plus its show/hide eye. The eye sits inside the box rather
+   than beside it so the field keeps its centred, oversized, kid-legible look. */
+.ask__reveal {
+  position: relative;
+  display: block;
+}
+
+.ask__reveal .ask__input {
+  width: 100%;
+  padding-inline-end: 4.2rem;
+}
+
+.ask__eye {
+  position: absolute;
+  inset-inline-end: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.3em 0.6em;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  cursor: pointer;
+}
+.ask__eye:hover { color: var(--accent-ink); background: var(--bg-sunken); }
+.ask__eye:focus-visible { outline: 2px solid var(--c-blue-600); outline-offset: 2px; }
+
 .ask__actions {
   display: flex;
   flex-wrap: wrap;

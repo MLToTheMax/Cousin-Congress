@@ -33,6 +33,10 @@ const base = fold([
   { actor: OWNER, seq: 3, hlc: "000000000000005:00000:OWNER", type: "share.grant", payload: { id: "sh1", by: "m-al" }, v: 2, kid: OWNER },
   { actor: OWNER, seq: 4, hlc: "000000000000006:00000:OWNER", type: "chat.post", payload: { id: "c1", memberId: "m-al" }, v: 2, kid: OWNER },
   { actor: OWNER, seq: 5, hlc: "000000000000007:00000:OWNER", type: "amendment.file", payload: { id: "a1", author: "m-al" }, v: 2, kid: OWNER },
+  // A recovery verifier has to exist for chair.recover to be reachable at all —
+  // authorize() refuses recovery in a chamber that has nothing to check against.
+  // Only the public half matters here; the proof itself is checked in ingest.
+  { actor: CHAIR, seq: 1, hlc: "000000000000008:00000:CHAIR", type: "session.set", payload: { chairRecovery: { v: 1, pub: "stub" } }, v: 2, kid: CHAIR },
 ]);
 
 // A representative legitimate payload per op type (chair or owner may do it).
@@ -48,6 +52,12 @@ const payloadFor = (t) => {
     "chair.claim": { kid: CHAIR },
     "chair.enroll": { kid: "x" },
     "chair.request": { kid: "x" },
+    // Recovery enrols the SIGNER'S own key and carries a proof of the Chair's
+    // password. authorize() checks the shape; ingest checks the cryptography.
+    "chair.recover": { kid: OWNER, ts: 1, proof: "stub" },
+    // Succession is endorsed by a seated cousin in their own name.
+    "chair.petition": { seat: "m-al", memberId: "m-al" },
+    "chair.unpetition": { seat: "m-al", memberId: "m-al" },
     "status.post": { id: "s2", memberId: "m-al" },
     "status.retract": { id: "s1" },
     "cosponsor.add": { billId: "b1", memberId: "m-al" },

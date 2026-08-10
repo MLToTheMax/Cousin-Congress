@@ -554,3 +554,82 @@ pictures.
 `js/sync-peers.js` (mesh), `js/schema.js` + `js/migrate.js` (versioning).
 Conformance and adversarial tests: `tests/chacha.test.mjs`,
 `tests/crypto.test.mjs`, `tests/attacks/`.*
+
+## 17. Chair recovery — getting the gavel back
+
+Enrolling a new Chair device normally needs an existing Chair device to approve
+it. That is the right rule right up until the only Chair device is lost, at
+which point it deadlocks: the person who knows the password cannot get their new
+phone recognised, and nobody is left who can say yes.
+
+There are two ways out, and they are deliberately different in cost.
+
+### 17.1 The password route (ordinary)
+
+The naive version — "prove you know the password" — does not work. `chairAuth`
+is a salted hash sitting in replicated state, so **every replica already holds
+everything needed to fabricate a hash-based proof**. A proof has to rest on
+something that is *not* in the record.
+
+So when the Chair's password is set, the app mints an ECDSA P-384 keypair and
+stores:
+
+| field | where | who can use it |
+|---|---|---|
+| `chairRecovery.pub` | replicated state | everyone, to verify |
+| `chairRecovery.wrapped` | replicated state | only a password holder, to sign |
+
+`wrapped` is the PKCS#8 private key under AES-256-GCM, keyed by
+PBKDF2-SHA-256(password, salt, 310 000). The iteration count is high on purpose:
+this ciphertext replicates to every device in the chamber, which makes it the one
+piece of state worth grinding offline.
+
+Recovery is then: unwrap, sign `cc.chair.recover.v1 ‖ room ‖ kid ‖ ts`, and
+dispatch `chair.recover` carrying the signature. Every replica verifies it
+against `pub` independently — no surviving Chair device, and no server.
+
+The challenge binds **room**, **device key** and **timestamp**, so a proof
+observed on the wire cannot be re-aimed at another device, replayed into another
+chamber, or reused later.
+
+**Where it is checked.** The signature is verified in `store.ingest`, beside the
+op signatures, because it needs WebCrypto and `authorize()` is synchronous by
+design. `authorize()` still enforces the shape — the op must enrol the *signer's
+own* key, must carry a proof, and the chamber must have a verifier at all. A
+chamber founded before verifiers existed refuses recovery rather than waving it
+through.
+
+**What this trades away.** Anyone who learns the Chair's password can enrol a
+device without asking. That is a real widening: previously the password alone
+unlocked the gavel only on the device typing it. It is accepted deliberately —
+the alternative is a family permanently locked out of their own chamber — and it
+is why changing the password re-mints the verifier, so the *previous* password
+stops recovering anything.
+
+### 17.2 The supermajority route (last resort)
+
+For when the password is gone as well. Two-thirds of the seated chamber may move
+the gavel to another seat, subject to two conditions that are both checked in the
+fold, on every replica:
+
+1. **A supermajority.** `ceil(seats × 2 / 3)`, minimum 2, each endorsement signed
+   by the cousin making it — `authorize()` refuses an endorsement filed in
+   someone else's name.
+2. **A silent Chair.** Dormancy is measured *inside the record* — the newest op
+   anyone authored against the newest op a Chair device authored — never from
+   `Date.now()`. That is what lets every replica reach the same verdict from the
+   same history. The window is 21 days.
+
+And the strongest guard of the three: **any act by a Chair device clears every
+pending petition.** A Chair does not have to notice a petition or argue with it.
+Turning up ends it.
+
+When a succession carries, the old Chair's device keys are dropped along with the
+gavel — leaving them enrolled would hand the lost device its authority back the
+moment it resurfaced.
+
+The entry point is two `<details>` deep at the foot of the About page. That is
+not security by obscurity — the rules above are the security — it is so that
+nobody stumbles into a constitutional crisis looking for the standing orders.
+
+Covered by `tests/chair-recovery.test.mjs`.

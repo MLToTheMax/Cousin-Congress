@@ -95,6 +95,9 @@ export async function registerChair(store, sync) {
     hint: "You'll use this to sign in on any device. As the Chair you won't be asked for a separate gavel password on this one.",
     placeholder: "your secret word",
     confirmLabel: "Create the chamber",
+    password: true,
+    autocomplete: "new-password",
+    username: name.trim(),
   });
   if (!pin || !pin.trim()) return false;
 
