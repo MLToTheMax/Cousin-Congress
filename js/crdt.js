@@ -797,11 +797,18 @@ export const select = {
    */
   canTalk(s, memberId) {
     if (!memberId) return false;
-    if (select.member(s, memberId)?.frozen) return false;
+    const member = select.member(s, memberId);
+    if (!member || member.frozen) return false;
+    // Voice goes to every device in the chamber at once and carries a real
+    // person's actual voice, so it asks for more than "this device is on the
+    // mesh": the seat must be a claimed one with a password set. Otherwise a
+    // freshly-paired device could pick any unclaimed name off the roster and
+    // start talking as them. Text and votes are already bound to a key by the
+    // authorisation layer; this is the equivalent gate for audio.
+    if (!member.auth) return false;
     const policy = s.session?.talkiePolicy || "all";
     if (policy === "all") return true;
-    const member = select.member(s, memberId);
-    return Boolean(member?.canTalk);
+    return Boolean(member.canTalk);
   },
 
   /**
