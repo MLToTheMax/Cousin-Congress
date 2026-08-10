@@ -307,6 +307,9 @@ async function wireExtras(sync, appCtx = {}) {
   connect.mountLinkBanner(sync);
   connect.mountConnect(sync);
   connect.mountPairFlow(sync);
+
+  /* The Floor console measures its own headroom (see fitFloorConsole). */
+  fitFloorConsole();
   connect.mountWalkie(sync.walkie);
   connect.mountEventLog(store, sync);
 
@@ -478,3 +481,64 @@ boot().catch((error) => {
       "Live features could not start in this browser. Everything on this page is still readable.";
   }
 });
+
+/**
+ * Size the Floor console to the space that is genuinely left over.
+ *
+ * The console wants to fill the screen exactly once — no page scroll, no
+ * clipped pane. That means subtracting everything above it (masthead, ticker,
+ * connection banner, page header) and below it (footer margin), and none of
+ * that is a CSS variable: half is injected by the shell and all of it changes
+ * with viewport width as things wrap.
+ *
+ * It was a hard-coded 23rem, measured once on one screen. That is right on that
+ * screen and wrong everywhere else — on a short laptop the clamp's own minimum
+ * exceeded the space available, so the console overflowed the fold it exists to
+ * fit inside. Measuring the real offset costs one layout read per resize and is
+ * correct on every screen, including ones that did not exist when it was tuned.
+ */
+function fitFloorConsole() {
+  const app = document.querySelector(".floor-app");
+  if (!app) return;
+
+  const apply = () => {
+    // Read the distance from the viewport top to the console in its natural
+    // position. Clearing the override first stops each pass from measuring the
+    // previous pass's answer and drifting.
+    app.style.removeProperty("--floor-chrome");
+    const top = app.getBoundingClientRect().top + window.scrollY;
+    const breathingRoom = 24; // a little air under the console
+    app.style.setProperty("--floor-chrome", `${Math.max(0, Math.round(top + breathingRoom))}px`);
+
+    // Correct once against reality. The offset above accounts for what is
+    // ABOVE the console, but padding and margins below it are the page's
+    // business and not worth enumerating in JS. Measuring the leftover
+    // overflow and folding it back in gets there in one extra pass, and is
+    // right regardless of what the stylesheet does underneath.
+    const spill = Math.round(app.getBoundingClientRect().bottom - document.documentElement.clientHeight);
+    if (spill > 1) {
+      const chrome = parseFloat(app.style.getPropertyValue("--floor-chrome")) || 0;
+      app.style.setProperty("--floor-chrome", `${Math.round(chrome + spill)}px`);
+    }
+  };
+
+  apply();
+
+  // Re-measure when the chrome above can have changed height: a resize, an
+  // orientation flip, or the connection banner appearing when a peer arrives.
+  let pending = false;
+  const schedule = () => {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      apply();
+    });
+  };
+  addEventListener("resize", schedule, { passive: true });
+  addEventListener("orientationchange", schedule);
+  const banner = document.querySelector("[data-link-banner]");
+  if (banner && typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(schedule).observe(banner);
+  }
+}
