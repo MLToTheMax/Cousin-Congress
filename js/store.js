@@ -10,6 +10,41 @@
  */
 
 import CONFIG from "./config.js";
+
+/**
+ * How far an op's clock may sit from ours before we refuse it outright.
+ *
+ * Deliberately asymmetric. Ops legitimately arrive from the PAST — a cousin's
+ * tablet that spent the summer in a drawer syncs months of real history — so
+ * the backward window is wide. Nothing legitimate arrives from the FUTURE, so
+ * that side is tight; a device whose own clock is a day fast is the only
+ * honest case, which MAX_FUTURE covers.
+ */
+const MAX_PAST_MS = 400 * 24 * 60 * 60 * 1000;
+const MAX_FUTURE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * The floor below which a stamp cannot be honest at all: this app did not
+ * exist. Ops from the shipped snapshot are stamped at 0 and arrive as trusted
+ * imports, never over the wire, so they never meet this test.
+ */
+const CLOCK_FLOOR_MS = Date.UTC(2024, 0, 1);
+
+function withinClockWindow(hlc) {
+  const ms = Number(String(hlc || "").split(":")[0]);
+  if (!Number.isFinite(ms)) return false;
+  if (ms < CLOCK_FLOOR_MS) return false;
+
+  // If OUR OWN clock is obviously wrong — a tablet fresh from a factory reset,
+  // a phone whose battery died over the winter — we are in no position to
+  // judge anyone else's. Refusing everything would turn one child's wrong
+  // clock into a device that can never sync again, which is a far worse
+  // failure for a family app than the attack this window exists to stop.
+  const now = Date.now();
+  if (now < CLOCK_FLOOR_MS) return true;
+
+  return ms <= now + MAX_FUTURE_MS && ms >= now - MAX_PAST_MS;
+}
 import { Clock, Log, VV, isValidOp, select } from "./crdt.js";
 import { SCHEMA_VERSION, versionOf, validateEnvelope, LIMITS } from "./schema.js";
 import { migrations } from "./migrate.js";
@@ -534,12 +569,41 @@ export class Store extends EventTarget {
         continue;
       }
 
+      // Clock plausibility, on both sides.
+      //
+      // The envelope check bounds the HLC at year 2100, which is decades of
+      // room — and the fold reads wall time out of that stamp. Forward, a
+      // year-2100 op poisons session.lastOpAt permanently: dormancy is
+      // computed from it, so an active Chair reads as 74 years silent, and
+      // because compareOps sorts by the stamp no honest op can ever sort after
+      // it to undo the damage. Backward, an op stamped near the epoch sorts
+      // BEFORE the founding chair.claim, so authorize() evaluates it in a state
+      // where hasChair() is false and hands it founder authority over a
+      // chamber that was founded years ago.
+      //
+      // Neither is a legitimate shape. Bound untrusted ops to a window around
+      // this device's own clock: generous enough for a phone that has been off
+      // for a season or has a badly set clock, far tighter than either attack.
+      if (!trusted && !withinClockWindow(op.hlc)) {
+        this.#emit("foreign", { op: { actor: op.actor, type: op.type }, reason: "hlc out of window", source });
+        continue;
+      }
+
       if (!this.verifier) {
         // No crypto context. For a trusted import (or a unit test with no
         // transports) accept structurally. For genuine network input this can
         // only be the provisioning window — the coordinator wires the verifier
         // before any transport can deliver — so hold it rather than fold it.
-        if (trusted) toFold.push(op);
+        // A trusted import still does not get to install a Chair device on an
+        // unproven recovery: `trusted` means "this came from our own disk or a
+        // deliberate file import", which is exactly the shape a hostile export
+        // would also have.
+        if (trusted && op.type !== "chair.recover") toFold.push(op);
+        else if (trusted) this.#emit("forgery", {
+          op: { actor: op.actor, type: op.type },
+          reason: "chair-recovery-without-verifier",
+          source,
+        });
         else this.#quarantine(op);
         continue;
       }
@@ -551,20 +615,7 @@ export class Store extends EventTarget {
         continue;
       }
 
-      // Chair recovery carries its own proof on top of the op signature: a
-      // signature made with a key that only the Chair's password can unwrap.
-      // It is checked HERE rather than in authorize() because it needs
-      // WebCrypto and fold-time authorization is synchronous by design. An op
-      // that fails is a forgery attempt on the gavel itself, so it is reported
-      // as one rather than quietly dropped.
-      if (op.type === "chair.recover" && !(await this.#recoveryProofHolds(op))) {
-        this.#emit("forgery", {
-          op: { actor: op.actor, type: op.type },
-          reason: "bad-chair-recovery-proof",
-          source,
-        });
-        continue;
-      }
+      if (!(await this.#postVerifyGate(op, source))) continue;
 
       toFold.push(op);
     }
@@ -584,6 +635,38 @@ export class Store extends EventTarget {
     if (accepted.some((op) => op.type === "id.announce")) await this.#drainQuarantine();
 
     return accepted;
+  }
+
+  /**
+   * Policy applied to every op AFTER its signature verifies, on every path
+   * that can reach the log.
+   *
+   * This exists as one function because it previously existed as one inline
+   * block, and the quarantine drain — a second, equally valid route into
+   * `log.insert` — simply did not have it. That gap was a complete chair
+   * takeover for any device holding the room secret: send `chair.recover`
+   * with a nonsense proof BEFORE your own `id.announce`, get quarantined for
+   * "unknown-author", then announce; the drain re-checked signature and room
+   * MAC, never the proof, and released it into the fold, where authorize()
+   * passes `chair.recover` on shape alone by design.
+   *
+   * So: any future op type needing an async check belongs here and nowhere
+   * else. Returning false means the op is dropped and reported.
+   */
+  async #postVerifyGate(op, source) {
+    // Chair recovery carries a proof on top of the op signature: a signature
+    // made with a key that only the Chair's password can unwrap. It cannot be
+    // checked in authorize(), which is synchronous by design, so it is checked
+    // here. A failure is an attempt on the gavel itself — report it loudly.
+    if (op.type === "chair.recover" && !(await this.#recoveryProofHolds(op))) {
+      this.#emit("forgery", {
+        op: { actor: op.actor, type: op.type },
+        reason: "bad-chair-recovery-proof",
+        source,
+      });
+      return false;
+    }
+    return true;
   }
 
   /**
@@ -636,8 +719,13 @@ export class Store extends EventTarget {
       }
       const verdict = await verifyOp(op, this.verifier);
       if (verdict.ok) {
-        released.push(op);
+        // The SAME post-signature policy the inline path applies. Skipping it
+        // here was a total chair takeover: an op sent before its author's
+        // id.announce is quarantined for "unknown-author", and releasing it
+        // re-checked the signature and the room MAC but never the recovery
+        // proof — so a garbage proof walked in behind a valid signature.
         this.quarantine.delete(key);
+        if (await this.#postVerifyGate(op, "quarantine")) released.push(op);
       } else if (verdict.reason !== "unknown-author") {
         this.quarantine.delete(key); // it was a forgery all along
       }

@@ -41,7 +41,17 @@ for (const file of all) {
     console.log(`\x1b[32mPASS\x1b[0m ${rel}`);
   } else {
     failed.push(rel);
-    console.log(`\x1b[31mFAIL\x1b[0m ${rel}`);
+    // How it died, not just that it did. An assertion failure exits 1 with its
+    // own output; a crash, an OOM or an external kill arrives as a signal with
+    // nothing on stdout at all — and those two want completely different
+    // investigations. A suite that failed once and then passed six times in a
+    // row is the second kind, and without this line there is nothing to go on.
+    const how = res.signal
+      ? `killed by ${res.signal}`
+      : res.error
+        ? `spawn error: ${res.error.message}`
+        : `exit ${res.status}`;
+    console.log(`\x1b[31mFAIL\x1b[0m ${rel} (${how})`);
     process.stdout.write(
       (res.stdout || "").split("\n").slice(-6).join("\n") + "\n" + (res.stderr || "").split("\n").slice(-6).join("\n") + "\n"
     );

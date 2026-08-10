@@ -633,3 +633,76 @@ not security by obscurity — the rules above are the security — it is so that
 nobody stumbles into a constitutional crisis looking for the standing orders.
 
 Covered by `tests/chair-recovery.test.mjs`.
+
+## 18. Red team round 7 — the plumbing, not the primitives
+
+Six defects, four of them critical, found by an adversarial sweep with two
+independent skeptics per claim. Every one is fixed and pinned by
+`tests/redteam-round7.test.mjs`.
+
+The result worth internalising is not any individual bug. **The cryptography
+held everywhere it was attacked** — the seal, the room MAC, the key directory,
+the recovery ECDSA construction, guest scoping, pairing tickets, and every
+HTML-escaping path survived direct assault with executable proofs. What broke
+was the *plumbing around* the trust boundary, in four recognisable shapes:
+
+**A second code path that forgot a check.** `chair.recover`'s password proof was
+verified in `ingest()`'s inline loop and nowhere else. `#drainQuarantine` is an
+equally valid road into `log.insert` — it re-checked the signature and the room
+MAC and released the op unproven. So: send `chair.recover` with a garbage proof
+*before* your own `id.announce`, get quarantined for "unknown-author", then
+announce. The gavel, to anyone holding the room secret. Fixed by factoring one
+`#postVerifyGate(op, source)` that both paths call, so the next async-verified
+op type cannot be forgotten on one of them.
+
+**A tally whose halves were measured at different times.** `chair.petition`
+banked endorsements permanently but recomputed the supermajority denominator
+from the *live* roster. Endorse from seats you control, retract those seats, and
+the historical numerator carries a chamber that never agreed — the audit record
+even read `{backers: 4, of: 4}`, unanimous. Fixed by recounting backers against
+current standing (still seated, still holding the key they signed with), and by
+making the selector use the identical expression so the interface cannot show a
+tally the rule disagrees with.
+
+**A clock trusted from the wire.** `session.set` shallow-merged its payload, so
+`lastOpAt` and `chairLastSeen` — the only two inputs to `chairIsDormant()` —
+were settable by any op. Forward: an active Chair reads as decades silent and a
+supermajority deposes them. Backward: a lost Chair reads as eternally present
+and the chamber's last-resort recovery is destroyed forever. Fixed by stripping
+every fold-owned field, and by bounding HLC plausibility at ingest.
+
+The ingest bound deserves a note, because the obvious fold-side fix is wrong.
+Capping how far one op may advance the clock was tried and reverted: dormancy
+exists to measure a long real silence, so a chamber quiet for a month must be
+able to record a month. Wall-clock plausibility needs a trusted `now`, and the
+fold has none — it must stay a pure function of the log so replicas converge. So
+the window lives at the only layer with a clock, and it **fails open when our own
+clock is unusable**: a tablet fresh from a factory reset must not become a device
+that can never sync again.
+
+**A sanitiser applied to the wrong grammar.** `esc()` escapes `& < > " '` — correct
+for element content and for quoted attribute values. It does not escape the
+space character, and `class="member member--${raw(esc(presence))}"` is not an
+opaque value: a space ends one class token and starts another. A cousin setting
+their own presence to `away frozen-overlay` added the Chair's chamber-lock class
+to their own roster card — `position: fixed; inset: 0` over the whole viewport,
+carrying their own name and text. A convincing "the Chair has locked the
+chamber, send the password to…" screen, built from the app's own CSS,
+replicated to every device and surviving reload. Fixed with `cls()` in `js/ui.js`
+(identifier characters only) at all four sites.
+
+**And one design that was hardened in name only.** The recovery key is wrapped
+under PBKDF2 at 310,000 iterations *because the blob replicates*. But the same
+password was also stored as a single SHA-256 `chairAuth`, in the same replicated
+record. Nobody grinds the expensive verifier when a cheap one for the same
+secret sits beside it — one hash per candidate instead of 310,000, and on a GPU
+that is a factor of about a million. Fixed by stretching `chairAuth` (and seat
+passwords, which replicate for the same reason) with the same KDF. The algorithm
+rides in the hash prefix, so chambers founded earlier keep verifying; and a
+legacy hash is re-stored at full strength the moment it is next proved, which is
+the one time we legitimately hold the plaintext.
+
+The general lesson for this codebase: **a check that exists once is a check that
+exists on one path.** Where a verification cannot live in `authorize()` — because
+it is async, or needs a clock — it needs a single named gate that every route
+into the log calls, and a test that exercises the route nobody thinks about.

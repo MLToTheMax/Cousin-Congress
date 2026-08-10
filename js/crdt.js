@@ -254,9 +254,26 @@ function put(table, key, patch, op) {
  */
 const REDUCERS = {
   "session.set": (s, op) => {
-    // chairKeys / chairRequests are managed only by their own binding ops, so a
-    // session.set can never smuggle a chair key in through a wholesale merge.
-    const { chairKeys, chairRequests, ...rest } = op.payload || {};
+    // Everything the FOLD owns is stripped before the merge. A session.set is a
+    // chamber setting — a title, a sitting number — never a way to write the
+    // bookkeeping that authority is computed from.
+    //
+    // chairKeys / chairRequests were always excluded. The rest were not, and
+    // that was a full chair takeover in two directions: `lastOpAt` and
+    // `chairLastSeen` are the only two inputs to chairIsDormant(), so writing
+    // them either declared an active Chair dormant (letting a supermajority
+    // depose them) or declared a lost Chair eternally present (destroying the
+    // chamber's last-resort recovery forever). chairSeat, chairPetitions and
+    // chairSuccession are decided by their own reducers for the same reason.
+    // chairSeat stays settable: it is how founding binds the gavel to a seat
+    // (founding.js) and how a Chair hands it on, and session.set is already
+    // chair-gated. What must NOT be settable is the bookkeeping the fold
+    // computes for itself.
+    const {
+      chairKeys, chairRequests, chairPetitions, chairSuccession,
+      lastOpAt, chairLastSeen,
+      ...rest
+    } = op.payload || {};
     s.session = { ...s.session, ...rest, _hlc: op.hlc };
   },
 
@@ -293,7 +310,11 @@ const REDUCERS = {
     const p = op.payload || {};
     const seat = p.seat;
     const by = p.memberId;
-    if (!seat || !by || !s.members?.[seat] || !s.members?.[by]) return;
+    // A tombstoned seat may not endorse, and may not be endorsed INTO. Both
+    // records must be live: member.retract only merges `_deleted: true` and
+    // leaves `keys` intact, so a retracted seat still satisfies ownsMember()
+    // and would otherwise keep voting from the grave.
+    if (!seat || !by || !isLiveMember(s, seat) || !isLiveMember(s, by)) return;
 
     const petitions = { ...(s.session?.chairPetitions || {}) };
     const backers = { ...(petitions[seat] || {}) };
@@ -302,9 +323,18 @@ const REDUCERS = {
     s.session = { ...s.session, chairPetitions: petitions };
 
     // Does this endorsement carry it? Both tests, every time, on every replica.
-    const seated = Object.values(s.members || {}).filter((m) => m && !m._deleted).length;
+    //
+    // The numerator has to be recounted against the CURRENT roster, not taken
+    // as the size of the banked set. Endorsements are banked permanently, but
+    // the denominator is a live count — so a cousin who endorsed from several
+    // seats and then retracted them shrank `needed` while their historical
+    // backing stayed, and one device carried a "unanimous" succession on its
+    // own. Count only backers who are still seated AND still hold the key they
+    // endorsed with.
+    const live = liveBackers(s, backers);
+    const seated = liveMembers(s).length;
     const needed = Math.max(2, Math.ceil((seated * 2) / 3));
-    if (Object.keys(backers).length < needed) return;
+    if (live.length < needed) return;
     if (!chairIsDormant(s)) return;
 
     // Carried. The gavel moves to the seat, and the old Chair's device keys go
@@ -316,7 +346,7 @@ const REDUCERS = {
       chairKeys: {},
       chairRequests: {},
       chairPetitions: {},
-      chairSuccession: { seat, at: op.hlc, backers: Object.keys(backers).length, of: seated },
+      chairSuccession: { seat, at: op.hlc, backers: live.length, of: seated },
     };
   },
 
@@ -605,6 +635,18 @@ export function applyOp(state, op) {
  * ends it.
  */
 function noteActivity(state, op) {
+  // Deliberately takes the stamp at face value.
+  //
+  // The tempting hardening here — cap how far one op may advance the clock —
+  // is wrong, and was tried: dormancy exists precisely to measure a long real
+  // silence, so a chamber quiet for a month must be able to record a month.
+  // Capping the step makes a genuine 30-day gap unrepresentable and the
+  // feature unreachable.
+  //
+  // Wall-clock plausibility needs a trusted `now`, and the fold has none — it
+  // must be a pure function of the log so every replica agrees. So the bound
+  // lives at the only layer that does have a clock: store.js rejects ops
+  // outside a window around this device's time before they are ever folded.
   const at = hlcMs(op.hlc);
   if (!at) return;
   const session = state.session || {};
@@ -769,6 +811,27 @@ const alive = (record) => record && !record._deleted;
  * somebody the gavel; short enough that a genuinely lost device is recoverable
  * within one family's patience.
  */
+/** Members that still exist — a tombstone is not a cousin. */
+const liveMembers = (s) => Object.values(s.members || {}).filter((m) => m && !m._deleted);
+
+const isLiveMember = (s, id) => Boolean(id && s.members?.[id] && !s.members[id]._deleted);
+
+/**
+ * Endorsements that still count.
+ *
+ * Banked endorsements are historical; standing is current. A backer counts only
+ * if their seat is still live AND still holds the key that signed the
+ * endorsement — so retracting a seat, or the Chair resetting its keys, takes
+ * the endorsement with it instead of leaving a vote behind.
+ */
+const liveBackers = (s, backers) =>
+  Object.keys(backers || {}).filter((id) => {
+    const member = s.members?.[id];
+    if (!member || member._deleted) return false;
+    const kid = backers[id]?.kid;
+    return Boolean(kid && member.keys?.[kid]);
+  });
+
 const CHAIR_DORMANT_MS = 21 * 24 * 60 * 60 * 1000;
 
 /** Milliseconds out of a hybrid logical clock stamp ("ms:counter:actor"). */
@@ -987,8 +1050,11 @@ export const select = {
   chairSilentFor: (s) => Math.max(0, (s.session?.lastOpAt || 0) - (s.session?.chairLastSeen || 0)),
   /** How many endorsements a succession needs, and who has given them. */
   chairPetition: (s, seat) => {
-    const backers = Object.keys(s.session?.chairPetitions?.[seat] || {});
-    const seated = Object.values(s.members || {}).filter((m) => m && !m._deleted).length;
+    // Exactly the reducer's arithmetic. A selector that counted banked
+    // endorsements while the reducer counted live ones would show a chamber a
+    // tally that never carries, or one that carries without warning.
+    const backers = liveBackers(s, s.session?.chairPetitions?.[seat] || {});
+    const seated = liveMembers(s).length;
     return { backers, seated, needed: Math.max(2, Math.ceil((seated * 2) / 3)) };
   },
   /** Is this key an enrolled chair device? */
