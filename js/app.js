@@ -170,6 +170,16 @@ async function boot() {
     /* icons are decoration — never let them stop the chamber booting */
   }
 
+  // The build label in the footer, so "which version are you on?" is always
+  // answerable without opening a file.
+  try {
+    const { mountVersion, VERSION } = await import("./version.js");
+    mountVersion();
+    window.CousinCongress = { ...(window.CousinCongress || {}), version: VERSION };
+  } catch {
+    /* a missing label never blocks the chamber */
+  }
+
   watchReveal = initReveal();
 
   const sync = new SyncCoordinator(store);
