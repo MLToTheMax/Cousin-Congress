@@ -145,7 +145,12 @@ export class WalkieTalkie extends EventTarget {
       this.#emit("error", { message: "The Chair hasn't given this seat the talkie yet." });
       return;
     }
-    if (!this.enabled && !(await this.enable())) return;
+    // The microphone is opened when the button goes DOWN and closed when it comes
+    // up (see stopTransmit). Holding an open stream between transmissions would
+    // leave the browser's recording indicator lit in a house full of children,
+    // which is exactly the thing a push-to-talk button should not do. The
+    // permission itself is remembered by the browser, so re-acquiring is quick.
+    if (!this.stream && !(await this.enable())) return;
 
     const mime = MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) || "";
     const chunks = [];
@@ -186,8 +191,21 @@ export class WalkieTalkie extends EventTarget {
     } catch {
       /* already stopped */
     }
+    // Release the microphone the moment the button comes up. The recorder has
+    // already captured the clip (onstop broadcasts it), so dropping the tracks
+    // here costs nothing and turns the browser's recording indicator off between
+    // transmissions instead of leaving it lit.
+    this.#releaseMic();
     this.#beep(560, 0.06);
     this.#emit("transmit-stop");
+  }
+
+  /** Stop every track and forget the stream. The permission survives. */
+  #releaseMic() {
+    for (const track of this.stream?.getTracks() || []) track.stop();
+    this.stream = null;
+    this.enabled = false;
+    this.#emit("mic-released");
   }
 
   async #broadcast(blob) {

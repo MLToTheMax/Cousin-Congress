@@ -43,22 +43,24 @@
       </label>
 
       <nav class="nav" aria-label="Primary">
-        <a class="nav__link" href="floor.html">🪑 The Floor</a>
-        <a class="nav__link" href="voting.html">🙋 Votes</a>
+        <a class="nav__link" href="floor.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-floor"></use></svg>The Floor</a>
+        <a class="nav__link" href="members.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-members"></use></svg>Members</a>
+        <a class="nav__link" href="connect.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-connect"></use></svg>Connect</a>
+        <a class="nav__link" href="news.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-news"></use></svg>Newsroom</a>
         <div class="nav__group">
-          <a class="nav__link" href="bills.html">📜 Bills</a>
+          <a class="nav__link" href="voting.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-votes"></use></svg>Votes</a>
           <ul class="nav__menu">
+            <li><a href="voting.html">Voting <small>Cast a ballot, watch the tally</small></a></li>
             <li><a href="bills.html">Bill tracker <small>Every measure on file</small></a></li>
             <li><a href="draft.html">Drafting studio <small>Write and introduce a bill</small></a></li>
+            <li><a href="docket.html">Docket <small>The order of business</small></a></li>
+            <li><a href="about.html">About &amp; rules <small>How the chamber works</small></a></li>
           </ul>
         </div>
-        <a class="nav__link" href="docket.html" aria-current="page">📅 Docket</a>
-        <a class="nav__link" href="news.html">📰 Newsroom</a>
-        <a class="nav__link" href="members.html">👥 Members</a>
-        <a class="nav__link" href="about.html">🧭 About</a>
-        <a class="nav__link" href="connect.html">🔗 Connect</a>
-        <a class="nav__link" href="connect.html#talkie">📻 Talkie</a>
-        <a class="nav__link notif-bell" href="connect.html#notifications" aria-label="Notifications">🔔<span data-notif-count hidden>0</span></a>
+        <span class="nav__tools">
+          <a class="nav__icon" href="connect.html#talkie" data-when="authed" aria-label="Push to talk" title="Push to talk"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-talkie"></use></svg></a>
+          <a class="nav__icon notif-bell" href="connect.html#notifications" aria-label="Notifications" title="Notifications"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span data-notif-count hidden>0</span></a>
+        </span>
         <a class="btn btn--sm nav__cta" href="voting.html">Cast your vote</a>
       </nav>
     </div>
@@ -78,12 +80,13 @@
       </div>
     </div>
 
-    <div class="link-banner" data-link-banner>
+    <a class="link-banner" data-link-banner href="pair.html" title="Devices connected — tap to add one">
       <span class="link-banner__dot"></span>
       <span class="link-banner__count" data-link-count>0</span>
       <span class="link-banner__text" data-link-text>not connected</span>
-      <a class="link-banner__cta" data-link-cta href="connect.html">Connect</a>
-    </div>
+      <span class="link-banner__seal" data-congress-seal aria-hidden="true"></span>
+      <span class="link-banner__cta" data-link-cta><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-qr"></use></svg>Add a device</span>
+    </a>
 
     <div class="shell announce-rail" data-render="announcements"></div>
 

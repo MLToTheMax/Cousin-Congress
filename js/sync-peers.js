@@ -96,6 +96,45 @@ async function decodePayload(code) {
   return JSON.parse(await gunzip(bytes));
 }
 
+/**
+ * Shrink an SDP before it goes in a pairing code.
+ *
+ * ICE candidates dominate the payload: a laptop advertises host candidates for
+ * every interface plus TCP variants, and each line is ~100 characters. None of
+ * that survives usefully in a QR — a denser code is a code a phone camera has to
+ * work harder to read, and past a point cannot read at all.
+ *
+ * So we keep only what actually establishes a connection: UDP host candidates
+ * (same-network pairing, the common case) and server-reflexive ones (different
+ * networks), capped, with TCP and duplicate-priority lines dropped. Everything
+ * removed is an ALTERNATIVE route, never a required field — the ufrag, pwd,
+ * fingerprint, setup and sctp lines are untouched — so a slimmed offer still
+ * connects wherever the full one would, it just carries fewer spare paths.
+ */
+const MAX_CANDIDATES = 6;
+function slimSdp(sdp) {
+  if (typeof sdp !== "string" || !sdp) return sdp;
+  const kept = [];
+  const out = [];
+  for (const line of sdp.split(/\r?\n/)) {
+    if (!line) continue;
+    if (!line.startsWith("a=candidate:")) {
+      out.push(line);
+      continue;
+    }
+    // "a=candidate:foundation component transport priority ip port typ TYPE ..."
+    const parts = line.split(" ");
+    const transport = (parts[2] || "").toLowerCase();
+    const typ = parts[parts.indexOf("typ") + 1];
+    if (transport !== "udp") continue;                 // TCP candidates: rarely used, always verbose
+    if (typ !== "host" && typ !== "srflx") continue;   // prflx/relay are discovered live
+    if (kept.length >= MAX_CANDIDATES) continue;
+    kept.push(line);
+    out.push(line);
+  }
+  return out.join("\r\n") + "\r\n";
+}
+
 /** Pull the DTLS fingerprint out of an SDP so the app handshake can bind to it. */
 function dtlsFingerprint(sdp) {
   const match = /a=fingerprint:sha-256 ([0-9A-Fa-f:]+)/.exec(sdp || "");
@@ -342,6 +381,30 @@ export class PeerTransport extends EventTarget {
       });
     }
     link.safety = await link.session.safetyWord(SAFETY_ALPHABET);
+
+    // A device the Chair has barred never gets past the handshake, wherever it
+    // reconnects from — the ban lives in the replicated record, not on one
+    // device, so every peer enforces it.
+    const barred = this.security.isDeviceRevoked?.(link.session.peerFingerprint);
+    if (barred) {
+      this.#log("refused", remoteActor, { fingerprint: link.session.peerFingerprint });
+      this.#drop(remoteActor, "device revoked by the Chair");
+      return;
+    }
+
+    // Tell the coordinator who just joined, so it can be written into the
+    // chamber's device roster and the Chair can be notified.
+    this.dispatchEvent(
+      new CustomEvent("peersecured", {
+        detail: {
+          peer: remoteActor,
+          fingerprint: link.session.peerFingerprint,
+          address: link.address || null,
+          safety: link.safety,
+          label: link.label || "",
+        },
+      })
+    );
     this.#log("connected", remoteActor, {
       guest: Boolean(link.guestScope),
       safety: link.safety,
@@ -412,6 +475,18 @@ export class PeerTransport extends EventTarget {
       // Give the notice a beat to flush, then drop the link entirely.
       setTimeout(() => this.#drop(actor, "share revoked"), 250);
     }
+  }
+
+  /** Cut off whichever live link belongs to this device fingerprint. */
+  dropByFingerprint(kid) {
+    if (!kid) return false;
+    for (const [actor, link] of this.peers) {
+      if (link.session?.peerFingerprint === kid) {
+        this.#drop(actor, "device revoked by the Chair");
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Relay a message to every peer EXCEPT one — the heart of chain gossip. */
@@ -567,13 +642,14 @@ export class PeerTransport extends EventTarget {
       actor: this.actor,
       id,
       idKey: this.security.identity ? b64(this.security.identity.spki) : null,
+      // (sdp is slimmed below — see slimSdp)
       // A guest ticket carries NO room secret: a scoped reader must not be
       // handed the key to the whole chamber. Its session uses a per-share
       // secret instead, so it literally cannot decrypt anything but its item.
       psk: scope ? b64(scope.secret) : this.security.roomSecret ? b64(this.security.roomSecret) : null,
       scope: scope ? { shareId: scope.shareId, type: scope.type, id: scope.id } : null,
       dtls: dtlsFingerprint(sdp),
-      sdp,
+      sdp: slimSdp(sdp),
     };
   }
 

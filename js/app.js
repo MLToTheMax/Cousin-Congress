@@ -161,6 +161,15 @@ function schedulePaint(sync) {
    -------------------------------------------------------------------------- */
 
 async function boot() {
+  // The interface icon sprite goes in first, before anything renders markup
+  // that references it. (Cousins keep their emoji; the chrome uses these.)
+  try {
+    const { installSprite } = await import("./icons-ui.js");
+    installSprite();
+  } catch {
+    /* icons are decoration — never let them stop the chamber booting */
+  }
+
   watchReveal = initReveal();
 
   const sync = new SyncCoordinator(store);
@@ -278,6 +287,7 @@ async function wireExtras(sync) {
   const connect = await import("./connect.js");
   connect.mountLinkBanner(sync);
   connect.mountConnect(sync);
+  connect.mountPairFlow(sync);
   connect.mountWalkie(sync.walkie);
   connect.mountEventLog(store, sync);
 

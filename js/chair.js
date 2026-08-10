@@ -40,6 +40,7 @@ export function mountChairDashboard(store, sync, ctx) {
         ${trafficPanel(sync, traffic)}
         ${membersPanel(members, session)}
         ${devicesPanel(store)}
+        ${deviceRosterPanel(store)}
         ${connectionsPanel(traffic, sync)}
         ${securityPanel(flags, security)}
         ${historyPanel(log)}
@@ -161,6 +162,48 @@ function devicesPanel(store) {
       ${requestRows}
       ${seatRows ? `<hr style="border:none;border-top:1px solid var(--line);margin:var(--sp-3) 0">${seatRows}` : ""}
       ${chairRows}
+    </section>`;
+}
+
+/**
+ * Every device that has ever joined this chamber — not just what is connected
+ * right now. This is the Chair's answer to "who is that?": a name, the network
+ * it came from, when it first appeared and when it was last seen, and a way to
+ * bar it. The ban lives in the replicated record, so every peer enforces it.
+ */
+function deviceRosterPanel(store) {
+  const devices = Object.values(store.state.devices || {}).sort((a, b) =>
+    String(b.lastSeen || "").localeCompare(String(a.lastSeen || ""))
+  );
+  if (!devices.length) {
+    return `<section class="dash__panel"><h3>Devices</h3><p class="empty">No devices have joined yet.</p></section>`;
+  }
+  const when = (hlc) => {
+    const d = hlc ? new Date(Number(String(hlc).split(":")[0])) : null;
+    return d && !Number.isNaN(d.getTime()) ? d.toLocaleString() : "—";
+  };
+  const rows = devices
+    .slice(0, 30)
+    .map((d) => {
+      const member = d.memberId ? store.select.member(d.memberId) : null;
+      const who = member ? `${member.icon || ""} ${member.name}` : d.label || "Unidentified device";
+      return `<div class="conn-row${d.revoked ? " conn-row--revoked" : ""}">
+        <span class="conn-row__badge conn-row__badge--${d.revoked ? "guest" : "member"}">${d.revoked ? "barred" : "device"}</span>
+        <span><strong>${esc(who)}</strong><br>
+          <span class="u-mono u-muted" style="font-size:var(--fs-2xs)">${esc(String(d.id).slice(0, 12))}…</span></span>
+        <span class="conn-row__meta">${esc(d.ip || "network unknown")} · first ${esc(when(d.firstSeen))} · last ${esc(when(d.lastSeen))}</span>
+        <span class="cluster" style="gap:var(--sp-1)">
+          ${d.revoked
+            ? `<button class="btn btn--ghost btn--sm" data-action="unrevoke-device" data-kid="${esc(d.id)}">Allow again</button>`
+            : `<button class="btn btn--danger btn--sm" data-action="revoke-device" data-kid="${esc(d.id)}">Bar this device</button>`}
+        </span>
+      </div>`;
+    })
+    .join("");
+  return `<section class="dash__panel" style="grid-column:1/-1">
+      <h3>Devices that have joined</h3>
+      <p class="u-muted" style="font-size:var(--fs-xs)">Barring a device disconnects it and blocks it everywhere, not just here.</p>
+      <div class="stack">${rows}</div>
     </section>`;
 }
 

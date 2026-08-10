@@ -232,6 +232,7 @@ export const emptyState = () => ({
   announcements: {}, // chamber-wide notices, shown even to unseated devices
   shares: {}, // live scoped read-grants for guests, revocable
   chat: {}, // chamber chat messages (Chair enables per member)
+  devices: {}, // kid -> every device that has ever connected (Chair roster)
 });
 
 /** Shallow last-writer-wins merge into a keyed entity table. */
@@ -443,6 +444,40 @@ const REDUCERS = {
   "share.grant": (s, op) =>
     put(s.shares, op.payload.id, { revoked: false, ...op.payload, byKid: op.kid || null }, op),
   "share.revoke": (s, op) => put(s.shares, op.payload.id, { revoked: true, revokedBy: op.payload.by }, op),
+
+  /**
+   * A device joined the mesh. Recorded by whoever observed the connection (the
+   * observer sees the peer's address; the peer itself reports its name), so the
+   * Chair has a durable roster of what has ever connected — not just what is
+   * connected right now — with the details needed to spot a stranger.
+   */
+  "device.seen": (s, op) => {
+    const { kid } = op.payload || {};
+    if (!kid) return;
+    const prev = s.devices[kid] || {};
+    s.devices[kid] = {
+      ...prev,
+      ...op.payload,
+      id: kid,
+      firstSeen: prev.firstSeen || op.hlc,
+      lastSeen: op.hlc,
+      seenBy: op.actor,
+      _hlc: op.hlc,
+    };
+  },
+
+  /** The Chair bars a device from the chamber. Enforced on connect. */
+  "device.revoke": (s, op) => {
+    const { kid } = op.payload || {};
+    if (!kid) return;
+    s.devices[kid] = {
+      ...(s.devices[kid] || {}),
+      id: kid,
+      revoked: true,
+      revokedAt: op.hlc,
+      _hlc: op.hlc,
+    };
+  },
 
   /** Chamber chat. Enabled per member by the Chair (see canChat). */
   "chat.post": (s, op) => put(s.chat, op.payload.id, op.payload, op),
